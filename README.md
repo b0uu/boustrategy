@@ -21,3 +21,5 @@ The core challenge is building an investment harness that is able to deeply cons
 - obey deterministic risk and execution constraints
 
 - and explain every actionable and non actionable insight
+
+To see more details and my comprehensive vision + structure, see `boustrategy_spec.md`
