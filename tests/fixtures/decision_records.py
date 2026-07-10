@@ -11,6 +11,7 @@ def valid_decision_record_data() -> dict:
         "asset_type": "EQUITY",
         "decision": "BUY",
         "theme_ids": ["ai_semiconductors"],
+        "primary_theme_id": "ai_semiconductors",
         "strategy_belief_ids": ["SB-002"],
         "trigger_id": "trig_001",
         "operating_mode": "CAPITAL_DEPLOYMENT",

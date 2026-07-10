@@ -61,11 +61,15 @@ This would be valid schema but rejected due to policy evaluation.
 ## Schema rules
 - enum values are valid
 - weights are between 0 and 1
-- ticker is present and uppercased
+- ticker is trimmed and uppercased, contains 1-12 characters from `A-Z`, digits, `.`, or `-`, and starts with a letter
+- timestamps are timezone-aware
+- source claim `source_type` is limited to the source vocabulary
 - source claim confidence is between 0 and 1
 - final target weight does not exceed proposed target weight
 - actionable decisions have a refined thesis
-- X usage has a summary when `used` is true
+- X usage fields are internally consistent across `used`, `usage_type`, and `confirmed_outside_x`
+- `extraordinary_opportunity=true` requires a non-empty `extraordinary_justification`
+- `primary_theme_id` must be one of `theme_ids` and is required for BUY and ADD
 
 ## Policy rules
 - reject BUY in RED.
