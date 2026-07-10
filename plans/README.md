@@ -23,7 +23,7 @@ runnable at any point in parallel (it is research-only and touches no code).
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 001  | Tighten InvestmentDecisionRecord schema + escalation/primary-theme fields | P1 | S | — | DONE |
-| 002  | Correct policy gate scoping (escalation gate for RED/derisking; weight and X rule fixes) | P1 | S | 001 (hard) | TODO |
+| 002  | Correct policy gate scoping (escalation gate for RED/derisking; weight and X rule fixes) | P1 | S | 001 (hard) | DONE |
 | 003  | Portfolio-aware policy rules (quotas, holdings, theme cap); remove dead sizing field | P2 | M | 001, 002 (hard) | TODO |
 | 004  | DX baseline: ruff, mypy, root AGENTS.md | P2 | S | — | TODO |
 | 005  | Order Intent schema + creation from approved decisions | P2 | M | 001-003 | TODO |

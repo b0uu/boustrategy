@@ -72,14 +72,14 @@ This would be valid schema but rejected due to policy evaluation.
 - `primary_theme_id` must be one of `theme_ids` and is required for BUY and ADD
 
 ## Policy rules
-- reject BUY in RED.
-- reject new high beta BUY in DE_RISKING mode.
-- reject stock target weight above 20%.
-- reject ETF target weight above 50%.
+- reject BUY or ADD in RED unless the record declares an extraordinary opportunity with justification.
+- reject BUY or ADD in DE_RISKING mode unless the record declares an extraordinary opportunity with justification.
+- reject BUY or ADD with stock target weight above 20%.
+- reject BUY or ADD with ETF target weight above 50%.
 - reject BUY or ADD without strategy belief IDs.
 - reject actionable decisions without invalidation criteria.
 - reject actionable decisions without source claims.
-- reject X-only thesis when `confirmed_outside_x` is false.
+- reject actionable decisions whose thesis used X (idea source or confirmation) without outside-X confirmation.
 - reject decisions that exceed daily trade limits.
 - reject decisions that exceed max holdings or theme concentration.
 
