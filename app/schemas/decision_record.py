@@ -3,7 +3,6 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-
 TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,11}$")
 
 
@@ -83,7 +82,9 @@ class XSignalUsage(BaseModel):
             if self.usage_type != XSignalUsageType.IRRELEVANT:
                 raise ValueError("x_signal_usage.usage_type must be IRRELEVANT when X is not used")
             if self.confirmed_outside_x:
-                raise ValueError("x_signal_usage.confirmed_outside_x must be false when X is not used")
+                raise ValueError(
+                    "x_signal_usage.confirmed_outside_x must be false when X is not used"
+                )
         return self
 
 

@@ -1,9 +1,10 @@
 from datetime import UTC, datetime
+from typing import Any
 
 from app.schemas.decision_record import InvestmentDecisionRecord
 
 
-def valid_decision_record_data() -> dict:
+def valid_decision_record_data() -> dict[str, Any]:
     return {
         "decision_id": "dec_001",
         "created_at": datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
@@ -55,7 +56,7 @@ def valid_decision_record() -> InvestmentDecisionRecord:
     return InvestmentDecisionRecord.model_validate(valid_decision_record_data())
 
 
-def decision_record_with(**overrides) -> InvestmentDecisionRecord:
+def decision_record_with(**overrides: object) -> InvestmentDecisionRecord:
     data = valid_decision_record_data()
     data.update(overrides)
     return InvestmentDecisionRecord.model_validate(data)

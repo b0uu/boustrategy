@@ -9,7 +9,6 @@ from app.schemas.decision_record import (
     XSignalUsageType,
 )
 
-
 MAX_EQUITY_TARGET_WEIGHT = 0.20
 MAX_ETF_TARGET_WEIGHT = 0.50
 MAX_BUY_ADD_TRADES_PER_DAY = 2

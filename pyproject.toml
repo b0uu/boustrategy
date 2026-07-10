@@ -10,8 +10,34 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+strict = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = "yfinance.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

@@ -16,7 +16,9 @@ def save_decision_record(
     if existing is not None:
         if existing[0] == record_json:
             return False
-        raise ValueError(f"decision record {record.decision_id} already exists with different content")
+        raise ValueError(
+            f"decision record {record.decision_id} already exists with different content"
+        )
 
     conn.execute(
         """
