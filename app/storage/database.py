@@ -17,6 +17,19 @@ CREATE TABLE IF NOT EXISTS order_intents (
     side TEXT NOT NULL,
     intent_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS daily_prices (
+    ticker TEXT NOT NULL,
+    bar_date TEXT NOT NULL,
+    open REAL NOT NULL,
+    high REAL NOT NULL,
+    low REAL NOT NULL,
+    close REAL NOT NULL,
+    adj_close REAL,
+    volume INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (ticker, bar_date)
+);
 """
 
 
