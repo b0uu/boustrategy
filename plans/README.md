@@ -23,8 +23,27 @@ when done.
 This run completed non-interactively, so per the skill's default the top 4
 findings by leverage were planned. The findings table, direction options, and
 rejected findings from the audit are in the session report; direction items
-(Order Intent schema, record storage/idempotency, price cache) were left
-unplanned pending maintainer selection.
+were left unplanned pending maintainer selection:
+
+- Order Intent schema + policy→intent pipeline (the "no direct LLM-to-order
+  path" principle as code)
+- Decision record storage with idempotency keys
+- Daily OHLCV price cache (spec §6)
+- Public dashboard (spec §14) — also a risk control: it is the maintainer's
+  compensating oversight for the "regime model only" drawdown doctrine in
+  `docs/risk_policy.md`
+- LLM evals on past trades (spec §15) — same compensating-control role, plus
+  the tracked extraordinary-bar-frequency metric
+- X ingestion cost/feasibility research pass (provider decision for the
+  curated X feed; see `docs/source_policy.md`)
+
+Note (2026-07-08): `docs/mandate.md`, `docs/risk_policy.md`, and
+`docs/source_policy.md` are now written (maintainer decisions, drafted in a
+working session). The `confirmed_outside_x` schema field's meaning was
+redefined in `source_policy.md` as "substantiated by real evidence and
+survived expert scrutiny" rather than "corroborated by a second source" — a
+future rename (e.g. `claims_substantiated`) may be worth a small plan if the
+name causes confusion.
 
 ## Execution order & status
 
