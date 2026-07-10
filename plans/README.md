@@ -28,7 +28,7 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 004  | DX baseline: ruff, mypy, root AGENTS.md | P2 | S | — | DONE (verified 2026-07-10) |
 | 005  | Order Intent schema + creation from approved decisions | P2 | M | 001-003 | DONE |
 | 006  | Persist decision records and order intents (SQLite, idempotent, append-only) | P2 | M | 005 | DONE |
-| 007  | Daily OHLCV price cache (yfinance, injected-fetcher seam) | P3 | M | 006 | BLOCKED (live check failed twice: yfinance is not installed before the dependency-install step) |
+| 007  | Daily OHLCV price cache (yfinance, injected-fetcher seam) | P3 | M | 006, 004 (for editable install) | DONE (verified 2026-07-10; live check: 20 QQQ bars) |
 | 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |

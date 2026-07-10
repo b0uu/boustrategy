@@ -5,6 +5,7 @@ description = "Investment decision harness for BouStrategy."
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
+    "yfinance>=0.2",
 ]
 
 [project.optional-dependencies]
@@ -37,6 +38,12 @@ explicit_package_bases = true
 [[tool.mypy.overrides]]
 module = "yfinance.*"
 ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
