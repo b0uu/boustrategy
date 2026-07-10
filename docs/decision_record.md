@@ -80,8 +80,8 @@ This would be valid schema but rejected due to policy evaluation.
 - reject actionable decisions without invalidation criteria.
 - reject actionable decisions without source claims.
 - reject actionable decisions whose thesis used X (idea source or confirmation) without outside-X confirmation.
-- reject decisions that exceed daily trade limits.
-- reject decisions that exceed max holdings or theme concentration.
+- reject BUY/ADD once 2 buy-side trades have executed today; TRIM/SELL are never quota-blocked but a 10-trade/day circuit breaker exists as a malfunction brake (requires portfolio context).
+- reject BUY at 10 existing holdings — the ~7-holding goal lives in the mandate, not policy; reject BUY/ADD that would push a single primary theme above 60% of the portfolio (requires portfolio context).
 
 ## Tests to make
 

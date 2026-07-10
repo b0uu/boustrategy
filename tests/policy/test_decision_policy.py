@@ -1,5 +1,15 @@
-from app.policy.decision_policy import evaluate_decision_policy
+from app.policy.decision_policy import PortfolioContext, evaluate_decision_policy
 from tests.fixtures.decision_records import decision_record_with, valid_decision_record
+
+
+def portfolio_context(**overrides: object) -> PortfolioContext:
+    data: dict[str, object] = {
+        "holdings_count": 5,
+        "buy_add_trades_today": 0,
+        "sell_trim_trades_today": 0,
+    }
+    data.update(overrides)
+    return PortfolioContext.model_validate(data)
 
 
 def test_valid_buy_in_green_is_approved():
@@ -213,3 +223,101 @@ def test_rejects_buy_with_unconfirmed_x_confirmation_usage():
 
     assert not result.approved
     assert "x_signal_not_confirmed_outside_x" in result.reasons
+
+
+def test_rejects_buy_when_daily_buy_add_limit_reached():
+    record = valid_decision_record()
+    portfolio = portfolio_context(buy_add_trades_today=2)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "daily_buy_add_limit_reached" in result.reasons
+
+
+def test_rejects_add_when_daily_buy_add_limit_reached():
+    record = decision_record_with(decision="ADD")
+    portfolio = portfolio_context(buy_add_trades_today=2)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "daily_buy_add_limit_reached" in result.reasons
+
+
+def test_allows_sell_when_buy_add_limit_reached():
+    record = decision_record_with(decision="SELL")
+    portfolio = portfolio_context(buy_add_trades_today=2, sell_trim_trades_today=0)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert result.approved
+
+
+def test_rejects_sell_when_circuit_breaker_tripped():
+    record = decision_record_with(decision="SELL")
+    portfolio = portfolio_context(sell_trim_trades_today=10)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "sell_trim_circuit_breaker_tripped" in result.reasons
+
+
+def test_allows_hold_when_all_limits_reached():
+    record = decision_record_with(decision="HOLD")
+    portfolio = portfolio_context(
+        buy_add_trades_today=2,
+        sell_trim_trades_today=10,
+        holdings_count=10,
+    )
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert result.approved
+
+
+def test_rejects_buy_at_max_holdings():
+    record = valid_decision_record()
+    portfolio = portfolio_context(holdings_count=10)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "max_holdings_reached" in result.reasons
+
+
+def test_allows_add_at_max_holdings():
+    record = decision_record_with(decision="ADD")
+    portfolio = portfolio_context(holdings_count=10)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert result.approved
+
+
+def test_rejects_buy_exceeding_primary_theme_cap():
+    record = valid_decision_record()
+    portfolio = portfolio_context(primary_theme_weights={"ai_semiconductors": 0.55})
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "primary_theme_concentration_exceeded" in result.reasons
+
+
+def test_allows_buy_within_primary_theme_cap():
+    record = valid_decision_record()
+    portfolio = portfolio_context(primary_theme_weights={"ai_semiconductors": 0.40})
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert result.approved
+
+
+def test_portfolio_rules_skipped_without_context():
+    record = valid_decision_record()
+
+    result = evaluate_decision_policy(record)
+
+    assert result.approved

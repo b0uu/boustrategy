@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.decision_record import (
     AssetType,
@@ -12,16 +12,32 @@ from app.schemas.decision_record import (
 
 MAX_EQUITY_TARGET_WEIGHT = 0.20
 MAX_ETF_TARGET_WEIGHT = 0.50
+MAX_BUY_ADD_TRADES_PER_DAY = 2
+MAX_SELL_TRIM_TRADES_PER_DAY = 10
+MAX_HOLDINGS = 10
+MAX_PRIMARY_THEME_WEIGHT = 0.60
 _EXPOSURE_INCREASING = {Decision.BUY, Decision.ADD}
+
+
+class PortfolioContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    holdings_count: int = Field(ge=0)
+    buy_add_trades_today: int = Field(ge=0)
+    sell_trim_trades_today: int = Field(ge=0)
+    # Weight excludes an existing position in the evaluated ticker to avoid double-counting ADDs.
+    primary_theme_weights: dict[str, float] = Field(default_factory=dict)
 
 
 class PolicyResult(BaseModel):
     approved: bool
     reasons: list[str] = Field(default_factory=list)
-    adjusted_final_target_weight: float | None = None
 
 
-def evaluate_decision_policy(record: InvestmentDecisionRecord) -> PolicyResult:
+def evaluate_decision_policy(
+    record: InvestmentDecisionRecord,
+    portfolio: PortfolioContext | None = None,
+) -> PolicyResult:
     reasons: list[str] = []
 
     if (
@@ -72,6 +88,31 @@ def evaluate_decision_policy(record: InvestmentDecisionRecord) -> PolicyResult:
         and not record.x_signal_usage.confirmed_outside_x
     ):
         reasons.append("x_signal_not_confirmed_outside_x")
+
+    if portfolio is not None:
+        if (
+            record.decision in _EXPOSURE_INCREASING
+            and portfolio.buy_add_trades_today >= MAX_BUY_ADD_TRADES_PER_DAY
+        ):
+            reasons.append("daily_buy_add_limit_reached")
+
+        if (
+            record.decision in {Decision.TRIM, Decision.SELL}
+            and portfolio.sell_trim_trades_today >= MAX_SELL_TRIM_TRADES_PER_DAY
+        ):
+            reasons.append("sell_trim_circuit_breaker_tripped")
+
+        if record.decision == Decision.BUY and portfolio.holdings_count >= MAX_HOLDINGS:
+            reasons.append("max_holdings_reached")
+
+        if (
+            record.decision in _EXPOSURE_INCREASING
+            and record.primary_theme_id is not None
+            and portfolio.primary_theme_weights.get(record.primary_theme_id, 0.0)
+            + record.final_target_weight
+            > MAX_PRIMARY_THEME_WEIGHT
+        ):
+            reasons.append("primary_theme_concentration_exceeded")
 
     return PolicyResult(approved=not reasons, reasons=reasons)
 
