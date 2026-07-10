@@ -7,10 +7,9 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat d0fc4b2..HEAD -- pyproject.toml AGENTS.md`
-> NOTE: at planning time (2026-06-12), `pyproject.toml` was **untracked** in
-> git, so this diff may be empty even if it changed. Compare the excerpt below
-> against the live file; on a mismatch, STOP.
+> **Drift check (run first)**: `git diff --stat 01193d1..HEAD -- pyproject.toml AGENTS.md`
+> The implementation baseline was committed as `01193d1` ("schema and policy
+> added"). Compare the excerpt below against the live file; on a mismatch, STOP.
 
 ## Status
 

@@ -5,5 +5,5 @@ __pycache__/
 .venv/
 venv/
 scratchpad/
-plans/
 .agents/
+skills-lock.json

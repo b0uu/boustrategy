@@ -9,13 +9,14 @@ when done.
 > walkthrough of the findings, the decision points that need your judgment,
 > and the technical concepts. The numbered plans are executor instructions.
 
-> **Prerequisite — read before executing anything**: at planning time the
-> entire implementation (`app/`, `tests/`, `pyproject.toml`, `.gitignore`)
-> was **untracked** in git. Commit this baseline to `main` first. Until then:
-> (a) the plans' `git diff` drift checks are blind (use each plan's "Current
-> state" excerpts as the drift reference), and (b) executors running in
-> isolated git worktrees will not have the implementation at all — every plan
-> carries a STOP condition for that case.
+> **Update 2026-07-08**: the implementation baseline is now committed
+> (`01193d1`, "schema and policy added") — the untracked-code prerequisite is
+> resolved. Plans 002/003 drift checks reference `01193d1`. The maintainer
+> also resolved all open decision points in a working session; plans 001-003
+> were revised to match (escalation gate for RED/derisking, split trade
+> quotas, 10-holdings cap, 60% primary-theme cap). See
+> [HUMAN_GUIDE.md](HUMAN_GUIDE.md) "Decision points: RESOLVED" for the
+> rationale.
 
 ## Selection note
 
@@ -29,9 +30,9 @@ unplanned pending maintainer selection.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Tighten InvestmentDecisionRecord schema validation | P1 | S | — | TODO |
-| 002  | Correct policy gate scoping (ADD escapes risk gates; over-broad weight and X rules) | P1 | S | — (recommended after 001) | TODO |
-| 003  | Add portfolio-aware policy rules; remove dead sizing field | P2 | M | 002 | TODO |
+| 001  | Tighten InvestmentDecisionRecord schema validation + escalation/primary-theme fields | P1 | S | — | TODO |
+| 002  | Correct policy gate scoping (escalation gate for RED/derisking; weight and X rule fixes) | P1 | S | 001 (hard) | TODO |
+| 003  | Portfolio-aware policy rules (quotas, holdings, theme cap); remove dead sizing field | P2 | M | 001, 002 (hard) | TODO |
 | 004  | DX baseline: ruff, mypy, root AGENTS.md | P2 | S | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
@@ -39,20 +40,29 @@ REJECTED (with one-line rationale)
 
 ## Dependency notes
 
-- 003 requires 002: both rewrite `evaluate_decision_policy`; 003's "Current
-  state" excerpts assume the post-002 shape of the gates.
-- 002 is soft-ordered after 001: 002's new X-usage test fixtures were written
-  to satisfy 001's coherence rules. They are valid either way, but landing
-  001 first avoids any cross-plan surprise.
+- 002 requires 001 (hard): the escalation gate reads the
+  `extraordinary_opportunity` / `extraordinary_justification` fields plan
+  001 adds to the schema.
+- 003 requires 001 (hard: reads `primary_theme_id`) and 002 (hard: both
+  rewrite `evaluate_decision_policy`; 003's excerpts assume the post-002
+  shape).
 - 004 is independent and may run first; if it does, executors of 001-003
   should also run the ruff/mypy gates it introduces.
 
-## Maintainer review points
+## Maintainer decisions (resolved 2026-07-08)
 
-- Plan 002 widens the RED-regime and DE_RISKING gates from BUY to BUY+ADD.
-  `docs/decision_record.md` literally said "reject BUY in RED"; the spec's
-  intent (limit exposure increases in RED/Derisk) supports including ADD. If
-  ADD-in-RED should stay allowed, say so before executing plan 002.
+All previously open review points were decided by the maintainer:
+
+- RED/DE_RISKING gate: **escalation gate** — BUY/ADD rejected unless the
+  record declares `extraordinary_opportunity` with justification (not a hard
+  ban, not advisory-only).
+- Trade quota: **BUY/ADD 2/day; TRIM/SELL exempt** with a 10/day circuit
+  breaker as a malfunction brake.
+- Holdings: **hard cap 10**; the ~7-holding goal lives in mandate/prompts,
+  not policy.
+- Theme concentration: **single primary theme ≤ 60%** of portfolio, computed
+  via a new per-decision `primary_theme_id` field (avoids double-counting
+  overlapping themes).
 
 ## Findings considered and rejected
 
@@ -60,9 +70,9 @@ REJECTED (with one-line rationale)
   `docs/source_policy.md` are empty files): authoring the mandate and risk
   policy is the maintainer's strategy work — the spec's core principle is
   "human strategy is the edge". Not executor work; no plan.
-- **Theme concentration policy rule** (documented in
-  `docs/decision_record.md` but unimplemented): no numeric limit exists
-  anywhere in the spec; deferred inside plan 003 rather than inventing one.
+- ~~**Theme concentration policy rule**: no numeric limit exists in the
+  spec; deferred.~~ **Un-rejected 2026-07-08**: the maintainer defined the
+  mechanism (primary theme, 60% cap); now implemented by plans 001 + 003.
 - **Spec-vs-schema field gap** (spec §11's Investment Decision Record has
   fields like `regime_scores`, `sizing_rationale`, `final_decision` that the
   schema omits): by design — `docs/decision_record.md` (the committed
@@ -71,8 +81,8 @@ REJECTED (with one-line rationale)
 - **Sizing adjustment** (`adjusted_final_target_weight`): the behavior needs
   inputs (thesis-quality scoring, liquidity data) that don't exist yet; plan
   003 removes the dead field rather than speculatively implementing it.
-- **Untracked implementation**: not a plan — it's a one-command maintainer
-  action (commit the baseline), recorded as the prerequisite above.
+- **Untracked implementation**: not a plan — it was a one-command maintainer
+  action, completed 2026-07-08 (baseline committed as `01193d1`).
 
 ## Not audited this run
 

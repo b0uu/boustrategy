@@ -10,22 +10,11 @@ execute; this file is the map.
 
 ## The one thing to do before anything else
 
-**Your code is not saved in git yet.** Run `git status` and you will see
-`app/`, `tests/`, and `pyproject.toml` listed under "untracked files". Git
-only protects files you have committed. Right now, if this folder were lost,
-your spec would survive (it is committed) but your entire implementation
-would not. It also means there is no history: you cannot see what changed,
-when, or roll anything back.
-
-Fix is one step:
-
-```
-git add .gitignore pyproject.toml app/ tests/
-git commit -m "schema and policy baseline"
-```
-
-(You may also want to add `plans/` and `skills-lock.json` in the same or a
-separate commit, your call.)
+~~Your code is not saved in git yet.~~ **Done (2026-07-08):** you committed
+the implementation baseline as `01193d1` ("schema and policy added"). The
+plans' drift checks now reference that commit. Remaining housekeeping, your
+call: `plans/` itself is not committed yet — committing it gives your plan
+history the same protection as your code.
 
 ---
 
@@ -84,11 +73,13 @@ The policy layer is your rulebook: "this record is well-formed, but is it
    (counter-thesis). A skeptic on X warning you off a trade does not need
    outside confirmation to be safe input.
 
-Plan 003 adds the rules you wrote down but never built: max 2 trades per
-day, max 6 holdings. They were unbuildable before because the policy
-function only sees one decision at a time; it has no idea how many trades
-happened today. Plan 003 gives it a small "portfolio context" input
-carrying that information.
+Plan 003 adds the rules you wrote down but never built: trade quotas,
+holdings cap, theme concentration. They were unbuildable before because the
+policy function only sees one decision at a time; it has no idea how many
+trades happened today. Plan 003 gives it a small "portfolio context" input
+carrying that information. The exact limits were decided together on
+2026-07-08 (see the resolved decision points below): BUY/ADD 2/day with
+TRIM/SELL exempt, 10 holdings hard cap, 60% single-primary-theme cap.
 
 ### Story 3: The project has no guardrails for its own development (Plan 004)
 
@@ -102,51 +93,54 @@ conventions**. The plan publishes them properly.
 
 ---
 
-## Decision points that need YOUR judgment
+## Decision points: RESOLVED (2026-07-08)
 
-These are places where I made a call you can overrule. Overruling is cheap
-before the plans run; just edit the plan file or tell the next agent.
+We went through these together and you made the calls below. The plans now
+reflect them. Each is still yours to change later; this section records what
+was decided and why, so future-you (or a future agent) knows these numbers
+are deliberate, not defaults.
 
-### 1. Should ADD be blocked in RED regime? (Plan 002)
+### 1. BUY/ADD in RED regime: escalation gate, not a ban (Plan 002)
 
-Your doc literally says "reject BUY in RED", nothing about ADD. I read your
-spec's *intent* (RED means de-risk, target exposure 0-20%) as "no new money
-into high-beta, period", so the plan blocks both.
+Your call: do not hardcode a block; your framework celebrates bold action
+(SB-007). But a fully advisory gate would quietly delete your own "no direct
+LLM-to-order path" principle. The resolution uses your spec's own idea: the
+extraordinary-opportunity classification. BUY/ADD in RED (or de-risking
+mode) is rejected UNLESS the record explicitly sets a new
+`extraordinary_opportunity` flag with a written justification. Boldness
+stays possible; it just has to be declared, justified, and auditable. If the
+agent ever starts spamming the flag to dodge the gate, that is an eval and
+prompt problem first, a policy-tightening problem second.
 
-The counterargument you might hold: averaging into a high-conviction position
-during a RED panic is exactly the kind of bold move your framework celebrates
-(SB-007: losses do not automatically invalidate a thesis). If that is your
-vision, ADD in RED should maybe be allowed but require extraordinary
-evidence, rather than be banned.
+### 2. De-risking trades are never quota-blocked (Plan 003)
 
-**Default in the plan: block ADD in RED and in DE_RISKING.** Edit plan 002
-step 1 if you disagree.
+Your call: TRIM/SELL must not be stopped by a trade quota. The 2/day limit
+now applies to BUY/ADD only. One addition you accepted: a 10/day circuit
+breaker on TRIM/SELL. That is not strategy, it is a malfunction brake — a
+buggy loop selling in circles gets stopped, while a legitimate emergency
+"sell everything" day (max 10 holdings) still fits.
 
-### 2. Should TRIM and SELL count against the 2-trades-per-day limit? (Plan 003)
+### 3. Holdings: hard cap 10, goal ~7 (Plan 003)
 
-The spec says "max executed trades/day: 2" with no exemption. The plan counts
-every executed trade (BUY/ADD/TRIM/SELL). But you could argue de-risking
-trades should never be blocked by a quota, because blocking a SELL during a
-bad day is the opposite of risk control.
+Your call: raise the cap for diversity. Policy rejects the 11th position and
+otherwise stays out of it. The ~7 goal is strategy nuance, so it lives where
+strategy lives: your mandate and prompts (write it into `docs/mandate.md`
+when you draft it). Policy = rulebook, mandate = judgment.
 
-**Default in the plan: all four count.** If you want SELL/TRIM exempt, edit
-plan 003 step 2 and its tests.
+### 4. Theme concentration: primary theme + 60% cap (Plans 001 + 003)
 
-### 3. Max holdings is set to 6 (Plan 003)
+The problem we had to solve first: your themes overlap. NVDA plausibly maps
+to ai_semiconductors AND ai_infrastructure AND ai_bottlenecks — if policy
+counted full weight into every listed theme, one stock would triple-count
+and the math would be meaningless. The resolution: every decision now names
+ONE `primary_theme_id` (the dominant narrative you are actually betting on),
+and policy caps any single primary theme at **60% of the portfolio**. You
+chose 60 over 50 deliberately: more room for your highest-conviction theme,
+accepting that a single-theme blowup can cost most of the book — which your
+mandate explicitly tolerates ("severe drawdowns are acceptable inside the
+framework").
 
-Your spec says "3-6 holdings". A hard rule needs one number, so the plan
-uses 6 as the ceiling (a 7th position gets rejected). The 3 is treated as a
-goal, not a rule. Change `MAX_HOLDINGS` if you want it tighter.
-
-### 4. Theme concentration limit: deliberately NOT built
-
-Your policy doc mentions rejecting "theme concentration" but no number exists
-anywhere in your spec. That number is a strategy decision (how much of the
-portfolio can be `ai_semiconductors` before it is reckless?). I refused to
-invent it. When you pick a number, it slots into the `PortfolioContext`
-seam that plan 003 creates.
-
-### 5. The ticker format (Plan 001)
+### 5. The ticker format (Plan 001) — unchanged
 
 The plan enforces tickers like `NVDA`, `BRK.B`, `BF-B`: letters first, up to
 12 characters, US-listing shaped. If you ever want non-US listings, this
@@ -256,6 +250,18 @@ mypy catches a whole class of AI-coding mistakes for free.
 no code ever sets it, so it is always `None`. Dangerous because a future
 caller might read it believing it is computed. Rule of thumb: interface
 surface should not promise what the code does not deliver.
+
+**Escalation gate.** A rule that rejects by default but has a declared
+escape valve. Instead of "BUY in RED is banned", the rule becomes "BUY in
+RED is rejected unless the record explicitly claims extraordinary
+opportunity and justifies it in writing". The power of this over a soft
+warning: the escape is visible in the audit record forever, so you can
+later judge every time the agent chose to be bold.
+
+**Primary theme.** Your themes overlap, so a stock can belong to three of
+them at once. The primary theme is the ONE narrative a decision is actually
+a bet on, picked per decision. Concentration math runs on primary themes
+only, which keeps "60% max in one theme" meaningful.
 
 **Worktree / drift check.** When an AI executor runs a plan, it may work in
 a separate copy of the repo (a worktree) and first checks whether the code

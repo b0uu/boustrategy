@@ -1,4 +1,4 @@
-# Plan 002: Correct policy gate scoping (ADD escapes risk gates; over-broad weight and X rules)
+# Plan 002: Correct policy gate scoping (escalation gate for RED/derisking; over-broad weight and X rules)
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
@@ -7,63 +7,63 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat d0fc4b2..HEAD -- app/policy/ tests/policy/ docs/decision_record.md`
-> NOTE: at planning time (2026-06-12), `app/` and `tests/` were **untracked**
-> in git, so this diff may be empty even if files changed. The authoritative
-> drift reference is the "Current state" excerpts below — compare them against
-> the live code before proceeding; on a mismatch, STOP.
+> **Drift check (run first)**: `git diff --stat 01193d1..HEAD -- app/policy/ tests/policy/ docs/decision_record.md`
+> The implementation baseline was committed as `01193d1` ("schema and policy
+> added"). Compare the "Current state" excerpts below against the live code
+> before proceeding; on a mismatch, STOP. This plan **requires plan 001 to
+> have landed first** (it reads schema fields plan 001 introduces).
 
 ## Status
 
 - **Priority**: P1
 - **Effort**: S
-- **Risk**: MED (changes risk-gate semantics and reason-code strings; all changes are documented below and the maintainer should review the intent calls in "Why this matters")
-- **Depends on**: none (recommended after plans/001-tighten-decision-record-schema.md)
+- **Risk**: MED (changes risk-gate semantics and reason-code strings; the semantics below were explicitly decided by the maintainer on 2026-07-08)
+- **Depends on**: plans/001-tighten-decision-record-schema.md (hard — uses `extraordinary_opportunity` and `extraordinary_justification` fields added there)
 - **Category**: bug
-- **Planned at**: commit `d0fc4b2`, 2026-06-12
+- **Planned at**: commit `d0fc4b2`, 2026-06-12; revised 2026-07-08 after maintainer decisions (baseline now `01193d1`)
 
 ## Why this matters
 
 The policy engine is the deterministic risk gate between LLM reasoning and
-broker orders ("No direct LLM-to-order path", `boustrategy_spec.md` §2). Three
-scoping defects were confirmed empirically against the live code:
+broker orders ("No direct LLM-to-order path", `boustrategy_spec.md` §2).
+Three scoping defects were confirmed empirically, and the maintainer has
+decided the intended semantics for each:
 
-1. **ADD escapes both risk gates.** `ADD` in a `RED` regime with
-   `DE_RISKING` operating mode is approved today. ADD increases exposure
-   exactly like BUY; the spec says RED means "no new high-beta buys:
-   prioritize de-risking" (§5) and Derisk mode should "significantly limit
-   new high-beta buys" (§5). `docs/decision_record.md` literally says "reject
-   BUY in RED", so this plan widens both gates to BUY **and** ADD and updates
-   the doc — this is an intent interpretation the maintainer should confirm
-   in review (see Maintenance notes).
+1. **ADD escapes both risk gates, and the fix is an escalation gate, not a
+   ban.** Today only BUY is blocked in a RED regime / DE_RISKING mode; ADD
+   (which puts new money at risk exactly like BUY) is approved — confirmed:
+   an ADD in RED + DE_RISKING passes. The maintainer's framework celebrates
+   bold, evidence-backed action (spec SB-007), so the decided design is:
+   BUY/ADD in RED or DE_RISKING is rejected **unless** the record explicitly
+   declares `extraordinary_opportunity = true` with a written justification
+   (schema fields from plan 001). Boldness stays possible; it just becomes
+   declared and auditable instead of silent.
 2. **Weight caps reject passive decisions.** A `HOLD` on an equity position
-   that appreciated to 25% weight is rejected
-   (`equity_target_weight_exceeds_limit`), as is any TRIM whose destination
-   weight is still above the cap. The caps exist to limit what the agent
-   *buys into* (spec §12 "Initial limits" are sizing limits); applying them
-   to HOLD/TRIM/SELL means the policy engine can forbid holding or even
-   reducing an appreciated position. Caps should apply to exposure-increasing
-   decisions (BUY, ADD) only.
+   that appreciated to 25% weight is rejected today (confirmed), as is a
+   TRIM whose destination weight is still above the cap. The caps exist to
+   limit what the agent *buys into* (spec §12 "Initial limits" are sizing
+   limits). Decided: caps apply to exposure-increasing decisions (BUY, ADD)
+   only.
 3. **The X-confirmation rule over-applies.** The documented rule is "reject
    X-only **thesis** when `confirmed_outside_x` is false"
    (`docs/decision_record.md:78`). The implementation rejects *any* record
    where X was used without outside confirmation — including non-actionable
-   decisions (a `PASS` was confirmed rejected) and records where X served
-   only as `COUNTER_THESIS` or `CROWDING_WARNING` (i.e. X argued *against*
-   the thesis, which needs no outside confirmation to be safe). The rule
-   should apply only to actionable decisions where X supported the thesis
-   (`IDEA_SOURCE` or `CONFIRMATION`).
+   decisions (a `PASS` was confirmed rejected) and records where X argued
+   *against* the thesis (`COUNTER_THESIS` / `CROWDING_WARNING`). Decided:
+   the rule applies only to actionable decisions where X supported the
+   thesis (`IDEA_SOURCE` or `CONFIRMATION`).
 
 ## Current state
 
 Files:
 
-- `app/policy/decision_policy.py` — the whole policy engine (56 lines):
+- `app/policy/decision_policy.py` — the whole policy engine (~56 lines):
   `PolicyResult`, `evaluate_decision_policy`, `_is_actionable`.
 - `tests/policy/test_decision_policy.py` — 9 policy tests.
 - `tests/fixtures/decision_records.py` — `valid_decision_record()` (a valid
   GREEN/CAPITAL_DEPLOYMENT equity BUY at weight 0.12) and
-  `decision_record_with(**overrides)`.
+  `decision_record_with(**overrides)`. After plan 001 the fixture also has
+  `primary_theme_id: "ai_semiconductors"`.
 - `docs/decision_record.md` — "Policy rules" section lists the intended rules.
 
 The gates as they exist today, `app/policy/decision_policy.py:19-44`:
@@ -109,6 +109,15 @@ def _is_actionable(record: InvestmentDecisionRecord) -> bool:
     }
 ```
 
+After plan 001, `InvestmentDecisionRecord` has these fields (verify they
+exist before starting — if absent, plan 001 has not landed: STOP):
+
+```python
+    extraordinary_opportunity: bool = False
+    extraordinary_justification: str = ""
+    primary_theme_id: str | None = None
+```
+
 Confirmed behavior at planning time (these are the bugs):
 
 - `decision="ADD", regime_state="RED", operating_mode="DE_RISKING"` → approved.
@@ -137,7 +146,7 @@ functions in arrange/act/assert style — match
 
 **Out of scope** (do NOT touch, even though they look related):
 
-- `app/schemas/decision_record.py` — schema-layer changes are plan 001.
+- `app/schemas/decision_record.py` — schema-layer changes belong to plan 001.
 - `tests/fixtures/decision_records.py` — overrides via `decision_record_with`
   are sufficient for every new test.
 - `PolicyResult.adjusted_final_target_weight` — currently dead, handled in
@@ -151,22 +160,36 @@ functions in arrange/act/assert style — match
 
 ## Steps
 
-### Step 1: Widen the RED and DE_RISKING gates to BUY and ADD
+### Step 1: Replace the BUY-only blocks with BUY/ADD escalation gates
 
-In `evaluate_decision_policy`, define the exposure-increasing set once at the
-top of the module-level function region or inline, then change both gates.
-Reason codes change because the old names are now wrong:
+In `evaluate_decision_policy`, replace the two regime/mode gates. Define the
+exposure-increasing set once at module level:
 
 ```python
 _EXPOSURE_INCREASING = {Decision.BUY, Decision.ADD}
-
-
-    if record.decision in _EXPOSURE_INCREASING and record.regime_state == RegimeState.RED:
-        reasons.append("buy_or_add_disallowed_in_red_regime")
-
-    if record.decision in _EXPOSURE_INCREASING and record.operating_mode == OperatingMode.DE_RISKING:
-        reasons.append("buy_or_add_disallowed_in_derisking_mode")
 ```
+
+New gates (reason codes change because the semantics changed):
+
+```python
+    if (
+        record.decision in _EXPOSURE_INCREASING
+        and record.regime_state == RegimeState.RED
+        and not record.extraordinary_opportunity
+    ):
+        reasons.append("buy_or_add_in_red_requires_extraordinary_opportunity")
+
+    if (
+        record.decision in _EXPOSURE_INCREASING
+        and record.operating_mode == OperatingMode.DE_RISKING
+        and not record.extraordinary_opportunity
+    ):
+        reasons.append("buy_or_add_in_derisking_requires_extraordinary_opportunity")
+```
+
+Note: the schema (plan 001) already guarantees that
+`extraordinary_opportunity = true` carries a non-empty justification, so
+policy does not re-check the justification text — layering stays clean.
 
 Update the two existing tests that assert the old reason strings
 (`test_rejects_buy_in_red_regime`, `test_rejects_buy_in_derisking_mode`) to
@@ -219,9 +242,11 @@ Append the tests listed in "Test plan" to
 In `docs/decision_record.md`, under `## Policy rules`, update the affected
 bullets to match the new semantics:
 
-- "reject BUY in RED." → "reject BUY or ADD in RED."
+- "reject BUY in RED." → "reject BUY or ADD in RED unless the record declares
+  an extraordinary opportunity with justification."
 - "reject new high beta BUY in DE_RISKING mode." → "reject BUY or ADD in
-  DE_RISKING mode."
+  DE_RISKING mode unless the record declares an extraordinary opportunity
+  with justification."
 - "reject stock target weight above 20%." → "reject BUY or ADD with stock
   target weight above 20%."
 - "reject ETF target weight above 50%." → "reject BUY or ADD with ETF target
@@ -237,40 +262,48 @@ bullets to match the new semantics:
 New tests in `tests/policy/test_decision_policy.py`, modeled after
 `test_rejects_buy_in_red_regime` (lines 14-21), using `decision_record_with`:
 
-1. `test_rejects_add_in_red_regime` — `decision="ADD", regime_state="RED"` →
-   not approved, `"buy_or_add_disallowed_in_red_regime"` in reasons.
-2. `test_rejects_add_in_derisking_mode` — `decision="ADD",
+1. `test_rejects_add_in_red_regime_without_escalation` — `decision="ADD",
+   regime_state="RED"` → not approved,
+   `"buy_or_add_in_red_requires_extraordinary_opportunity"` in reasons.
+2. `test_rejects_add_in_derisking_mode_without_escalation` — `decision="ADD",
    operating_mode="DE_RISKING"` → not approved,
-   `"buy_or_add_disallowed_in_derisking_mode"` in reasons.
-3. `test_allows_hold_above_equity_weight_cap` — `decision="HOLD",
+   `"buy_or_add_in_derisking_requires_extraordinary_opportunity"` in reasons.
+3. `test_allows_extraordinary_buy_in_red_regime` — `regime_state="RED",
+   extraordinary_opportunity=True, extraordinary_justification="Panic selloff
+   has disconnected price from intact AI capex evidence."` → approved.
+4. `test_allows_extraordinary_add_in_derisking_mode` — `decision="ADD",
+   operating_mode="DE_RISKING"` plus the same two escalation overrides →
+   approved.
+5. `test_allows_hold_above_equity_weight_cap` — `decision="HOLD",
    proposed_target_weight=0.25, final_target_weight=0.25` → approved
    (regression for the confirmed HOLD-rejection bug).
-4. `test_allows_buy_at_exact_equity_weight_cap` —
+6. `test_allows_buy_at_exact_equity_weight_cap` —
    `proposed_target_weight=0.20, final_target_weight=0.20` → approved
-   (boundary: the cap is exclusive of rejection at exactly 0.20).
-5. `test_allows_counter_thesis_x_usage_without_outside_confirmation` —
+   (boundary: exactly 0.20 is allowed).
+7. `test_allows_counter_thesis_x_usage_without_outside_confirmation` —
    `decision="TRIM"` with
    `x_signal_usage={"used": True, "usage_type": "COUNTER_THESIS", "summary":
    "skeptics flagged crowding", "confirmed_outside_x": False}` → approved.
-6. `test_allows_unconfirmed_x_on_non_actionable_decision` —
+8. `test_allows_unconfirmed_x_on_non_actionable_decision` —
    `decision="PASS"` with
    `x_signal_usage={"used": True, "usage_type": "IDEA_SOURCE", "summary":
    "narrative velocity spike", "confirmed_outside_x": False}` → approved
    (regression for the confirmed PASS-rejection bug).
-7. `test_rejects_buy_with_unconfirmed_x_confirmation_usage` — fixture BUY with
+9. `test_rejects_buy_with_unconfirmed_x_confirmation_usage` — fixture BUY with
    `x_signal_usage={"used": True, "usage_type": "CONFIRMATION", "summary":
    "X confirmed the demand narrative", "confirmed_outside_x": False}` →
    not approved, `"x_signal_not_confirmed_outside_x"` in reasons.
 
-Verification: `python -m pytest -q` → all pass, 7 new tests included.
+Verification: `python -m pytest -q` → all pass, 9 new tests included.
 
 ## Done criteria
 
 Machine-checkable. ALL must hold:
 
-- [ ] `python -m pytest -q` exits 0; ≥ 7 new tests in `tests/policy/test_decision_policy.py`
-- [ ] `grep -n "buy_disallowed_in_red_regime" app/ tests/ -r` returns no matches (old reason code fully renamed)
+- [ ] `python -m pytest -q` exits 0; ≥ 9 new tests in `tests/policy/test_decision_policy.py`
+- [ ] `grep -rn "buy_disallowed_in_red_regime\|buy_disallowed_in_derisking_mode" app/ tests/` returns no matches (old reason codes fully renamed)
 - [ ] `python -c "from tests.fixtures.decision_records import decision_record_with; from app.policy.decision_policy import evaluate_decision_policy; r = evaluate_decision_policy(decision_record_with(decision='ADD', regime_state='RED')); assert not r.approved"` exits 0
+- [ ] `python -c "from tests.fixtures.decision_records import decision_record_with; from app.policy.decision_policy import evaluate_decision_policy; r = evaluate_decision_policy(decision_record_with(regime_state='RED', extraordinary_opportunity=True, extraordinary_justification='Evidence-backed dislocation.')); assert r.approved"` exits 0
 - [ ] `python -c "from tests.fixtures.decision_records import decision_record_with; from app.policy.decision_policy import evaluate_decision_policy; r = evaluate_decision_policy(decision_record_with(decision='HOLD', proposed_target_weight=0.25, final_target_weight=0.25)); assert r.approved"` exits 0
 - [ ] `git status --porcelain` shows changes only in the three in-scope files
 - [ ] `plans/README.md` status row updated
@@ -279,25 +312,26 @@ Machine-checkable. ALL must hold:
 
 Stop and report back (do not improvise) if:
 
-- `app/policy/decision_policy.py` does not exist in your working copy (the
-  implementation was untracked at planning time; your worktree may predate it).
+- `InvestmentDecisionRecord` has no `extraordinary_opportunity` field — plan
+  001 has not landed; this plan depends on it.
 - The gates in "Current state" don't match the live code.
-- Plan 001 landed first and any of this plan's X-usage test dicts fail
-  *schema* validation — the dicts above were written to satisfy plan 001's
-  coherence rules, so a schema rejection means one of the plans drifted.
+- Any of this plan's X-usage test dicts fail *schema* validation — they were
+  written to satisfy plan 001's coherence rules, so a schema rejection means
+  one of the plans drifted.
 - Any existing test fails for a reason you cannot trace to steps 1-3.
 
 ## Maintenance notes
 
-- **Maintainer review point**: widening RED/DE_RISKING gates from BUY to
-  BUY+ADD is an intent interpretation. `docs/decision_record.md` said "reject
-  BUY in RED" literally; the spec's stated intent (limit exposure increase in
-  RED/Derisk) supports including ADD. If the maintainer wants ADD allowed in
-  RED (e.g. averaging into a surviving thesis), revert step 1's ADD inclusion
-  and the doc edit — the tests make the behavior explicit either way.
-- After this plan, TRIM/SELL/HOLD records are never weight-capped. When
-  portfolio-aware rules land (plan 003), exposure drift handling should come
-  from the daily portfolio management chain, not from rejecting HOLDs.
+- **Decided 2026-07-08 by the maintainer** (supersedes the earlier hard-block
+  design): RED/DE_RISKING gates are escalation gates, not bans. The escape
+  valve is `extraordinary_opportunity` + justification, mirroring the spec's
+  §9 extraordinary-opportunity classification. If audit records later show
+  the agent spamming the flag to bypass the gate, the countermeasures live in
+  evals and prompt design first, and only then in tightening policy (e.g.
+  requiring a matching trigger classification).
+- After this plan, TRIM/SELL/HOLD records are never weight-capped. Exposure
+  drift handling should come from the daily portfolio management chain, not
+  from rejecting HOLDs.
 - The X rule now ignores `COUNTER_THESIS`/`CROWDING_WARNING` usage. If a
   future eval shows the agent laundering thesis support through the
   counter-thesis field, tighten here.
