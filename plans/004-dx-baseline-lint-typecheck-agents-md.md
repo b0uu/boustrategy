@@ -116,7 +116,15 @@ pythonpath = ["."]
 
 ## Steps
 
-### Step 1: Add dev dependencies and tool config
+> **Reconcile note (2026-07-10)**: a prior executor BLOCKED here because
+> `pip install -e .[dev]` fails: setuptools flat-layout auto-discovery now
+> sees multiple top-level directories (`app`, `tests`, `plans`,
+> `scratchpad`, ...) and refuses to guess. The fix is the
+> `[tool.setuptools.packages.find]` stanza added to step 1 below — only
+> `app` is a distributable package; everything else is repo scaffolding.
+> Apply it FIRST, verify the editable install succeeds, then continue.
+
+### Step 1: Fix package discovery, add dev dependencies and tool config
 
 In `pyproject.toml`, extend the dev extra and append tool sections:
 
@@ -127,6 +135,9 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
 ]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 target-version = "py311"
@@ -143,8 +154,9 @@ strict = true
 
 Then reinstall: `python -m pip install -e .[dev]`.
 
-**Verify**: `python -m ruff --version` and `python -m mypy --version` both
-exit 0.
+**Verify**: `python -m pip install -e .[dev]` exits 0 (no "multiple
+top-level packages" error), and `python -m ruff --version` and
+`python -m mypy --version` both exit 0.
 
 ### Step 2: Make lint and format pass
 

@@ -22,14 +22,14 @@ runnable at any point in parallel (it is research-only and touches no code).
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001  | Tighten InvestmentDecisionRecord schema + escalation/primary-theme fields | P1 | S | — | DONE |
-| 002  | Correct policy gate scoping (escalation gate for RED/derisking; weight and X rule fixes) | P1 | S | 001 (hard) | DONE |
-| 003  | Portfolio-aware policy rules (quotas, holdings, theme cap); remove dead sizing field | P2 | M | 001, 002 (hard) | DONE |
+| 001  | Tighten InvestmentDecisionRecord schema + escalation/primary-theme fields | P1 | S | — | DONE (verified 2026-07-10) |
+| 002  | Correct policy gate scoping (escalation gate for RED/derisking; weight and X rule fixes) | P1 | S | 001 (hard) | DONE (verified 2026-07-10) |
+| 003  | Portfolio-aware policy rules (quotas, holdings, theme cap); remove dead sizing field | P2 | M | 001, 002 (hard) | DONE (verified 2026-07-10) |
 | 004  | DX baseline: ruff, mypy, root AGENTS.md | P2 | S | — | DONE (verified 2026-07-10) |
-| 005  | Order Intent schema + creation from approved decisions | P2 | M | 001-003 | DONE |
-| 006  | Persist decision records and order intents (SQLite, idempotent, append-only) | P2 | M | 005 | DONE |
+| 005  | Order Intent schema + creation from approved decisions | P2 | M | 001-003 | DONE (verified 2026-07-10) |
+| 006  | Persist decision records and order intents (SQLite, idempotent, append-only) | P2 | M | 005 | DONE (verified 2026-07-10) |
 | 007  | Daily OHLCV price cache (yfinance, injected-fetcher seam) | P3 | M | 006, 004 (for editable install) | DONE (verified 2026-07-10; live check: 20 QQQ bars) |
-| 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE |
+| 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE (verified 2026-07-10; report at docs/research/data_provider_research.md — human decisions pending) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)

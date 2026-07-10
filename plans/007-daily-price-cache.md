@@ -22,6 +22,27 @@
 - **Category**: direction
 - **Planned at**: commit `e869d55`, 2026-07-10
 
+> **Reconcile note (2026-07-10)**: a prior executor completed the OFFLINE
+> work (committed as `e4954f2`: cache module, yfinance fetcher, prices
+> table, 6 passing offline tests) but BLOCKED on the live check because
+> this plan's original step order put the live verification (old step 4)
+> BEFORE the dependency install (old step 5) — a plan-authoring bug, since
+> fixed by the ordering note below. **Remaining work only**:
+>
+> 1. Add `yfinance>=0.2` to `[project.dependencies]` in `pyproject.toml`
+>    (step 5) and install. If `pip install -e .[dev]` fails with a
+>    "multiple top-level packages" error, plan 004's
+>    `[tool.setuptools.packages.find] include = ["app*"]` fix has not
+>    landed — land plan 004 first (preferred), or as a fallback install
+>    the dependency directly with `python -m pip install "yfinance>=0.2"`
+>    (tests import via pytest's `pythonpath`, so the editable install is
+>    not required for the live check).
+> 2. Run step 4's live verification once and record its output.
+> 3. Re-run the done criteria.
+>
+> Steps 1-3 are already done; do not redo them. The mypy-override note in
+> step 5 still applies if plan 004 has landed.
+
 ## Why this matters
 
 Regime scoring (QQQ/SPY/SMH trends), price/volume triggers, thesis price
