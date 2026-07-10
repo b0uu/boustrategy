@@ -7,3 +7,4 @@ venv/
 scratchpad/
 .agents/
 skills-lock.json
+data/
