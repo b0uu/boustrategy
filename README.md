@@ -22,4 +22,4 @@ The core challenge is building an investment harness that is able to deeply cons
 
 - and explain every actionable and non actionable insight
 
-To see more details and my comprehensive vision + structure, see `boustrategy_spec.md`
+To see more details and my comprehensive vision + structure, see `boustrategy_spec.md` and docs/ and plans/
