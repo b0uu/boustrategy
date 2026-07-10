@@ -182,8 +182,12 @@ Create `AGENTS.md` at the repo root with exactly these sections:
    decision harness; LLM reasoning produces Investment Decision Records that
    must pass schema validation (`app/schemas/`) then deterministic policy
    checks (`app/policy/`) before any order can exist. Point to
-   `boustrategy_spec.md` (vision) and `docs/decision_record.md` (current
-   backbone).
+   `boustrategy_spec.md` (vision), `docs/decision_record.md` (record
+   backbone), and the strategy docs: `docs/mandate.md`,
+   `docs/risk_policy.md`, `docs/source_policy.md` — these are
+   maintainer-owned source of truth; code, schemas, and prompts must stay
+   consistent with them, and agents must not edit them without explicit
+   instruction.
 2. **Commands** — the five commands from the table above, verbatim.
 3. **Layout** — `app/schemas/` (shape validation, parser-like),
    `app/policy/` (rule evaluation on valid records), `tests/` mirrors `app/`,
