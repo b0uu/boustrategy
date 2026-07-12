@@ -40,10 +40,12 @@ Plans 001-008 are executable with zero maintainer input (008 ends in a
 report). Past them, these decisions belong to the maintainer and no agent
 should improvise around them:
 
-1. **X provider + budget** — decided from plan 008's report. Gates the X
-   ingestion build.
+1. ~~**X provider + budget**~~ — RESOLVED 2026-07-12 (official API, $20/mo
+   cap; see Maintainer decisions below). X ingestion build is unblocked
+   after the 1-week manual run.
 2. **Curated X account list** — human-only curation per
-   `docs/source_policy.md`. Gates any real X signal generation.
+   `docs/source_policy.md`. Gates any real X signal generation — and the
+   manual run starting this week needs at least a first version of it.
 3. **Theme memos** (14 themes, spec §4) — agents may draft, the maintainer's
    bull/bear cases and invalidation instincts make them real. Gates
    high-quality thesis chains.
@@ -94,6 +96,30 @@ should improvise around them:
   ("substantiated + survived expert scrutiny"); a field rename (e.g.
   `claims_substantiated`) is deferred — cheap to do later, not worth churn
   now.
+
+2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
+
+- **X provider**: official X API pay-per-use is the system of record
+  (raw posts, full attribution). Unofficial providers allowed only for
+  throwaway local experiments — never feeding the dashboard or scrutiny
+  ledger (continuity + terms risk on the core differentiator).
+- **Manual X run**: 1 week, timed to capture a known earnings-dense week;
+  may extend if the week proves quiet. Produces labeled ground truth.
+- **Ingestion mode**: raw ingestion of every new post from curated
+  timelines (auditability/recall over xAI triage).
+- **X spend cap**: $20/month hard cap (~4,000 post reads at $0.005/post),
+  with an alert threshold below it.
+- **Unusual Whales**: later — gated on a crowding-detection eval once the
+  core thesis workflow is operating.
+- **Dashboard X content**: display BouStrategy claim summaries + source
+  links/IDs. A private internal archive of cited content is kept for the
+  audit trail but is NEVER published; when a source post is deleted, the
+  dashboard shows a "source deleted" marker (and the deletion itself feeds
+  the account scrutiny ledger — deleters are signal).
+- **Price fallback**: Massive (Polygon) first (5 req/min suits nightly
+  batch), Alpha Vantage as emergency third.
+- **MARKET_POSITIONING source type**: deferred until flow data (UW or
+  similar) is actually adopted; revives with that decision.
 
 ## Direction items not yet planned
 
