@@ -8,3 +8,4 @@ scratchpad/
 .agents/
 skills-lock.json
 data/
+.env
