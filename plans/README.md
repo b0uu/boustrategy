@@ -29,7 +29,9 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 005  | Order Intent schema + creation from approved decisions | P2 | M | 001-003 | DONE (verified 2026-07-10) |
 | 006  | Persist decision records and order intents (SQLite, idempotent, append-only) | P2 | M | 005 | DONE (verified 2026-07-10) |
 | 007  | Daily OHLCV price cache (yfinance, injected-fetcher seam) | P3 | M | 006, 004 (for editable install) | DONE (verified 2026-07-10; live check: 20 QQQ bars) |
-| 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE (verified 2026-07-10; report at docs/research/data_provider_research.md — human decisions pending) |
+| 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE (verified 2026-07-10; decisions resolved 2026-07-12) |
+| 009  | Backend state machine: decision pipeline, status log, crash-safe resume | P1 | M | 005, 006 | TODO |
+| 010  | X ingestion v0.1: account graph, core-tier fetch, human review trial | P1 | L | 006 (soft-order after 009) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -105,8 +107,30 @@ should improvise around them:
   ledger (continuity + terms risk on the core differentiator).
 - **Manual X run**: 1 week, timed to capture a known earnings-dense week;
   may extend if the week proves quiet. Produces labeled ground truth.
+  *Superseded 2026-07-12*: replaced by a **monitored internal trial**
+  (plan 010) — the system fetches everything from core-tier handles
+  (unbiased recall by construction; avoids modeling the pipeline on the
+  maintainer's skim-sample biases), the human reviews the fetched inbox
+  and captures signals, every skip is a labeled negative. Same 1-week,
+  earnings-timed window. The relevance gate and automated scrutiny are
+  built AFTER the trial, from its labels.
+- **Filter cascade amendment (2026-07-12)**: mechanical content filters
+  (keyword/theme overlap) rejected as too false-negative-prone; the
+  mechanical stage is exact-dedup only. First real filter is the batched
+  small-model relevance gate — and none of it runs in v0.1 (the trial
+  fetches everything).
 - **Ingestion mode**: raw ingestion of every new post from curated
-  timelines (auditability/recall over xAI triage).
+  timelines (auditability/recall over xAI triage). *Amended 2026-07-12 for
+  the 50-100 account target*: two-tier — **core tier** (~10-20 low-noise
+  specialists) gets full raw timeline ingestion; **scan tier** (the rest)
+  gets server-side keyword-filtered search reads (`from:handle` + theme
+  terms; X bills only returned posts). All fetched posts pass a filter
+  cascade before expensive scrutiny: mechanical filters → cheap small-model
+  relevance gate → full expert-reader scrutiny on survivors. Never filter
+  on engagement (viral = late-consensus; SB-005's edge is the early,
+  unnoticed post). Per-account topic masks (seeded by category tags,
+  tightened by the scrutiny ledger) handle wide-ranging accounts. Tier
+  assignment is seeded by the manual week's per-account entry counts.
 - **X spend cap**: $20/month hard cap (~4,000 post reads at $0.005/post),
   with an alert threshold below it.
 - **Unusual Whales**: later — gated on a crowding-detection eval once the
@@ -123,9 +147,14 @@ should improvise around them:
 
 ## Direction items not yet planned
 
-- X ingestion build (blocked on human checkpoint 1) — includes the
-  scrutiny-event record schema for the account ledger
-  (`docs/source_policy.md`).
+- X ingestion build (unblocked 2026-07-12; execute after the manual week) —
+  includes the scrutiny-event record schema for the account ledger
+  (`docs/source_policy.md`) AND the versioned curated-account-graph store:
+  accounts live in the database with every change logged, seeded from
+  `docs/x_manual/README.md`. Maintainer decision 2026-07-12: the dashboard
+  must eventually expose an admin-only surface for the maintainer to
+  dynamically edit the graph (human-only curation, better tooling — the
+  public side shows it read-only if at all).
 - Backend state machine (order intent status transitions, crash recovery) —
   next natural plan after 006; write it once 005/006 land and the shape is
   proven.

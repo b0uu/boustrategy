@@ -1,27 +1,63 @@
-# Manual X Run — Week 1
+# Curated X Handles + Signal Schema
 
-Decided 2026-07-12: a 1-week manual curation run (timed to an earnings-dense
-week) before building automated ingestion. You are the ingestion layer:
-15 minutes a day, skim your curated handles, log the 5-15 most
-decision-relevant posts into `log.jsonl` (one JSON object per line).
+> **Role change (2026-07-12)**: the manual skim week was superseded by a
+> monitored internal trial (plan 010) — the system fetches everything from
+> the core-tier handles and the maintainer reviews the fetched inbox via
+> `python -m app.x.run review` instead of skimming X directly. This file
+> remains load-bearing for two things: (1) the **curated handle list**
+> below seeds the versioned account graph (`app.x.run seed` parses it),
+> and (2) the **log entry schema** below is the basis for the
+> `CapturedSignal` model used by the review flow. `log.jsonl` is retained
+> for any ad-hoc manual captures made before the trial tooling lands.
 
-What this week produces:
+What the trial week produces:
 
-1. Ground truth for the automated feed: after ingestion is built, replaying
-   this week measures what the pipeline would have caught vs what you caught.
-2. The first real entries in the account scrutiny ledger.
-3. A measured baseline: how many useful posts/day actually exist across your
-   handles, which sets the X API spend expectation against the $20/month cap.
+1. Labeled ground truth: captured signals AND skipped posts (skips are
+   labeled negatives) for building the relevance gate afterward.
+2. The first real entries in the account scrutiny ledger, plus per-account
+   capture rates that assign core/scan tiers.
+3. A measured cost baseline against the $20/month (4,000 reads) cap.
 
 ## Curated handles (human-only, fill in before day 1)
 
-Per `docs/source_policy.md`, curation is maintainer-only. List the handles
-you are skimming this week (full account records per spec §8 can come later;
-a plain list is enough for week 1):
+Per `docs/source_policy.md`, curation is maintainer-only. For week 1, each
+handle needs only: the handle, 1-3 category tags (from spec §8: semis
+specialist, AI infra specialist, data center/power, macro/liquidity,
+growth/tech investor, skeptic/short seller, market structure/flows,
+company-specific, news, general high-signal), and one line on why it earns
+a slot — format: `@handle - [categories] - why included`. Full account
+records (credibility priors, allowed uses) come when the versioned graph
+store is built; this list seeds it.
 
+Tip: put these handles in a private X List first; skimming one combined
+feed is what makes 15 minutes/day realistic.
+
+Scale note (2026-07-12): the full curated graph may grow to 50-100
+accounts, but do NOT try to skim that many manually — cap the week-1 skim
+set at ~15-25. The accounts you skim this week are the de-facto **core
+tier** candidates for the two-tier ingestion architecture (core = full
+timeline reads; scan = server-side keyword-filtered reads); this week's
+per-account entry counts seed the tier assignment. Feel free to keep
+adding accounts below beyond what you skim — tag the ones you're actually
+skimming this week with `(wk1)`.
+
+- @jukan05 - [] - 
+- @zephyr_z9 [] - 
+- @tphuang - [] - 
+- @mingchikuo - [] - 
+- @bubbleboi - [] - in between the shitposting he has some meaningful insights on industry and seems to have domain knowledge
+- @mweinbach - [] - 
+- @0xBADB01E - [] - need to screen this guy more, but people seem to view his recent tweets as technically insightful and novel
+- @synthwavedd - [] - potential openAI insider, very in touch with frontier model progress and competition
+-  @ArfurGrok - [] - insider for frontier lab & company employment notifications
+- @aaronp613 - [] - early news and rumors insider for apple, looks behind the scenes for early news and credible rumors in other notable companies as well
+- @evrgn11112231 - [] - provides personal insights on large cap stocks, tech, semis, and AI
+- @CharlesRollet1 - [] - tech reporter at Business Insider, provides some good inside scoops
+- @alexeheath - [] - good reporting on the AI race, with focus on top companies and competition
+- @aleabitoreddit - [] - very influential insights on AI and semi supply chains. likely has power to move market short-term in some areas. good analyses.
+- @KobeissiLetter - [] - commentary on global capital markets & geopolitics
 - @
-- @
-- @
+
 
 ## Log entry schema
 
