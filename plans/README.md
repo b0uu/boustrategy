@@ -132,7 +132,12 @@ should improvise around them:
   tightened by the scrutiny ledger) handle wide-ranging accounts. Tier
   assignment is seeded by the manual week's per-account entry counts.
 - **X spend cap**: $20/month hard cap (~4,000 post reads at $0.005/post),
-  with an alert threshold below it.
+  with an alert threshold below it. *Note 2026-07-12*: at the full 50-100
+  account graph the maintainer estimates ~300 relevant posts/day (~$45/mo);
+  the cap is deliberately NOT adjusted on that guess — it gets recalibrated
+  from the trial week's measured volume (the guard is the one-line
+  `MAX_MONTHLY_POST_READS` constant). The trial week itself fits under the
+  current cap (~2,100 reads even at the high estimate).
 - **Unusual Whales**: later — gated on a crowding-detection eval once the
   core thesis workflow is operating.
 - **Dashboard X content**: display BouStrategy claim summaries + source
