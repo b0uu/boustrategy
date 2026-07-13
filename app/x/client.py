@@ -1,5 +1,6 @@
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -32,8 +33,27 @@ def resolve_user_ids(handles: list[str]) -> dict[str, str]:
     return resolved
 
 
+def _map_tweet(tweet: dict[str, Any], handle: str, fetched_at: datetime) -> XPost:
+    note_tweet = tweet.get("note_tweet")
+    text = tweet["text"]
+    if note_tweet and note_tweet.get("text"):
+        text = note_tweet["text"]
+
+    return XPost(
+        post_id=tweet["id"],
+        handle=handle,
+        posted_at=tweet["created_at"],
+        text=text,
+        url=f"https://x.com/{handle}/status/{tweet['id']}",
+        fetched_at=fetched_at,
+    )
+
+
 def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> list[XPost]:
-    params: dict[str, str] = {"max_results": "100", "tweet.fields": "created_at,text"}
+    params: dict[str, str] = {
+        "max_results": "100",
+        "tweet.fields": "created_at,text,note_tweet",
+    }
     if since_id is not None:
         params["since_id"] = since_id
 
@@ -46,14 +66,4 @@ def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> 
     response.raise_for_status()
     fetched_at = datetime.now(UTC)
 
-    return [
-        XPost(
-            post_id=tweet["id"],
-            handle=handle,
-            posted_at=tweet["created_at"],
-            text=tweet["text"],
-            url=f"https://x.com/{handle}/status/{tweet['id']}",
-            fetched_at=fetched_at,
-        )
-        for tweet in response.json().get("data", [])
-    ]
+    return [_map_tweet(tweet, handle, fetched_at) for tweet in response.json().get("data", [])]
