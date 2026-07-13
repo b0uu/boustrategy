@@ -41,27 +41,60 @@ per-account entry counts seed the tier assignment. Feel free to keep
 adding accounts below beyond what you skim — tag the ones you're actually
 skimming this week with `(wk1)`.
 
-- @jukan05 - [] - 
-- @zephyr_z9 [] - 
-- @tphuang - [] - 
-- @mingchikuo - [] - 
-- @bubbleboi - [] - in between the shitposting he has some meaningful insights on industry and seems to have domain knowledge
-- @mweinbach - [] - 
-- @0xBADB01E - [] - need to screen this guy more, but people seem to view his recent tweets as technically insightful and novel
-- @synthwavedd - [] - potential openAI insider, very in touch with frontier model progress and competition
--  @ArfurGrok - [] - insider for frontier lab & company employment notifications
-- @aaronp613 - [] - early news and rumors insider for apple, looks behind the scenes for early news and credible rumors in other notable companies as well
-- @evrgn11112231 - [] - provides personal insights on large cap stocks, tech, semis, and AI
-- @CharlesRollet1 - [] - tech reporter at Business Insider, provides some good inside scoops
-- @alexeheath - [] - good reporting on the AI race, with focus on top companies and competition
-- @aleabitoreddit - [] - very influential insights on AI and semi supply chains. likely has power to move market short-term in some areas. good analyses.
-- @KobeissiLetter - [] - commentary on global capital markets & geopolitics
-- @AndrewCurran_ - [] - good insights on AI, frontier labs and their models
-- @danrobinson - [] - good engineer and paradigm researcher, very smart
-- @mindmoon_108 - [] - korean semis engineer, good insights in korean
-- @cwolfersearch - [] - researcher with good insights
-- @ch402 - [] -
-- @zekramu - [] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
+- @jukan05 - [semis, news] - translated Korean semis supply-chain intelligence: HBM/HBF, Samsung/SK Hynix/Micron dynamics, memory pricing; frequently early on memory-cycle news
+- @zephyr_z9 - [semis, ai-infra] - anonymous China semis/compute analyst: domestic fab and equipment progress, China DC buildout, supply-chain names; useful counter-consensus window into China capability
+- @tphuang - [ai-infra, high-signal] - long-form China tech ecosystem analysis (AI, semis, telecom); primary-source-driven takes on China competitiveness
+- @mingchikuo - [semis, company:apple, news] - Ming-Chi Kuo, TF International Securities supply-chain analyst; Apple/consumer hardware demand, component order checks; long market-moving track record
+- @bubbleboi - [semis, high-signal] - in between the shitposting he has some meaningful insights on industry and seems to have domain knowledge
+- @mweinbach - [ai-infra, company:apple] - Max Weinbach, Creative Strategies analyst; AI hardware and on-device AI, Apple/Qualcomm/Samsung ecosystem notes
+- @0xBADB01E - [semis, ai-infra] - need to screen this guy more, but people seem to view his recent tweets as technically insightful and novel
+- @synthwavedd - [company:openai, high-signal] - potential openAI insider, very in touch with frontier model progress and competition
+- @ArfurGrok - [news, company:frontier-labs] - insider for frontier lab & company employment notifications
+- @aaronp613 - [company:apple, news] - early news and rumors insider for apple, looks behind the scenes for early news and credible rumors in other notable companies as well
+- @evrgn11112231 - [investor, high-signal] - provides personal insights on large cap stocks, tech, semis, and AI
+- @CharlesRollet1 - [news] - tech reporter at Business Insider, provides some good inside scoops
+- @alexeheath - [news] - good reporting on the AI race, with focus on top companies and competition
+- @aleabitoreddit - [semis, high-signal] - very influential insights on AI and semi supply chains. likely has power to move market short-term in some areas. good analyses.
+- @KobeissiLetter - [macro-liquidity, news] - commentary on global capital markets & geopolitics
+- @AndrewCurran_ - [news, high-signal] - good insights on AI, frontier labs and their models
+- @danrobinson - [high-signal] - good engineer and paradigm researcher, very smart
+- @mindmoon_108 - [semis] - korean semis engineer, good insights in korean
+- @cwolfersearch - [high-signal] - researcher with good insights
+- @ch402 - [company:anthropic, high-signal] - Chris Olah, Anthropic co-founder; mechanistic interpretability research; a window into frontier-lab research direction and capability trajectory rather than markets
+- @zekramu - [high-signal] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
+- @user_bin_roygbiv - [high-signal] - lots of thoughts on AI ecosystem, anon but seems in touch with the atmosphere
+
+### Suggested additions (Claude, 2026-07-13 — pending your review)
+
+These fill structural gaps in the graph. They use `*` bullets so `seed`
+ignores them; **to approve one, change its `*` to `-`**; delete what you
+don't want. Honest caveat: suggestions skew famous — big names carry more
+late-consensus risk than your obscure picks, which is where the edge lives.
+Vet each like any other account.
+
+Skeptic / short seller (currently empty — your source policy calls
+skeptics first-class citizens):
+
+* @WallStCynic - [skeptic, macro-liquidity] - Jim Chanos; the highest-profile public skeptic of AI capex and datacenter economics; exactly the structural counter-thesis seat the graph lacks
+* @edzitron - [skeptic] - Ed Zitron; aggressive AI business-model skeptic who digs into OpenAI/hyperscaler unit economics; often maximalist, so use for counter-thesis stress-testing rather than as a fact source
+* @GaryMarcus - [skeptic] - AI capability skeptic (technical side, not markets); counterweight to frontier-lab hype narratives
+
+Data center / power + semis research (currently no dc-power coverage):
+
+* @dylan522p - [semis, dc-power, ai-infra] - Dylan Patel, SemiAnalysis; probably the most influential public analyst on AI datacenter/semis supply chains; caveat: so widely read that his takes price in fast — treat as a substance benchmark, not early signal
+* @Fabricated_Know - [semis, investor] - Doug O'Laughlin, Fabricated Knowledge; semiconductor-cycle investing analysis, good historical context
+* @GavinSBaker - [investor, ai-infra, dc-power] - Gavin Baker, Atreides CIO; investor-grade takes on AI infra demand, power constraints, semis
+
+Macro / liquidity depth (currently only KobeissiLetter):
+
+* @LynAldenContact - [macro-liquidity] - Lyn Alden; rigorous macro and liquidity frameworks, low noise, primary-data-driven
+
+Market structure / flows (currently empty — optional seat):
+
+* @jam_croissant - [flows] - Cem Karsan; options-positioning and vol-flows commentary; dense and jargon-heavy — only worth the slot if flows context proves useful in the trial
+- @SemiAnalysis_ - [] - good semiconductor analysis
+- @__tinygrad__ - [] - cool company that actually makes commentary on stuff
+- @haydonryan - [] - dev that has random bits of commentary
 
 
 
