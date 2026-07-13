@@ -8,7 +8,14 @@ from app.storage.database import connect
 from app.x.posts import XPost, insert_new_posts
 
 
-def make_post(post_id: str, handle: str = "someone", *, posted_at: datetime) -> XPost:
+def make_post(
+    post_id: str,
+    handle: str = "someone",
+    *,
+    posted_at: datetime,
+    conversation_id: str = "",
+    reply_context: str = "",
+) -> XPost:
     return XPost(
         post_id=post_id,
         handle=handle,
@@ -16,6 +23,8 @@ def make_post(post_id: str, handle: str = "someone", *, posted_at: datetime) -> 
         text=f"post {post_id}",
         url=f"https://x.com/{handle}/status/{post_id}",
         fetched_at=datetime(2026, 7, 1, tzinfo=UTC),
+        conversation_id=conversation_id,
+        reply_context=reply_context,
     )
 
 
@@ -138,6 +147,85 @@ def test_empty_queue_state(tmp_path: Path) -> None:
     page_response = client.get("/")
     assert page_response.status_code == 200
     assert "No more posts to review" in page_response.text
+
+
+def test_next_includes_reply_context_and_thread_for_grouped_posts(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post(
+                "1",
+                posted_at=datetime(2026, 7, 1, tzinfo=UTC),
+                conversation_id="100",
+                reply_context="TSMC capacity is tight this quarter",
+            ),
+            make_post("2", posted_at=datetime(2026, 7, 2, tzinfo=UTC), conversation_id="100"),
+            make_post("3", posted_at=datetime(2026, 7, 3, tzinfo=UTC), conversation_id="100"),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    response = client.get("/api/next")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["post_id"] == "1"
+    assert body["reply_context"] == "TSMC capacity is tight this quarter"
+    assert [t["post_id"] for t in body["thread"]] == ["2", "3"]
+
+
+def test_skip_with_thread_post_ids_marks_all_skipped(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC), conversation_id="100"),
+            make_post("2", posted_at=datetime(2026, 7, 2, tzinfo=UTC), conversation_id="100"),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    response = client.post("/api/skip", json={"post_id": "1", "thread_post_ids": ["2"]})
+
+    assert response.status_code == 200
+    assert response.json()["empty"] is True
+
+    conn = connect(str(db_path))
+    statuses = {
+        row[0]: row[1]
+        for row in conn.execute("SELECT post_id, review_status FROM x_posts").fetchall()
+    }
+    conn.close()
+    assert statuses == {"1": "skipped", "2": "skipped"}
+
+
+def test_capture_with_thread_post_ids_marks_anchor_and_thread_captured(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC), conversation_id="100"),
+            make_post("2", posted_at=datetime(2026, 7, 2, tzinfo=UTC), conversation_id="100"),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    body = _capture_body("1")
+    body["thread_post_ids"] = ["2"]
+    response = client.post("/api/capture", json=body)
+
+    assert response.status_code == 200
+
+    conn = connect(str(db_path))
+    statuses = {
+        row[0]: row[1]
+        for row in conn.execute("SELECT post_id, review_status FROM x_posts").fetchall()
+    }
+    signal_count = conn.execute("SELECT COUNT(*) FROM x_signals").fetchone()[0]
+    conn.close()
+    assert statuses == {"1": "captured", "2": "captured"}
+    assert signal_count == 1
 
 
 def test_capture_is_idempotent(tmp_path: Path) -> None:
