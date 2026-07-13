@@ -38,6 +38,40 @@ CREATE TABLE IF NOT EXISTS status_events (
     occurred_at TEXT NOT NULL,
     detail TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS x_accounts (
+    handle TEXT PRIMARY KEY,
+    user_id TEXT,
+    categories TEXT NOT NULL DEFAULT '[]',
+    included_reason TEXT NOT NULL DEFAULT '',
+    tier TEXT NOT NULL DEFAULT 'core',
+    status TEXT NOT NULL DEFAULT 'active'
+);
+CREATE TABLE IF NOT EXISTS x_account_events (
+    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    handle TEXT NOT NULL,
+    change TEXT NOT NULL,
+    occurred_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS x_posts (
+    post_id TEXT PRIMARY KEY,
+    handle TEXT NOT NULL,
+    posted_at TEXT NOT NULL,
+    text TEXT NOT NULL,
+    url TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    review_status TEXT NOT NULL DEFAULT 'unreviewed'
+);
+CREATE TABLE IF NOT EXISTS x_post_reads (
+    month TEXT PRIMARY KEY,
+    post_reads INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS x_signals (
+    entry_id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    handle TEXT NOT NULL,
+    signal_json TEXT NOT NULL,
+    captured_at TEXT NOT NULL
+);
 """
 
 
