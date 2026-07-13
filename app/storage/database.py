@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS daily_prices (
     fetched_at TEXT NOT NULL,
     PRIMARY KEY (ticker, bar_date)
 );
+CREATE TABLE IF NOT EXISTS status_events (
+    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subject_type TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT ''
+);
 """
 
 
