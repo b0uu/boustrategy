@@ -1,0 +1,374 @@
+"""Local labeling inbox: one post at a time, skip/capture as button clicks.
+
+Thin skin over app/x/posts.py and app/x/signals.py — no new business logic
+lives here beyond rendering and request/response shaping.
+"""
+
+import argparse
+from datetime import UTC, datetime
+from html import escape
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.storage.database import connect
+from app.x.posts import MAX_MONTHLY_POST_READS, mark_reviewed, reads_remaining, unreviewed_posts
+from app.x.signals import (
+    CapturedSignal,
+    ClaimType,
+    Horizon,
+    ScrutinyVerdict,
+    Stance,
+    save_signal,
+)
+
+# Fixed theme button set for the UI only; the schema field (primary_theme_id)
+# stays a free string. Buttons remove the typo risk without changing the model.
+THEMES = [
+    "ai_semiconductors",
+    "ai_infrastructure",
+    "ai_bottlenecks",
+    "data_centers",
+    "power_grid_electrification",
+    "financial_technology",
+    "cloud_hyperscalers",
+    "networking_interconnect",
+    "robotics_automation",
+    "cybersecurity",
+    "ai_software",
+    "broad_risk_on_tech",
+    "macro_liquidity",
+    "emergent_theme",
+]
+
+
+class SkipRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    post_id: str
+
+
+class CaptureRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    post_id: str = Field(min_length=1)
+    primary_theme_id: str
+    tickers: list[str] = Field(default_factory=list)
+    claim: str
+    claim_type: ClaimType
+    stance: Stance
+    horizon: Horizon
+    scrutiny_verdict: ScrutinyVerdict
+    why_it_matters: str
+
+
+def _next_payload(conn: Any) -> dict[str, Any]:
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM x_posts WHERE review_status = 'unreviewed'"
+    ).fetchone()[0]
+    reads_left = reads_remaining(conn)
+    used = MAX_MONTHLY_POST_READS - reads_left
+    counts = {"remaining": remaining, "reads_used": used, "reads_remaining": reads_left}
+
+    posts = unreviewed_posts(conn, limit=1)
+    if not posts:
+        return {"empty": True, **counts}
+
+    post = posts[0]
+    return {
+        "empty": False,
+        "post_id": post.post_id,
+        "handle": post.handle,
+        "posted_at": post.posted_at.isoformat(),
+        "text": post.text,
+        "url": post.url,
+        **counts,
+    }
+
+
+def _render_post_block(payload: dict[str, Any]) -> str:
+    if payload["empty"]:
+        return '<p id="post-empty">No more posts to review. Queue is empty.</p>'
+    post_id = escape(str(payload["post_id"]))
+    handle = escape(str(payload["handle"]))
+    posted_at = escape(str(payload["posted_at"]))
+    text = escape(str(payload["text"]))
+    url = escape(str(payload["url"]))
+    return f"""
+      <div id="post" data-post-id="{post_id}">
+        <p><strong>@{handle}</strong> &mdash; {posted_at}</p>
+        <p id="post-text">{text}</p>
+        <p><a href="{url}" target="_blank" rel="noopener">{url}</a></p>
+      </div>
+    """
+
+
+def _render_stats(payload: dict[str, Any]) -> str:
+    return (
+        f'<p id="stats">remaining: {payload["remaining"]} | '
+        f"reads used: {payload['reads_used']} | "
+        f"reads remaining: {payload['reads_remaining']}</p>"
+    )
+
+
+def _radio_group(name: str, values: list[str]) -> str:
+    inputs = "".join(
+        f'<label><input type="radio" name="{name}" value="{escape(v)}"> {escape(v)}</label>'
+        for v in values
+    )
+    return f'<div class="radio-group" id="group-{name}">{inputs}</div>'
+
+
+def _theme_buttons() -> str:
+    buttons = "".join(
+        f'<label><input type="radio" name="primary_theme_id" '
+        f'value="{escape(t)}"> {escape(t)}</label>'
+        for t in THEMES
+    )
+    return f'<div class="radio-group" id="group-theme">{buttons}</div>'
+
+
+_PAGE_TEMPLATE = """<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>X labeling inbox</title>
+<style>
+body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
+.radio-group label {{
+  display: inline-block; margin: 0.15rem; padding: 0.2rem 0.4rem; border: 1px solid #ccc;
+}}
+#capture-form {{ display: none; margin-top: 1rem; }}
+</style>
+</head>
+<body>
+<h1>X labeling inbox</h1>
+{stats}
+{post_block}
+<div id="controls">
+  <button id="skip-btn">Skip (s)</button>
+  <button id="capture-btn">Capture (c)</button>
+</div>
+<div id="capture-form">
+  <div>
+    <label>Theme</label>
+    {theme_buttons}
+  </div>
+  <div><label>Claim <input type="text" id="claim"></label></div>
+  <div><label>Tickers (comma separated) <input type="text" id="tickers"></label></div>
+  <div><label>Claim type</label>{claim_type_group}</div>
+  <div><label>Stance</label>{stance_group}</div>
+  <div><label>Horizon</label>{horizon_group}</div>
+  <div><label>Scrutiny verdict</label>{verdict_group}</div>
+  <div><label>Why it matters <input type="text" id="why_it_matters"></label></div>
+  <button id="submit-btn">Submit</button>
+</div>
+<script>
+function renderPost(payload) {{
+  var postDiv = document.getElementById('post') || document.getElementById('post-empty');
+  var html;
+  if (payload.empty) {{
+    html = '<p id="post-empty">No more posts to review. Queue is empty.</p>';
+  }} else {{
+    html = '<div id="post" data-post-id="' + payload.post_id + '">' +
+      '<p><strong>@' + payload.handle + '</strong> &mdash; ' + payload.posted_at + '</p>' +
+      '<p id="post-text"></p>' +
+      '<p><a href="' + payload.url + '" target="_blank" rel="noopener"></a></p></div>';
+  }}
+  postDiv.outerHTML = html;
+  if (!payload.empty) {{
+    document.getElementById('post-text').textContent = payload.text;
+    var link = document.querySelector('#post a');
+    link.href = payload.url;
+    link.textContent = payload.url;
+  }}
+  document.getElementById('stats').textContent =
+    'remaining: ' + payload.remaining + ' | reads used: ' + payload.reads_used +
+    ' | reads remaining: ' + payload.reads_remaining;
+  document.getElementById('capture-form').style.display = 'none';
+}}
+
+function currentPostId() {{
+  var el = document.getElementById('post');
+  return el ? el.getAttribute('data-post-id') : null;
+}}
+
+function skip() {{
+  var postId = currentPostId();
+  if (!postId) return;
+  fetch('/api/skip', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{post_id: postId}})
+  }}).then(function(r) {{ return r.json(); }}).then(renderPost);
+}}
+
+function openCapture() {{
+  if (!currentPostId()) return;
+  document.getElementById('capture-form').style.display = 'block';
+}}
+
+function radioValue(name) {{
+  var el = document.querySelector('input[name="' + name + '"]:checked');
+  return el ? el.value : null;
+}}
+
+function submitCapture() {{
+  var postId = currentPostId();
+  if (!postId) return;
+  var body = {{
+    post_id: postId,
+    primary_theme_id: radioValue('primary_theme_id'),
+    tickers: document.getElementById('tickers').value.split(',')
+      .map(function(t) {{ return t.trim(); }}).filter(Boolean),
+    claim: document.getElementById('claim').value,
+    claim_type: radioValue('claim_type'),
+    stance: radioValue('stance'),
+    horizon: radioValue('horizon'),
+    scrutiny_verdict: radioValue('scrutiny_verdict'),
+    why_it_matters: document.getElementById('why_it_matters').value
+  }};
+  fetch('/api/capture', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify(body)
+  }}).then(function(r) {{ return r.json(); }}).then(renderPost);
+}}
+
+document.getElementById('skip-btn').addEventListener('click', skip);
+document.getElementById('capture-btn').addEventListener('click', openCapture);
+document.getElementById('submit-btn').addEventListener('click', submitCapture);
+document.addEventListener('keydown', function(e) {{
+  var tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === 's') skip();
+  if (e.key === 'c') openCapture();
+}});
+</script>
+</body>
+</html>
+"""
+
+
+def _render_page(payload: dict[str, Any]) -> str:
+    return _PAGE_TEMPLATE.format(
+        stats=_render_stats(payload),
+        post_block=_render_post_block(payload),
+        theme_buttons=_theme_buttons(),
+        claim_type_group=_radio_group("claim_type", [e.value for e in ClaimType]),
+        stance_group=_radio_group("stance", [e.value for e in Stance]),
+        horizon_group=_radio_group("horizon", [e.value for e in Horizon]),
+        verdict_group=_radio_group("scrutiny_verdict", [e.value for e in ScrutinyVerdict]),
+    )
+
+
+def create_app(db_path: str | Path) -> FastAPI:
+    app = FastAPI()
+    app.state.db_path = str(db_path)
+
+    # Each request opens (and closes) its own sqlite3 connection rather than
+    # sharing one across requests. sqlite3 connections are thread-bound and
+    # FastAPI runs sync path functions in a threadpool, so a shared connection
+    # would either need check_same_thread=False (silently unsafe for
+    # concurrent writers) or a lock; per-request connections sidestep both and
+    # cost little since connect() only opens a local file and idempotently
+    # re-applies CREATE TABLE IF NOT EXISTS.
+    def get_conn() -> Any:
+        return connect(app.state.db_path)
+
+    @app.get("/", response_class=HTMLResponse)
+    def index() -> str:
+        conn = get_conn()
+        try:
+            payload = _next_payload(conn)
+        finally:
+            conn.close()
+        return _render_page(payload)
+
+    @app.get("/api/next")
+    def api_next() -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            return _next_payload(conn)
+        finally:
+            conn.close()
+
+    @app.post("/api/skip")
+    def api_skip(body: SkipRequest) -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            mark_reviewed(conn, body.post_id, "skipped")
+            return _next_payload(conn)
+        finally:
+            conn.close()
+
+    @app.post("/api/capture")
+    def api_capture(body: CaptureRequest) -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                "SELECT handle, posted_at, url FROM x_posts WHERE post_id = ?",
+                (body.post_id,),
+            ).fetchone()
+            if row is None:
+                raise HTTPException(status_code=404, detail=f"post {body.post_id} not found")
+            handle, posted_at, url = row
+
+            entry_id = f"xs_{body.post_id}"
+            # Reuse the original captured_at on a re-capture of the same post
+            # so identical resubmissions produce byte-identical signal JSON —
+            # otherwise a fresh now() on every call would make save_signal's
+            # idempotency check (exact JSON match) never succeed.
+            existing = conn.execute(
+                "SELECT signal_json FROM x_signals WHERE entry_id = ?",
+                (entry_id,),
+            ).fetchone()
+            captured_at = (
+                CapturedSignal.model_validate_json(existing[0]).captured_at
+                if existing is not None
+                else datetime.now(UTC)
+            )
+
+            signal = CapturedSignal(
+                entry_id=entry_id,
+                post_id=body.post_id,
+                captured_at=captured_at,
+                post_url=url,
+                handle=handle,
+                posted_at=posted_at,
+                primary_theme_id=body.primary_theme_id,
+                tickers=body.tickers,
+                claim=body.claim,
+                claim_type=body.claim_type,
+                stance=body.stance,
+                horizon=body.horizon,
+                scrutiny_verdict=body.scrutiny_verdict,
+                why_it_matters=body.why_it_matters,
+            )
+            save_signal(conn, signal)
+            return _next_payload(conn)
+        finally:
+            conn.close()
+
+    return app
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="python -m app.labeling.server")
+    parser.add_argument("--db", default="data/boustrategy.db")
+    args = parser.parse_args()
+
+    app = create_app(args.db)
+
+    import uvicorn
+
+    # Loopback only — the post text is the project's private archive. Host is
+    # a literal, never a parameter: this must never be exposed to the network.
+    uvicorn.run(app, host="127.0.0.1", port=8377)
+
+
+if __name__ == "__main__":
+    main()
