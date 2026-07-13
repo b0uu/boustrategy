@@ -34,6 +34,7 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 010  | X ingestion v0.1: account graph, core-tier fetch, human review trial | P1 | L | 006 (soft-order after 009) | DONE (verified 2026-07-12; one REVISE round fixed a since_id lexicographic-comparison bug inherited from the plan text; live trial pending X_BEARER_TOKEN) |
 | 011  | Local labeling interface: button-click review inbox for the trial | P1 | M | 010 | DONE (verified 2026-07-12; one approved deviation: capture endpoint reuses stored captured_at on identical re-submits so save_signal's idempotency contract is reachable via the API) |
 | 012  | Thread context: parent-post capture, conversation grouping, consolidated review | P1 | M | 010, 011 | DONE (verified 2026-07-13; migration proven against a copy of the live trial db — 1,398 rows intact) |
+| 013  | Media capture: fetch image/video metadata, render inline in review UI | P1 | M | 012 | DONE (verified 2026-07-13; migration proven against a live-db copy; media excluded from billed reads) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
