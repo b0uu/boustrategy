@@ -30,8 +30,8 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 006  | Persist decision records and order intents (SQLite, idempotent, append-only) | P2 | M | 005 | DONE (verified 2026-07-10) |
 | 007  | Daily OHLCV price cache (yfinance, injected-fetcher seam) | P3 | M | 006, 004 (for editable install) | DONE (verified 2026-07-10; live check: 20 QQQ bars) |
 | 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE (verified 2026-07-10; decisions resolved 2026-07-12) |
-| 009  | Backend state machine: decision pipeline, status log, crash-safe resume | P1 | M | 005, 006 | TODO |
-| 010  | X ingestion v0.1: account graph, core-tier fetch, human review trial | P1 | L | 006 (soft-order after 009) | TODO |
+| 009  | Backend state machine: decision pipeline, status log, crash-safe resume | P1 | M | 005, 006 | DONE (verified 2026-07-12) |
+| 010  | X ingestion v0.1: account graph, core-tier fetch, human review trial | P1 | L | 006 (soft-order after 009) | DONE (verified 2026-07-12; one REVISE round fixed a since_id lexicographic-comparison bug inherited from the plan text; live trial pending X_BEARER_TOKEN) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
