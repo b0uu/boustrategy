@@ -58,6 +58,31 @@ def test_spend_guard_stops_fetch_before_fake_fetcher_is_called():
     assert called is False
 
 
+def test_fetch_computes_since_id_numerically_not_lexicographically():
+    conn = connect(":memory:")
+    upsert_account(conn, Account(handle="core1", user_id="uid1", tier="core"))
+    insert_new_posts(
+        conn,
+        [
+            make_post("99999999999", handle="core1"),
+            make_post("1900000000000000000", handle="core1"),
+        ],
+    )
+
+    received_since_ids: list[str | None] = []
+
+    def fake_resolve(handles: list[str]) -> dict[str, str]:
+        return {}
+
+    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> list[XPost]:
+        received_since_ids.append(since_id)
+        return []
+
+    _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
+
+    assert received_since_ids == ["1900000000000000000"]
+
+
 def test_mark_reviewed_enforces_unreviewed_to_captured_or_skipped_only():
     conn = connect(":memory:")
     insert_new_posts(conn, [make_post("1")])

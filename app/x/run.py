@@ -70,11 +70,14 @@ def _cmd_fetch(
             print(f"budget guard: only {remaining} reads remaining this month, stopping fetch")
             return
 
+        # post_id is TEXT with varying length; CAST forces numeric MAX so a short
+        # old ID (e.g. '99999999999') never lexicographically beats a 19-digit one.
         since_row = conn.execute(
-            "SELECT MAX(post_id) FROM x_posts WHERE handle = ?",
+            "SELECT MAX(CAST(post_id AS INTEGER)) FROM x_posts WHERE handle = ?",
             (account.handle,),
         ).fetchone()
-        since_id = since_row[0] if since_row is not None else None
+        max_post_id = since_row[0] if since_row is not None else None
+        since_id = str(max_post_id) if max_post_id is not None else None
 
         posts = fetch_posts(account.user_id, account.handle, since_id)
         new_count = insert_new_posts(conn, posts)
