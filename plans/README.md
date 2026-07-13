@@ -178,6 +178,12 @@ should improvise around them:
   process-quality evals only). The trial week is capsule #1. Eval harness
   becomes plan-worthy only after the reasoning prompts/worker exist
   (human checkpoint 5).
+- Events calendar ingestion (maintainer note 2026-07-12): earnings dates
+  for holdings/watchlist + FOMC/macro schedule from free sources — the
+  autonomous "boring but rock solid" news floor. Cheap, no human input.
+- Trigger system build (spec §9) including the PRICE threshold trigger
+  (maintainer idea 2026-07-12: movement thresholds beat cron on
+  reactivity-per-dollar) — natural plan after the trial + relevance gate.
 - Broker adapter (Phase 2, human checkpoint 6).
 
 ## Findings considered and rejected

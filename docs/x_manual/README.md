@@ -56,7 +56,13 @@ skimming this week with `(wk1)`.
 - @alexeheath - [] - good reporting on the AI race, with focus on top companies and competition
 - @aleabitoreddit - [] - very influential insights on AI and semi supply chains. likely has power to move market short-term in some areas. good analyses.
 - @KobeissiLetter - [] - commentary on global capital markets & geopolitics
-- @
+- @AndrewCurran_ - [] - good insights on AI, frontier labs and their models
+- @danrobinson - [] - good engineer and paradigm researcher, very smart
+- @mindmoon_108 - [] - korean semis engineer, good insights in korean
+- @cwolfersearch - [] - researcher with good insights
+- @ch402 - [] -
+- @zekramu - [] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
+
 
 
 ## Log entry schema
