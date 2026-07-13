@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS x_posts (
     fetched_at TEXT NOT NULL,
     review_status TEXT NOT NULL DEFAULT 'unreviewed',
     conversation_id TEXT NOT NULL DEFAULT '',
-    reply_context TEXT NOT NULL DEFAULT ''
+    reply_context TEXT NOT NULL DEFAULT '',
+    media_json TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS x_post_reads (
     month TEXT PRIMARY KEY,
@@ -98,6 +99,7 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
         {
             "conversation_id": "TEXT NOT NULL DEFAULT ''",
             "reply_context": "TEXT NOT NULL DEFAULT ''",
+            "media_json": "TEXT NOT NULL DEFAULT '[]'",
         },
     )
     conn.commit()

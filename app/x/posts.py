@@ -1,9 +1,18 @@
+import json
 import sqlite3
 from datetime import UTC, datetime
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 MAX_MONTHLY_POST_READS = 4000
+
+
+class MediaItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    url: str
+    media_type: str
+    alt_text: str = ""
 
 
 class XPost(BaseModel):
@@ -17,6 +26,11 @@ class XPost(BaseModel):
     fetched_at: AwareDatetime
     conversation_id: str = ""
     reply_context: str = ""
+    media: list[MediaItem] = Field(default_factory=list)
+
+
+def _media_from_row(media_json: str) -> list[MediaItem]:
+    return [MediaItem.model_validate(item) for item in json.loads(media_json)]
 
 
 def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
@@ -26,8 +40,8 @@ def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
             """
             INSERT OR IGNORE INTO x_posts
                 (post_id, handle, posted_at, text, url, fetched_at,
-                 conversation_id, reply_context)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 conversation_id, reply_context, media_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 post.post_id,
@@ -38,6 +52,7 @@ def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
                 post.fetched_at.isoformat(),
                 post.conversation_id,
                 post.reply_context,
+                json.dumps([m.model_dump() for m in post.media]),
             ),
         )
         inserted += cursor.rowcount
@@ -73,7 +88,7 @@ def unreviewed_posts(conn: sqlite3.Connection, limit: int = 50) -> list[XPost]:
     rows = conn.execute(
         """
         SELECT post_id, handle, posted_at, text, url, fetched_at,
-               conversation_id, reply_context
+               conversation_id, reply_context, media_json
         FROM x_posts
         WHERE review_status = 'unreviewed'
         ORDER BY posted_at ASC
@@ -91,6 +106,7 @@ def unreviewed_posts(conn: sqlite3.Connection, limit: int = 50) -> list[XPost]:
             fetched_at=row[5],
             conversation_id=row[6],
             reply_context=row[7],
+            media=_media_from_row(row[8]),
         )
         for row in rows
     ]
@@ -110,7 +126,7 @@ def unreviewed_thread_posts(
     rows = conn.execute(
         """
         SELECT post_id, handle, posted_at, text, url, fetched_at,
-               conversation_id, reply_context
+               conversation_id, reply_context, media_json
         FROM x_posts
         WHERE review_status = 'unreviewed'
           AND handle = ?
@@ -130,6 +146,7 @@ def unreviewed_thread_posts(
             fetched_at=row[5],
             conversation_id=row[6],
             reply_context=row[7],
+            media=_media_from_row(row[8]),
         )
         for row in rows
     ]

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.labeling.server import create_app
 from app.storage.database import connect
-from app.x.posts import XPost, insert_new_posts
+from app.x.posts import MediaItem, XPost, insert_new_posts
 
 
 def make_post(
@@ -15,6 +15,7 @@ def make_post(
     posted_at: datetime,
     conversation_id: str = "",
     reply_context: str = "",
+    media: list[MediaItem] | None = None,
 ) -> XPost:
     return XPost(
         post_id=post_id,
@@ -25,6 +26,7 @@ def make_post(
         fetched_at=datetime(2026, 7, 1, tzinfo=UTC),
         conversation_id=conversation_id,
         reply_context=reply_context,
+        media=media or [],
     )
 
 
@@ -173,6 +175,46 @@ def test_next_includes_reply_context_and_thread_for_grouped_posts(tmp_path: Path
     assert body["post_id"] == "1"
     assert body["reply_context"] == "TSMC capacity is tight this quarter"
     assert [t["post_id"] for t in body["thread"]] == ["2", "3"]
+
+
+def test_next_includes_media_array_for_post_with_attachment(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post(
+                "1",
+                posted_at=datetime(2026, 7, 1, tzinfo=UTC),
+                media=[
+                    MediaItem(
+                        url="https://pbs.twimg.com/media/a.jpg",
+                        media_type="photo",
+                        alt_text="chart",
+                    )
+                ],
+            ),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    response = client.get("/api/next")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["media"] == [
+        {"url": "https://pbs.twimg.com/media/a.jpg", "media_type": "photo", "alt_text": "chart"}
+    ]
+
+
+def test_next_returns_empty_media_array_for_post_without_attachment(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(db_path, [make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC))])
+    client = TestClient(create_app(db_path))
+
+    response = client.get("/api/next")
+
+    assert response.status_code == 200
+    assert response.json()["media"] == []
 
 
 def test_skip_with_thread_post_ids_marks_all_skipped(tmp_path: Path) -> None:

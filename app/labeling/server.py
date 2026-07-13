@@ -97,11 +97,18 @@ def _next_payload(conn: Any) -> dict[str, Any]:
         "text": post.text,
         "url": post.url,
         "reply_context": post.reply_context,
+        "media": [
+            {"url": m.url, "media_type": m.media_type, "alt_text": m.alt_text} for m in post.media
+        ],
         "thread": [
             {
                 "post_id": item.post_id,
                 "text": item.text,
                 "posted_at": item.posted_at.isoformat(),
+                "media": [
+                    {"url": m.url, "media_type": m.media_type, "alt_text": m.alt_text}
+                    for m in item.media
+                ],
             }
             for item in thread
         ],
@@ -120,13 +127,37 @@ def _render_reply_context(payload: dict[str, Any]) -> str:
     )
 
 
+def _render_media(media: list[dict[str, Any]]) -> str:
+    if not media:
+        return ""
+    items = []
+    for m in media:
+        url = escape(str(m["url"]))
+        media_type = str(m["media_type"])
+        alt_text = escape(str(m.get("alt_text", "")))
+        badge = (
+            f'<span class="media-badge">{escape(media_type)}</span>'
+            if media_type in ("video", "animated_gif")
+            else ""
+        )
+        items.append(
+            '<span class="media-item">'
+            f'<img src="{url}" alt="{alt_text}" loading="lazy">'
+            f"{badge}"
+            "</span>"
+        )
+    return f'<div class="media">{"".join(items)}</div>'
+
+
 def _render_thread(payload: dict[str, Any]) -> str:
     thread = payload.get("thread", [])
     if not thread:
         return ""
     items = "".join(
         f'<div class="thread-post" data-post-id="{escape(str(item["post_id"]))}">'
-        f"<p>{escape(str(item['text']))}</p></div>"
+        f"<p>{escape(str(item['text']))}</p>"
+        f"{_render_media(item.get('media', []))}"
+        "</div>"
         for item in thread
     )
     return f'<div id="thread">{items}</div>'
@@ -141,12 +172,14 @@ def _render_post_block(payload: dict[str, Any]) -> str:
     text = escape(str(payload["text"]))
     url = escape(str(payload["url"]))
     reply_context = _render_reply_context(payload)
+    media = _render_media(payload.get("media", []))
     thread = _render_thread(payload)
     return f"""
       <div id="post" data-post-id="{post_id}">
         {reply_context}
         <p><strong>@{handle}</strong> &mdash; {posted_at}</p>
         <p id="post-text">{text}</p>
+        {media}
         {thread}
         <p><a href="{url}" target="_blank" rel="noopener">{url}</a></p>
       </div>
@@ -194,6 +227,13 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
   color: #555; font-style: italic;
 }}
 #thread {{ border-left: 3px solid #ccc; margin: 0.5rem 0; padding-left: 0.75rem; }}
+.media {{ display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }}
+.media-item {{ position: relative; display: inline-block; }}
+.media-item img {{ max-width: 100%; max-height: 320px; display: block; }}
+.media-badge {{
+  position: absolute; bottom: 0.25rem; left: 0.25rem; background: rgba(0, 0, 0, 0.7);
+  color: #fff; font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 0.2rem;
+}}
 </style>
 </head>
 <body>
@@ -221,6 +261,18 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
 <script>
 var currentThreadPostIds = [];
 
+function renderMedia(media) {{
+  if (!media || !media.length) return '';
+  var items = media.map(function(m) {{
+    var badge = (m.media_type === 'video' || m.media_type === 'animated_gif')
+      ? '<span class="media-badge">' + m.media_type + '</span>'
+      : '';
+    return '<span class="media-item"><img src="' + m.url + '" alt="' + m.alt_text +
+      '" loading="lazy">' + badge + '</span>';
+  }}).join('');
+  return '<div class="media">' + items + '</div>';
+}}
+
 function renderPost(payload) {{
   var postDiv = document.getElementById('post') || document.getElementById('post-empty');
   var html;
@@ -238,13 +290,14 @@ function renderPost(payload) {{
     if (payload.thread && payload.thread.length) {{
       threadHtml = '<div id="thread">' + payload.thread.map(function(t) {{
         return '<div class="thread-post" data-post-id="' + t.post_id +
-          '"><p class="thread-post-text"></p></div>';
+          '"><p class="thread-post-text"></p>' + renderMedia(t.media) + '</div>';
       }}).join('') + '</div>';
     }}
     html = '<div id="post" data-post-id="' + payload.post_id + '">' +
       replyHtml +
       '<p><strong>@' + payload.handle + '</strong> &mdash; ' + payload.posted_at + '</p>' +
       '<p id="post-text"></p>' +
+      renderMedia(payload.media) +
       threadHtml +
       '<p><a href="' + payload.url + '" target="_blank" rel="noopener"></a></p></div>';
   }}
