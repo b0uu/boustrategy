@@ -9,3 +9,4 @@ scratchpad/
 skills-lock.json
 data/
 .env
+.claude/settings.local.json
