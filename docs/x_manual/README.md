@@ -63,6 +63,9 @@ skimming this week with `(wk1)`.
 - @ch402 - [company:anthropic, high-signal] - Chris Olah, Anthropic co-founder; mechanistic interpretability research; a window into frontier-lab research direction and capability trajectory rather than markets
 - @zekramu - [high-signal] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
 - @user_bin_roygbiv - [high-signal] - lots of thoughts on AI ecosystem, anon but seems in touch with the atmosphere
+- @SemiAnalysis_ - [semis, dc-power, ai-infra] - good semiconductor analysis
+- @__tinygrad__ - [ai-infra, company:tinygrad] - cool company that actually makes commentary on stuff
+- @haydonryan - [high-signal] - dev that has random bits of commentary
 
 ### Suggested additions (Claude, 2026-07-13 — pending your review)
 
@@ -92,9 +95,6 @@ Macro / liquidity depth (currently only KobeissiLetter):
 Market structure / flows (currently empty — optional seat):
 
 * @jam_croissant - [flows] - Cem Karsan; options-positioning and vol-flows commentary; dense and jargon-heavy — only worth the slot if flows context proves useful in the trial
-- @SemiAnalysis_ - [] - good semiconductor analysis
-- @__tinygrad__ - [] - cool company that actually makes commentary on stuff
-- @haydonryan - [] - dev that has random bits of commentary
 
 
 
