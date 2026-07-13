@@ -15,6 +15,8 @@ class XPost(BaseModel):
     text: str
     url: str
     fetched_at: AwareDatetime
+    conversation_id: str = ""
+    reply_context: str = ""
 
 
 def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
@@ -22,8 +24,10 @@ def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
     for post in posts:
         cursor = conn.execute(
             """
-            INSERT OR IGNORE INTO x_posts (post_id, handle, posted_at, text, url, fetched_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO x_posts
+                (post_id, handle, posted_at, text, url, fetched_at,
+                 conversation_id, reply_context)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 post.post_id,
@@ -32,6 +36,8 @@ def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
                 post.text,
                 post.url,
                 post.fetched_at.isoformat(),
+                post.conversation_id,
+                post.reply_context,
             ),
         )
         inserted += cursor.rowcount
@@ -66,7 +72,9 @@ def reads_remaining(conn: sqlite3.Connection, month: str | None = None) -> int:
 def unreviewed_posts(conn: sqlite3.Connection, limit: int = 50) -> list[XPost]:
     rows = conn.execute(
         """
-        SELECT post_id, handle, posted_at, text, url, fetched_at FROM x_posts
+        SELECT post_id, handle, posted_at, text, url, fetched_at,
+               conversation_id, reply_context
+        FROM x_posts
         WHERE review_status = 'unreviewed'
         ORDER BY posted_at ASC
         LIMIT ?
@@ -81,6 +89,47 @@ def unreviewed_posts(conn: sqlite3.Connection, limit: int = 50) -> list[XPost]:
             text=row[3],
             url=row[4],
             fetched_at=row[5],
+            conversation_id=row[6],
+            reply_context=row[7],
+        )
+        for row in rows
+    ]
+
+
+def unreviewed_thread_posts(
+    conn: sqlite3.Connection, handle: str, conversation_id: str, exclude_post_id: str
+) -> list[XPost]:
+    """Other unreviewed posts by the same handle in the same conversation.
+
+    Consolidates a thread of replies from one account into a single review
+    action instead of forcing the maintainer to click through each reply
+    separately (see plan 012).
+    """
+    if not conversation_id:
+        return []
+    rows = conn.execute(
+        """
+        SELECT post_id, handle, posted_at, text, url, fetched_at,
+               conversation_id, reply_context
+        FROM x_posts
+        WHERE review_status = 'unreviewed'
+          AND handle = ?
+          AND conversation_id = ?
+          AND post_id != ?
+        ORDER BY posted_at ASC
+        """,
+        (handle, conversation_id, exclude_post_id),
+    ).fetchall()
+    return [
+        XPost(
+            post_id=row[0],
+            handle=row[1],
+            posted_at=row[2],
+            text=row[3],
+            url=row[4],
+            fetched_at=row[5],
+            conversation_id=row[6],
+            reply_context=row[7],
         )
         for row in rows
     ]

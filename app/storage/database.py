@@ -59,7 +59,9 @@ CREATE TABLE IF NOT EXISTS x_posts (
     text TEXT NOT NULL,
     url TEXT NOT NULL,
     fetched_at TEXT NOT NULL,
-    review_status TEXT NOT NULL DEFAULT 'unreviewed'
+    review_status TEXT NOT NULL DEFAULT 'unreviewed',
+    conversation_id TEXT NOT NULL DEFAULT '',
+    reply_context TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS x_post_reads (
     month TEXT PRIMARY KEY,
@@ -75,9 +77,28 @@ CREATE TABLE IF NOT EXISTS x_signals (
 """
 
 
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    for name, ddl in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
+
+
 def connect(db_path: str | Path) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_SCHEMA)
+    # Live trial database predates these columns; additive ALTER TABLE keeps
+    # existing rows intact (they get empty-string context, which is correct —
+    # we never backfill context for posts fetched before this migration).
+    _ensure_columns(
+        conn,
+        "x_posts",
+        {
+            "conversation_id": "TEXT NOT NULL DEFAULT ''",
+            "reply_context": "TEXT NOT NULL DEFAULT ''",
+        },
+    )
+    conn.commit()
     return conn

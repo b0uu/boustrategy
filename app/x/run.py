@@ -5,10 +5,9 @@ from datetime import UTC, datetime
 
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
-from app.x.client import fetch_user_posts, resolve_user_ids
+from app.x.client import FetchResult, fetch_user_posts, resolve_user_ids
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
-    XPost,
     insert_new_posts,
     mark_reviewed,
     reads_remaining,
@@ -48,7 +47,7 @@ def _cmd_status(conn: sqlite3.Connection) -> None:
 def _cmd_fetch(
     conn: sqlite3.Connection,
     resolve_ids: Callable[[list[str]], dict[str, str]] = resolve_user_ids,
-    fetch_posts: Callable[[str, str, str | None], list[XPost]] = fetch_user_posts,
+    fetch_posts: Callable[[str, str, str | None], FetchResult] = fetch_user_posts,
 ) -> None:
     accounts = list_active_accounts(conn, tier="core")
 
@@ -79,9 +78,9 @@ def _cmd_fetch(
         max_post_id = since_row[0] if since_row is not None else None
         since_id = str(max_post_id) if max_post_id is not None else None
 
-        posts = fetch_posts(account.user_id, account.handle, since_id)
-        new_count = insert_new_posts(conn, posts)
-        record_post_reads(conn, len(posts))
+        result = fetch_posts(account.user_id, account.handle, since_id)
+        new_count = insert_new_posts(conn, result.posts)
+        record_post_reads(conn, result.billed_reads)
         print(f"{account.handle}: {new_count} new posts, {reads_remaining(conn)} reads remaining")
 
 

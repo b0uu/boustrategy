@@ -15,7 +15,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.storage.database import connect
-from app.x.posts import MAX_MONTHLY_POST_READS, mark_reviewed, reads_remaining, unreviewed_posts
+from app.x.posts import (
+    MAX_MONTHLY_POST_READS,
+    mark_reviewed,
+    reads_remaining,
+    unreviewed_posts,
+    unreviewed_thread_posts,
+)
 from app.x.signals import (
     CapturedSignal,
     ClaimType,
@@ -49,12 +55,14 @@ class SkipRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     post_id: str
+    thread_post_ids: list[str] = Field(default_factory=list)
 
 
 class CaptureRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     post_id: str = Field(min_length=1)
+    thread_post_ids: list[str] = Field(default_factory=list)
     primary_theme_id: str
     tickers: list[str] = Field(default_factory=list)
     claim: str
@@ -78,6 +86,9 @@ def _next_payload(conn: Any) -> dict[str, Any]:
         return {"empty": True, **counts}
 
     post = posts[0]
+    thread = unreviewed_thread_posts(
+        conn, post.handle, post.conversation_id, exclude_post_id=post.post_id
+    )
     return {
         "empty": False,
         "post_id": post.post_id,
@@ -85,8 +96,40 @@ def _next_payload(conn: Any) -> dict[str, Any]:
         "posted_at": post.posted_at.isoformat(),
         "text": post.text,
         "url": post.url,
+        "reply_context": post.reply_context,
+        "thread": [
+            {
+                "post_id": item.post_id,
+                "text": item.text,
+                "posted_at": item.posted_at.isoformat(),
+            }
+            for item in thread
+        ],
         **counts,
     }
+
+
+def _render_reply_context(payload: dict[str, Any]) -> str:
+    reply_context = payload.get("reply_context", "")
+    if not reply_context:
+        return ""
+    return (
+        '<blockquote id="reply-context">'
+        f"<p><em>in reply to</em></p><p>{escape(str(reply_context))}</p>"
+        "</blockquote>"
+    )
+
+
+def _render_thread(payload: dict[str, Any]) -> str:
+    thread = payload.get("thread", [])
+    if not thread:
+        return ""
+    items = "".join(
+        f'<div class="thread-post" data-post-id="{escape(str(item["post_id"]))}">'
+        f"<p>{escape(str(item['text']))}</p></div>"
+        for item in thread
+    )
+    return f'<div id="thread">{items}</div>'
 
 
 def _render_post_block(payload: dict[str, Any]) -> str:
@@ -97,10 +140,14 @@ def _render_post_block(payload: dict[str, Any]) -> str:
     posted_at = escape(str(payload["posted_at"]))
     text = escape(str(payload["text"]))
     url = escape(str(payload["url"]))
+    reply_context = _render_reply_context(payload)
+    thread = _render_thread(payload)
     return f"""
       <div id="post" data-post-id="{post_id}">
+        {reply_context}
         <p><strong>@{handle}</strong> &mdash; {posted_at}</p>
         <p id="post-text">{text}</p>
+        {thread}
         <p><a href="{url}" target="_blank" rel="noopener">{url}</a></p>
       </div>
     """
@@ -142,6 +189,11 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
   display: inline-block; margin: 0.15rem; padding: 0.2rem 0.4rem; border: 1px solid #ccc;
 }}
 #capture-form {{ display: none; margin-top: 1rem; }}
+#reply-context {{
+  border-left: 3px solid #999; margin: 0.5rem 0; padding: 0.25rem 0.75rem;
+  color: #555; font-style: italic;
+}}
+#thread {{ border-left: 3px solid #ccc; margin: 0.5rem 0; padding-left: 0.75rem; }}
 </style>
 </head>
 <body>
@@ -167,20 +219,45 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
   <button id="submit-btn">Submit</button>
 </div>
 <script>
+var currentThreadPostIds = [];
+
 function renderPost(payload) {{
   var postDiv = document.getElementById('post') || document.getElementById('post-empty');
   var html;
   if (payload.empty) {{
+    currentThreadPostIds = [];
     html = '<p id="post-empty">No more posts to review. Queue is empty.</p>';
   }} else {{
+    currentThreadPostIds = (payload.thread || []).map(function(t) {{ return t.post_id; }});
+    var replyHtml = '';
+    if (payload.reply_context) {{
+      replyHtml = '<blockquote id="reply-context"><p><em>in reply to</em></p>' +
+        '<p class="reply-context-text"></p></blockquote>';
+    }}
+    var threadHtml = '';
+    if (payload.thread && payload.thread.length) {{
+      threadHtml = '<div id="thread">' + payload.thread.map(function(t) {{
+        return '<div class="thread-post" data-post-id="' + t.post_id +
+          '"><p class="thread-post-text"></p></div>';
+      }}).join('') + '</div>';
+    }}
     html = '<div id="post" data-post-id="' + payload.post_id + '">' +
+      replyHtml +
       '<p><strong>@' + payload.handle + '</strong> &mdash; ' + payload.posted_at + '</p>' +
       '<p id="post-text"></p>' +
+      threadHtml +
       '<p><a href="' + payload.url + '" target="_blank" rel="noopener"></a></p></div>';
   }}
   postDiv.outerHTML = html;
   if (!payload.empty) {{
     document.getElementById('post-text').textContent = payload.text;
+    if (payload.reply_context) {{
+      document.querySelector('.reply-context-text').textContent = payload.reply_context;
+    }}
+    if (payload.thread && payload.thread.length) {{
+      var threadTexts = document.querySelectorAll('.thread-post-text');
+      payload.thread.forEach(function(t, i) {{ threadTexts[i].textContent = t.text; }});
+    }}
     var link = document.querySelector('#post a');
     link.href = payload.url;
     link.textContent = payload.url;
@@ -202,7 +279,7 @@ function skip() {{
   fetch('/api/skip', {{
     method: 'POST',
     headers: {{'Content-Type': 'application/json'}},
-    body: JSON.stringify({{post_id: postId}})
+    body: JSON.stringify({{post_id: postId, thread_post_ids: currentThreadPostIds}})
   }}).then(function(r) {{ return r.json(); }}).then(renderPost);
 }}
 
@@ -221,6 +298,7 @@ function submitCapture() {{
   if (!postId) return;
   var body = {{
     post_id: postId,
+    thread_post_ids: currentThreadPostIds,
     primary_theme_id: radioValue('primary_theme_id'),
     tickers: document.getElementById('tickers').value.split(',')
       .map(function(t) {{ return t.trim(); }}).filter(Boolean),
@@ -301,6 +379,8 @@ def create_app(db_path: str | Path) -> FastAPI:
         conn = get_conn()
         try:
             mark_reviewed(conn, body.post_id, "skipped")
+            for thread_post_id in body.thread_post_ids:
+                mark_reviewed(conn, thread_post_id, "skipped")
             return _next_payload(conn)
         finally:
             conn.close()
@@ -349,6 +429,16 @@ def create_app(db_path: str | Path) -> FastAPI:
                 why_it_matters=body.why_it_matters,
             )
             save_signal(conn, signal)
+            # One signal is captured against the anchor; the rest of the same
+            # thread is consolidated into this single review action, so those
+            # posts are marked captured without separate signal rows.
+            for thread_post_id in body.thread_post_ids:
+                thread_row = conn.execute(
+                    "SELECT review_status FROM x_posts WHERE post_id = ?",
+                    (thread_post_id,),
+                ).fetchone()
+                if thread_row is not None and thread_row[0] == "unreviewed":
+                    mark_reviewed(conn, thread_post_id, "captured")
             return _next_payload(conn)
         finally:
             conn.close()
