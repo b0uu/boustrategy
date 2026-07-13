@@ -32,6 +32,7 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 008  | Research spike: X access, Unusual Whales MCP, low-cost data providers | P2 | M | — (needs web access) | DONE (verified 2026-07-10; decisions resolved 2026-07-12) |
 | 009  | Backend state machine: decision pipeline, status log, crash-safe resume | P1 | M | 005, 006 | DONE (verified 2026-07-12) |
 | 010  | X ingestion v0.1: account graph, core-tier fetch, human review trial | P1 | L | 006 (soft-order after 009) | DONE (verified 2026-07-12; one REVISE round fixed a since_id lexicographic-comparison bug inherited from the plan text; live trial pending X_BEARER_TOKEN) |
+| 011  | Local labeling interface: button-click review inbox for the trial | P1 | M | 010 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -169,7 +170,14 @@ should improvise around them:
   drawdown doctrine.
 - LLM evals on past trades (spec §15) — includes the extraordinary-bar
   frequency metric and the counter-thesis kill-rate metric
-  (`docs/source_policy.md`).
+  (`docs/source_policy.md`). Maintainer decision 2026-07-12: **forward
+  capsules** are the primary replay mechanism — the append-only stores make
+  every week of operation a sealed time capsule, guaranteed fresher than
+  any reasoning model's training cutoff (backward replay on old data mostly
+  measures the model's memory of outcomes; use old capsules for
+  process-quality evals only). The trial week is capsule #1. Eval harness
+  becomes plan-worthy only after the reasoning prompts/worker exist
+  (human checkpoint 5).
 - Broker adapter (Phase 2, human checkpoint 6).
 
 ## Findings considered and rejected
