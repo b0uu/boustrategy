@@ -1,5 +1,7 @@
 # BouStrategy
 
+** IN PROGRESS **
+
 ## About
 
 BouStrategy attempts to create an investment agent that revolves around a human-written investment framework. Agents operate under a system that researches, reasons, trades, logs its reasoning, monitors thesis validity. A public dashboard will display performance of the trading run operated by BouStrategy agent.  
