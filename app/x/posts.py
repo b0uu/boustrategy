@@ -4,7 +4,11 @@ from datetime import UTC, datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-MAX_MONTHLY_POST_READS = 4000
+# Set 2026-07-15 to match the maintainer's real X API balance ($5 remaining
+# at $0.005/read = ~1000 more reads) on top of recorded usage (3955), not
+# our original $20-budget guess of 4000 — the account's actual balance is
+# the authoritative constraint. Recalibrate again from real trial-week data.
+MAX_MONTHLY_POST_READS = 4900
 
 
 class MediaItem(BaseModel):

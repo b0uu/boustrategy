@@ -7,6 +7,7 @@ from app.storage.database import connect
 from app.x.accounts import Account, upsert_account
 from app.x.client import FetchResult
 from app.x.posts import (
+    MAX_MONTHLY_POST_READS,
     MediaItem,
     XPost,
     insert_new_posts,
@@ -45,7 +46,7 @@ def test_insert_new_posts_ignores_duplicate_post_ids():
 def test_spend_guard_stops_fetch_before_fake_fetcher_is_called():
     conn = connect(":memory:")
     upsert_account(conn, Account(handle="core1", user_id="uid1", tier="core"))
-    record_post_reads(conn, 3950)
+    record_post_reads(conn, MAX_MONTHLY_POST_READS - 50)
 
     assert reads_remaining(conn) < 100
 
@@ -244,7 +245,7 @@ def test_fetch_records_billed_reads_including_included_tweets():
 
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
 
-    assert reads_remaining(conn) == 4000 - 3
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 3
 
 
 def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
@@ -407,13 +408,13 @@ def test_rehydrate_requests_only_empty_conversation_unreviewed_ids_and_writes_en
     row3 = conn.execute("SELECT conversation_id FROM x_posts WHERE post_id = '3'").fetchone()
     assert row1[0] == "100"
     assert row3[0] == "100"
-    assert reads_remaining(conn) == 4000 - 2
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 2
 
 
 def test_rehydrate_stops_before_fetching_when_budget_exhausted():
     conn = connect(":memory:")
     insert_new_posts(conn, [make_post("1")])
-    record_post_reads(conn, 3950)
+    record_post_reads(conn, MAX_MONTHLY_POST_READS - 50)
 
     assert reads_remaining(conn) < 100
 
