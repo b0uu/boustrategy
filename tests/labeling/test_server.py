@@ -336,3 +336,44 @@ def test_index_page_includes_error_handling_ui(tmp_path: Path) -> None:
     assert 'id="error-banner"' in html
     assert "handleResponse" in html
     assert "Select before submitting" in html
+
+
+def test_flag_marks_significant_and_advances(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC)),
+            make_post("2", posted_at=datetime(2026, 7, 2, tzinfo=UTC)),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    response = client.post("/api/flag", json={"post_id": "1", "thread_post_ids": []})
+
+    assert response.status_code == 200
+    assert response.json()["post_id"] == "2"
+    conn = connect(str(db_path))
+    status = conn.execute("SELECT review_status FROM x_posts WHERE post_id = '1'").fetchone()[0]
+    conn.close()
+    assert status == "significant"
+
+
+def test_flag_marks_thread_posts_significant(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(
+        db_path,
+        [
+            make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC), conversation_id="c1"),
+            make_post("2", posted_at=datetime(2026, 7, 2, tzinfo=UTC), conversation_id="c1"),
+        ],
+    )
+    client = TestClient(create_app(db_path))
+
+    response = client.post("/api/flag", json={"post_id": "1", "thread_post_ids": ["2"]})
+
+    assert response.status_code == 200
+    conn = connect(str(db_path))
+    statuses = {row[0] for row in conn.execute("SELECT review_status FROM x_posts").fetchall()}
+    conn.close()
+    assert statuses == {"significant"}

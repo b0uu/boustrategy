@@ -127,6 +127,11 @@ Example line:
 
 ## Rules for the week
 
+- Three-tier labeling (2026-07-14): **Skip (s)** = not relevant; **Significant (f)**
+  = one-click positive, relevant to the framework but no detailed write-up —
+  this is the fast default for gate-training coverage; **Capture (c)** = the
+  full 13-field signal, reserved for ~1-3 exemplary posts/day whose claims
+  should become teaching examples for the scrutiny prompts and the ledger.
 - Capture is NOT limited to posts with direct financial implications.
   The bar is: could this, even two steps removed, change how a theme or
   regime input gets scored, or seed/kill a thesis? Capability

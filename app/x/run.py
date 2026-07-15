@@ -37,10 +37,16 @@ def _cmd_status(conn: sqlite3.Connection) -> None:
     skipped = conn.execute(
         "SELECT COUNT(*) FROM x_posts WHERE review_status = 'skipped'"
     ).fetchone()[0]
+    significant = conn.execute(
+        "SELECT COUNT(*) FROM x_posts WHERE review_status = 'significant'"
+    ).fetchone()[0]
     remaining = reads_remaining(conn)
     used = MAX_MONTHLY_POST_READS - remaining
     print(f"active accounts: {active}")
-    print(f"posts: unreviewed={unreviewed} captured={captured} skipped={skipped}")
+    print(
+        f"posts: unreviewed={unreviewed} captured={captured} "
+        f"significant={significant} skipped={skipped}"
+    )
     print(f"reads this month: used={used} remaining={remaining}")
 
 

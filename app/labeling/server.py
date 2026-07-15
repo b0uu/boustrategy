@@ -247,6 +247,7 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
 {post_block}
 <div id="controls">
   <button id="skip-btn">Skip (s)</button>
+  <button id="flag-btn">Significant (f)</button>
   <button id="capture-btn">Capture (c)</button>
 </div>
 <div id="capture-form">
@@ -370,6 +371,16 @@ function skip() {{
   }}).then(handleResponse).then(renderPost).catch(function(err) {{ showError(err.message); }});
 }}
 
+function flagSignificant() {{
+  var postId = currentPostId();
+  if (!postId) return;
+  fetch('/api/flag', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{post_id: postId, thread_post_ids: currentThreadPostIds}})
+  }}).then(handleResponse).then(renderPost).catch(function(err) {{ showError(err.message); }});
+}}
+
 function openCapture() {{
   if (!currentPostId()) return;
   document.getElementById('capture-form').style.display = 'block';
@@ -418,12 +429,14 @@ function submitCapture() {{
 }}
 
 document.getElementById('skip-btn').addEventListener('click', skip);
+document.getElementById('flag-btn').addEventListener('click', flagSignificant);
 document.getElementById('capture-btn').addEventListener('click', openCapture);
 document.getElementById('submit-btn').addEventListener('click', submitCapture);
 document.addEventListener('keydown', function(e) {{
   var tag = (e.target && e.target.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (e.key === 's') skip();
+  if (e.key === 'f') flagSignificant();
   if (e.key === 'c') openCapture();
 }});
 </script>
@@ -482,6 +495,17 @@ def create_app(db_path: str | Path) -> FastAPI:
             mark_reviewed(conn, body.post_id, "skipped")
             for thread_post_id in body.thread_post_ids:
                 mark_reviewed(conn, thread_post_id, "skipped")
+            return _next_payload(conn)
+        finally:
+            conn.close()
+
+    @app.post("/api/flag")
+    def api_flag(body: SkipRequest) -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            mark_reviewed(conn, body.post_id, "significant")
+            for thread_post_id in body.thread_post_ids:
+                mark_reviewed(conn, thread_post_id, "significant")
             return _next_payload(conn)
         finally:
             conn.close()

@@ -153,7 +153,9 @@ def unreviewed_thread_posts(
 
 
 def mark_reviewed(conn: sqlite3.Connection, post_id: str, review_status: str) -> None:
-    if review_status not in ("captured", "skipped"):
+    # 'significant' is the one-click positive label: relevant enough for gate
+    # training, but without a rich CapturedSignal (that tier is 'captured').
+    if review_status not in ("captured", "skipped", "significant"):
         raise ValueError(f"invalid review_status {review_status!r}")
 
     cursor = conn.execute(
