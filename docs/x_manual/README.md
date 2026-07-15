@@ -127,6 +127,15 @@ Example line:
 
 ## Rules for the week
 
+- Capture is NOT limited to posts with direct financial implications.
+  The bar is: could this, even two steps removed, change how a theme or
+  regime input gets scored, or seed/kill a thesis? Capability
+  advancements, model-performance commentary, and research direction all
+  qualify when the claim has substance (tickers stay empty, stance is
+  often theme_discovery, horizon medium/long). Vibes-only hype still gets
+  skipped — the expert-reader bar applies to capability claims too.
+  Skipping all capability news would train the future gate to filter out
+  the earliest form of edge; don't.
 - Cap at 15 entries/day; forcing entries on a quiet day pollutes the
   baseline. Zero-entry days are data too.
 - Log counter-thesis and crowding posts with the same energy as bullish
