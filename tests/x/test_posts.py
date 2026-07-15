@@ -15,8 +15,9 @@ from app.x.posts import (
     record_post_reads,
     unreviewed_posts,
     unreviewed_thread_posts,
+    update_post_enrichment,
 )
-from app.x.run import _cmd_fetch
+from app.x.run import _cmd_fetch, _cmd_rehydrate
 
 
 def make_post(post_id: str = "1", handle: str = "someone") -> XPost:
@@ -336,3 +337,93 @@ def test_end_to_end_fetch_stores_media_and_review_ui_shows_it(tmp_path):
             "alt_text": "capacity chart",
         }
     ]
+
+
+def _enriched_post(post_id: str = "1", handle: str = "someone") -> XPost:
+    return make_post(post_id, handle).model_copy(
+        update={
+            "conversation_id": "100",
+            "reply_context": "TSMC capacity is tight this quarter",
+            "media": [MediaItem(url="https://pbs.twimg.com/media/a.jpg", media_type="photo")],
+        }
+    )
+
+
+def test_update_post_enrichment_writes_enrichment_columns_for_unreviewed_row():
+    conn = connect(":memory:")
+    insert_new_posts(conn, [make_post("1")])
+
+    result = update_post_enrichment(conn, _enriched_post("1"))
+
+    assert result is True
+    row = conn.execute(
+        "SELECT conversation_id, reply_context, media_json FROM x_posts WHERE post_id = '1'"
+    ).fetchone()
+    assert row[0] == "100"
+    assert row[1] == "TSMC capacity is tight this quarter"
+    assert row[2] != "[]"
+
+
+def test_update_post_enrichment_does_not_touch_reviewed_row():
+    conn = connect(":memory:")
+    insert_new_posts(conn, [make_post("1")])
+    mark_reviewed(conn, "1", "significant")
+
+    result = update_post_enrichment(conn, _enriched_post("1"))
+
+    assert result is False
+    row = conn.execute(
+        "SELECT review_status, conversation_id, reply_context, media_json "
+        "FROM x_posts WHERE post_id = '1'"
+    ).fetchone()
+    assert row == ("significant", "", "", "[]")
+
+
+def test_rehydrate_requests_only_empty_conversation_unreviewed_ids_and_writes_enrichment():
+    conn = connect(":memory:")
+    insert_new_posts(
+        conn,
+        [
+            make_post("1"),  # unreviewed, empty conversation_id -> eligible
+            make_post("2").model_copy(update={"conversation_id": "50"}),  # already hydrated
+            make_post("3"),  # unreviewed, empty conversation_id -> eligible
+        ],
+    )
+    mark_reviewed(conn, "2", "captured")
+
+    requested_ids: list[list[str]] = []
+
+    def fake_fetch_by_ids(post_ids: list[str]) -> FetchResult:
+        requested_ids.append(post_ids)
+        return FetchResult(
+            posts=[_enriched_post("1"), _enriched_post("3")],
+            billed_reads=2,
+        )
+
+    _cmd_rehydrate(conn, fetch_by_ids=fake_fetch_by_ids)
+
+    assert requested_ids == [["1", "3"]]
+    row1 = conn.execute("SELECT conversation_id FROM x_posts WHERE post_id = '1'").fetchone()
+    row3 = conn.execute("SELECT conversation_id FROM x_posts WHERE post_id = '3'").fetchone()
+    assert row1[0] == "100"
+    assert row3[0] == "100"
+    assert reads_remaining(conn) == 4000 - 2
+
+
+def test_rehydrate_stops_before_fetching_when_budget_exhausted():
+    conn = connect(":memory:")
+    insert_new_posts(conn, [make_post("1")])
+    record_post_reads(conn, 3950)
+
+    assert reads_remaining(conn) < 100
+
+    called = False
+
+    def fake_fetch_by_ids(post_ids: list[str]) -> FetchResult:
+        nonlocal called
+        called = True
+        return FetchResult(posts=[], billed_reads=0)
+
+    _cmd_rehydrate(conn, fetch_by_ids=fake_fetch_by_ids)
+
+    assert called is False

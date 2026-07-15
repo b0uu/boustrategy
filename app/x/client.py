@@ -9,6 +9,20 @@ from app.x.posts import MediaItem, XPost
 BASE_URL = "https://api.x.com/2"
 _REQUEST_TIMEOUT = 30.0
 
+# Shared across fetch_user_posts and fetch_posts_by_ids so the two endpoints
+# never drift on which fields/expansions they request.
+_TWEET_PARAMS: dict[str, str] = {
+    "tweet.fields": "created_at,text,note_tweet,conversation_id,referenced_tweets,attachments",
+    "expansions": "referenced_tweets.id,attachments.media_keys",
+    "media.fields": "media_key,type,url,preview_image_url,alt_text",
+}
+
+# The lookup-by-id response carries author_id, not a handle, and _map_tweet
+# requires one to build the post URL. Re-hydration only ever writes back the
+# enrichment columns (conversation_id/reply_context/media_json), never url or
+# handle, so this placeholder is never persisted.
+_REHYDRATE_HANDLE = "__rehydrate__"
+
 
 class FetchResult(NamedTuple):
     posts: list[XPost]
@@ -95,26 +109,7 @@ def _map_tweet(
     )
 
 
-def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> FetchResult:
-    params: dict[str, str] = {
-        "max_results": "100",
-        "tweet.fields": "created_at,text,note_tweet,conversation_id,referenced_tweets,attachments",
-        "expansions": "referenced_tweets.id,attachments.media_keys",
-        "media.fields": "media_key,type,url,preview_image_url,alt_text",
-    }
-    if since_id is not None:
-        params["since_id"] = since_id
-
-    response = httpx.get(
-        f"{BASE_URL}/users/{user_id}/tweets",
-        params=params,
-        headers=_auth_headers(),
-        timeout=_REQUEST_TIMEOUT,
-    )
-    response.raise_for_status()
-    fetched_at = datetime.now(UTC)
-
-    body = response.json()
+def _parse_tweets_response(body: dict[str, Any], handle: str, fetched_at: datetime) -> FetchResult:
     data = body.get("data", [])
     included_tweets = body.get("includes", {}).get("tweets", [])
     included = {tweet["id"]: _preferred_text(tweet) for tweet in included_tweets}
@@ -130,3 +125,39 @@ def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> 
     # only tweet-shaped objects (data + included tweets) count toward reads.
     billed_reads = len(data) + len(included_tweets)
     return FetchResult(posts=posts, billed_reads=billed_reads)
+
+
+def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> FetchResult:
+    params: dict[str, str] = {"max_results": "100", **_TWEET_PARAMS}
+    if since_id is not None:
+        params["since_id"] = since_id
+
+    response = httpx.get(
+        f"{BASE_URL}/users/{user_id}/tweets",
+        params=params,
+        headers=_auth_headers(),
+        timeout=_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    fetched_at = datetime.now(UTC)
+    return _parse_tweets_response(response.json(), handle, fetched_at)
+
+
+def fetch_posts_by_ids(post_ids: list[str]) -> FetchResult:
+    """Re-hydrate up to 100 posts by ID (used by the `rehydrate` backfill).
+
+    Missing/deleted ids simply don't appear in the response `data` array
+    (they show up in an `errors` array we don't need); callers diff the
+    requested ids against the returned posts to report what's missing.
+    """
+    params: dict[str, str] = {"ids": ",".join(post_ids), **_TWEET_PARAMS}
+
+    response = httpx.get(
+        f"{BASE_URL}/tweets",
+        params=params,
+        headers=_auth_headers(),
+        timeout=_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    fetched_at = datetime.now(UTC)
+    return _parse_tweets_response(response.json(), _REHYDRATE_HANDLE, fetched_at)

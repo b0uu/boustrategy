@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
-from app.x.client import FetchResult, fetch_user_posts, resolve_user_ids
+from app.x.client import FetchResult, fetch_posts_by_ids, fetch_user_posts, resolve_user_ids
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
     insert_new_posts,
@@ -13,6 +13,7 @@ from app.x.posts import (
     reads_remaining,
     record_post_reads,
     unreviewed_posts,
+    update_post_enrichment,
 )
 from app.x.signals import CapturedSignal, ClaimType, Horizon, ScrutinyVerdict, Stance, save_signal
 
@@ -90,6 +91,54 @@ def _cmd_fetch(
         print(f"{account.handle}: {new_count} new posts, {reads_remaining(conn)} reads remaining")
 
 
+def _cmd_rehydrate(
+    conn: sqlite3.Connection,
+    fetch_by_ids: Callable[[list[str]], FetchResult] = fetch_posts_by_ids,
+) -> None:
+    """Backfill conversation_id/reply_context/media_json for pre-012/013
+    unreviewed posts by looking them up by ID (plan 014)."""
+    rows = conn.execute(
+        """
+        SELECT post_id FROM x_posts
+        WHERE review_status = 'unreviewed' AND conversation_id = ''
+        ORDER BY posted_at ASC
+        """
+    ).fetchall()
+    post_ids = [row[0] for row in rows]
+
+    requested = 0
+    returned = 0
+    updated = 0
+    for start in range(0, len(post_ids), 100):
+        batch = post_ids[start : start + 100]
+
+        remaining = reads_remaining(conn)
+        if remaining <= len(batch) + _BUDGET_FLOOR:
+            print(f"budget guard: only {remaining} reads remaining this month, stopping rehydrate")
+            break
+
+        requested += len(batch)
+        result = fetch_by_ids(batch)
+        record_post_reads(conn, result.billed_reads)
+        returned += len(result.posts)
+
+        batch_updated = 0
+        for post in result.posts:
+            if update_post_enrichment(conn, post):
+                batch_updated += 1
+        updated += batch_updated
+
+        print(
+            f"batch {start // 100 + 1}: {batch_updated} updated, "
+            f"{reads_remaining(conn)} reads remaining"
+        )
+
+    missing = requested - returned
+    remaining = reads_remaining(conn)
+    used = MAX_MONTHLY_POST_READS - remaining
+    print(f"rehydrate: updated={updated} missing={missing} reads_used={used} remaining={remaining}")
+
+
 def _cmd_review(conn: sqlite3.Connection) -> None:
     for post in unreviewed_posts(conn):
         print(f"\n@{post.handle} ({post.posted_at.isoformat()})")
@@ -135,7 +184,7 @@ def _cmd_review(conn: sqlite3.Connection) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.x.run")
-    parser.add_argument("command", choices=["seed", "fetch", "review", "status"])
+    parser.add_argument("command", choices=["seed", "fetch", "review", "status", "rehydrate"])
     parser.add_argument("--db", default=DEFAULT_DB_PATH)
     args = parser.parse_args()
 
@@ -145,6 +194,7 @@ def main() -> None:
         "fetch": _cmd_fetch,
         "review": _cmd_review,
         "status": _cmd_status,
+        "rehydrate": _cmd_rehydrate,
     }
     handlers[args.command](conn)
 

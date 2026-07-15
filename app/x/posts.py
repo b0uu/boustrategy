@@ -152,6 +152,30 @@ def unreviewed_thread_posts(
     ]
 
 
+def update_post_enrichment(conn: sqlite3.Connection, post: XPost) -> bool:
+    """Backfill the three enrichment columns for one still-unreviewed post.
+
+    The WHERE clause is the enforcement point for the "only unreviewed rows"
+    rule (plan 014) — a reviewed row's label/input pairing must stay frozen,
+    so the UPDATE is a no-op (rowcount 0) rather than a caller-side check.
+    """
+    cursor = conn.execute(
+        """
+        UPDATE x_posts
+        SET conversation_id = ?, reply_context = ?, media_json = ?
+        WHERE post_id = ? AND review_status = 'unreviewed'
+        """,
+        (
+            post.conversation_id,
+            post.reply_context,
+            json.dumps([m.model_dump() for m in post.media]),
+            post.post_id,
+        ),
+    )
+    conn.commit()
+    return cursor.rowcount > 0
+
+
 def mark_reviewed(conn: sqlite3.Connection, post_id: str, review_status: str) -> None:
     # 'significant' is the one-click positive label: relevant enough for gate
     # training, but without a rich CapturedSignal (that tier is 'captured').
