@@ -227,6 +227,10 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
   color: #555; font-style: italic;
 }}
 #thread {{ border-left: 3px solid #ccc; margin: 0.5rem 0; padding-left: 0.75rem; }}
+#error-banner {{
+  display: none; background: #fdd; border: 1px solid #c00; color: #900;
+  padding: 0.5rem 0.75rem; margin: 0.5rem 0; border-radius: 0.2rem;
+}}
 .media {{ display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }}
 .media-item {{ position: relative; display: inline-block; }}
 .media-item img {{ max-width: 100%; max-height: 320px; display: block; }}
@@ -239,6 +243,7 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
 <body>
 <h1>X labeling inbox</h1>
 {stats}
+<div id="error-banner"></div>
 {post_block}
 <div id="controls">
   <button id="skip-btn">Skip (s)</button>
@@ -273,7 +278,36 @@ function renderMedia(media) {{
   return '<div class="media">' + items + '</div>';
 }}
 
+function showError(message) {{
+  var el = document.getElementById('error-banner');
+  el.textContent = message;
+  el.style.display = 'block';
+}}
+
+function clearError() {{
+  var el = document.getElementById('error-banner');
+  el.style.display = 'none';
+  el.textContent = '';
+}}
+
+// Every response is read as JSON regardless of status so FastAPI's 422/404
+// detail can be shown to the user; only an ok response is passed on to
+// render, so a rejected request never gets treated as a completed capture.
+function handleResponse(r) {{
+  return r.json().then(function(data) {{
+    if (!r.ok) {{
+      var detail = data && data.detail;
+      var message = Array.isArray(detail)
+        ? detail.map(function(d) {{ return d.msg || JSON.stringify(d); }}).join('; ')
+        : (detail || ('request failed with status ' + r.status));
+      throw new Error(message);
+    }}
+    return data;
+  }});
+}}
+
 function renderPost(payload) {{
+  clearError();
   var postDiv = document.getElementById('post') || document.getElementById('post-empty');
   var html;
   if (payload.empty) {{
@@ -333,7 +367,7 @@ function skip() {{
     method: 'POST',
     headers: {{'Content-Type': 'application/json'}},
     body: JSON.stringify({{post_id: postId, thread_post_ids: currentThreadPostIds}})
-  }}).then(function(r) {{ return r.json(); }}).then(renderPost);
+  }}).then(handleResponse).then(renderPost).catch(function(err) {{ showError(err.message); }});
 }}
 
 function openCapture() {{
@@ -362,11 +396,25 @@ function submitCapture() {{
     scrutiny_verdict: radioValue('scrutiny_verdict'),
     why_it_matters: document.getElementById('why_it_matters').value
   }};
+  // Every field below is required by the server's CaptureRequest model; a
+  // missed radio button used to reach the server as null, get rejected,
+  // and silently strand the post as unreviewed. Catch it here instead.
+  var missing = [];
+  if (!body.primary_theme_id) missing.push('theme');
+  if (!body.claim_type) missing.push('claim type');
+  if (!body.stance) missing.push('stance');
+  if (!body.horizon) missing.push('horizon');
+  if (!body.scrutiny_verdict) missing.push('scrutiny verdict');
+  if (!body.claim.trim()) missing.push('claim');
+  if (missing.length) {{
+    showError('Select before submitting: ' + missing.join(', '));
+    return;
+  }}
   fetch('/api/capture', {{
     method: 'POST',
     headers: {{'Content-Type': 'application/json'}},
     body: JSON.stringify(body)
-  }}).then(function(r) {{ return r.json(); }}).then(renderPost);
+  }}).then(handleResponse).then(renderPost).catch(function(err) {{ showError(err.message); }});
 }}
 
 document.getElementById('skip-btn').addEventListener('click', skip);

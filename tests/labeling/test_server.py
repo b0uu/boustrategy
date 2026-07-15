@@ -294,3 +294,45 @@ def test_capture_is_idempotent(tmp_path: Path) -> None:
     ).fetchone()[0]
     conn.close()
     assert signal_count == 1
+
+
+def test_capture_with_missing_field_is_rejected_and_post_stays_unreviewed(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(db_path, [make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC))])
+    client = TestClient(create_app(db_path))
+
+    response = client.post(
+        "/api/capture",
+        json={
+            "post_id": "1",
+            "thread_post_ids": [],
+            "primary_theme_id": None,
+            "tickers": [],
+            "claim": "test claim",
+            "claim_type": "fact",
+            "stance": "idea_source",
+            "horizon": "short",
+            "scrutiny_verdict": "substantiated",
+            "why_it_matters": "test",
+        },
+    )
+
+    assert response.status_code == 422
+    conn = connect(str(db_path))
+    status = conn.execute("SELECT review_status FROM x_posts WHERE post_id = '1'").fetchone()[0]
+    conn.close()
+    assert status == "unreviewed"
+
+
+def test_index_page_includes_error_handling_ui(tmp_path: Path) -> None:
+    db_path = tmp_path / "labeling.db"
+    seed(db_path, [make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC))])
+    client = TestClient(create_app(db_path))
+
+    html = client.get("/").text
+
+    # A rejected capture must surface as a visible error, never render as a
+    # payload of undefineds (regression: missing radio value -> 422 -> broken page).
+    assert 'id="error-banner"' in html
+    assert "handleResponse" in html
+    assert "Select before submitting" in html
