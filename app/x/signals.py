@@ -30,6 +30,10 @@ class ScrutinyVerdict(StrEnum):
     UNSUPPORTED = "unsupported"
     WRONG = "wrong"
     NONSENSE = "nonsense"
+    # Claim significance is beyond the labeler's expertise to judge: neutral
+    # for the account scrutiny ledger (no credit, no penalty) and a revisit
+    # queue for the future expert-reader stage.
+    CANNOT_ASSESS = "cannot_assess"
 
 
 class CapturedSignal(BaseModel):

@@ -116,7 +116,7 @@ One line per post in `log.jsonl`. Fields:
 | `claim_type` | `fact` \| `interpretation` | the two kinds of trust (source policy) |
 | `stance` | `idea_source` \| `confirmation` \| `counter_thesis` \| `crowding_warning` \| `theme_discovery` | matches XSignalUsageType + spec §8 |
 | `horizon` | `short` \| `medium` \| `long` | recency doctrine input |
-| `scrutiny_verdict` | `substantiated` \| `unsupported` \| `wrong` \| `nonsense` | scrutiny ledger seed — judge the claim, not the confidence |
+| `scrutiny_verdict` | `substantiated` \| `unsupported` \| `wrong` \| `nonsense` \| `cannot_assess` | scrutiny ledger seed — judge the claim, not the confidence; `cannot_assess` = beyond my expertise, ledger-neutral, queued for expert revisit |
 | `why_it_matters` | 1-2 sentences | the human judgment being captured |
 
 Example line:
