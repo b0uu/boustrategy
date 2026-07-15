@@ -59,7 +59,7 @@ skimming this week with `(wk1)`.
 - @AndrewCurran_ - [news, high-signal] - good insights on AI, frontier labs and their models
 * @danrobinson - [high-signal] - good engineer and paradigm researcher, very smart
 - @mindmoon_108 - [semis] - korean semis engineer, good insights in korean
-- @cwolfersearch - [high-signal] - researcher with good insights
+- @cwolferesearch - [high-signal] - researcher with good insights
 - @ch402 - [company:anthropic, high-signal] - Chris Olah, Anthropic co-founder; mechanistic interpretability research; a window into frontier-lab research direction and capability trajectory rather than markets
 * @zekramu - [high-signal] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
 * @user_bin_roygbiv - [high-signal] - lots of thoughts on AI ecosystem, anon but seems in touch with the atmosphere
