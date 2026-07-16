@@ -13,6 +13,7 @@ predictions and human labels are joined.
 
 import argparse
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -134,7 +135,15 @@ def _human_label(review_status: str) -> str | None:
     return None
 
 
-def score_predictor(conn: Any, predictor: str) -> dict[str, Any]:
+def score_predictor(
+    conn: Any, predictor: str, *, exclude_post_ids: frozenset[str] = frozenset()
+) -> dict[str, Any]:
+    """Score a predictor against human labels.
+
+    exclude_post_ids lets a caller (the adjudication UI) recompute agreement
+    with borderline-adjudicated posts left out, without a second bespoke
+    implementation — same confusion-matrix logic, just skipping some rows.
+    """
     pred_rows = conn.execute(
         "SELECT post_id, prediction FROM x_gate_predictions WHERE predictor = ?",
         (predictor,),
@@ -154,6 +163,8 @@ def score_predictor(conn: Any, predictor: str) -> dict[str, Any]:
     matched_post_ids: set[str] = set()
 
     for post_id, handle, text, review_status, media_json in post_rows:
+        if post_id in exclude_post_ids:
+            continue
         human = _human_label(review_status)
         if human is None:
             continue
@@ -252,7 +263,22 @@ def render_report(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _reconfigure_stdout_utf8() -> None:
+    """Force UTF-8 stdout so printing report text never crashes.
+
+    Windows consoles default stdout to cp1252, which raises
+    UnicodeEncodeError on non-cp1252 characters that regularly show up in
+    scraped post text (e.g. em dashes, curly quotes, emoji). reconfigure is
+    only present on real TextIOWrapper streams; pytest and other test
+    runners may substitute a stream without it, so this is a no-op there.
+    """
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigure):
+        reconfigure(encoding="utf-8")
+
+
 def main() -> None:
+    _reconfigure_stdout_utf8()
     parser = argparse.ArgumentParser(prog="python -m app.labeling.experiment")
     parser.add_argument("--db", default="data/boustrategy.db")
     subparsers = parser.add_subparsers(dest="command", required=True)
