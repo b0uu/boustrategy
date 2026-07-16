@@ -36,7 +36,8 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 012  | Thread context: parent-post capture, conversation grouping, consolidated review | P1 | M | 010, 011 | DONE (verified 2026-07-13; migration proven against a copy of the live trial db — 1,398 rows intact) |
 | 013  | Media capture: fetch image/video metadata, render inline in review UI | P1 | M | 012 | DONE (verified 2026-07-13; migration proven against a live-db copy; media excluded from billed reads) |
 | 014  | Backfill rehydration: enrich pre-012/013 unreviewed posts by ID lookup | P1 | S-M | 012, 013 | DONE (verified 2026-07-14; ran same day: 1,348 enriched, 0 missing) |
-| 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; 1,761 posts exported in 36 batches; judging session pending — maintainer runs it in Codex/Claude goal mode) |
+| 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; Luna judged all 1,761: 72.5% agreement, 485 disagreements — report at data/gate_experiment/report-luna.md) |
+| 016  | Adjudication UI: resolve disagreements, correct labels auditably, re-score, compare rounds | P1 | M | 011, 015 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -154,6 +155,13 @@ should improvise around them:
 - Spec v0.2 rewrite needed to absorb: §12 limits, §15 costs/subscription
   stance, §8 two-level signal model, §5 regime-input v0 subset, §9
   simplification, §13 interface decision once made.
+- **No ongoing manual labeling** (2026-07-15): the trial dataset as
+  adjudicated is the working ground truth; no recurring labeling duty.
+  Human labels acknowledged fallible — the adjudication UI (plan 016)
+  corrects them auditably where the model was right. If a major quality
+  issue surfaces later, revisit then. Gate experiment result: Luna 72.5%
+  raw agreement; disagreements split model-error / human-error (notably
+  non-English posts) / borderline.
 
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
