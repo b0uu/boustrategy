@@ -88,10 +88,24 @@ def _map_tweet(
     # to it when there's no reply reference.
     replied_to_id = next((ref["id"] for ref in referenced if ref.get("type") == "replied_to"), None)
     quoted_id = next((ref["id"] for ref in referenced if ref.get("type") == "quoted"), None)
+    retweeted_id = next((ref["id"] for ref in referenced if ref.get("type") == "retweeted"), None)
     if replied_to_id is not None and replied_to_id in included:
         reply_context = included[replied_to_id]
     elif quoted_id is not None and quoted_id in included:
         reply_context = included[quoted_id]
+
+    # For a pure retweet, `text` is X's truncated echo ("RT @orig: first ~110
+    # chars..."); the full original text is already sitting in `included`
+    # (fetched and billed regardless), so swap it in instead of storing a
+    # truncated copy. A retweet IS the content, not context on top of it, so
+    # this replaces `text` rather than populating `reply_context`.
+    if retweeted_id is not None and retweeted_id in included:
+        full_text = included[retweeted_id]
+        prefix_end = text.find(": ")
+        if text.startswith("RT @") and prefix_end != -1:
+            text = text[: prefix_end + 2] + full_text
+        else:
+            text = f"RT: {full_text}"
 
     media_keys = (tweet.get("attachments") or {}).get("media_keys") or []
     media = [media_included[key] for key in media_keys if key in media_included]

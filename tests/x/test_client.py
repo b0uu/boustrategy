@@ -67,6 +67,38 @@ def test_map_tweet_picks_up_reply_context_from_quoted_reference():
     assert post.reply_context == "the original quoted post text"
 
 
+def test_map_tweet_replaces_truncated_retweet_text_with_full_included_text():
+    fetched_at = datetime(2026, 7, 1, 1, tzinfo=UTC)
+    long_text = "This is the full original tweet text with much more detail than the echo. " * 3
+    tweet = {
+        "id": "11",
+        "created_at": "2026-07-01T00:00:00.000Z",
+        "text": "RT @someone: short trunca…",
+        "referenced_tweets": [{"type": "retweeted", "id": "9"}],
+    }
+    included = {"9": long_text}
+
+    post = _map_tweet(tweet, "someone", fetched_at, included)
+
+    assert post.text == f"RT @someone: {long_text}"
+    assert "…" not in post.text
+    assert post.reply_context == ""
+
+
+def test_map_tweet_leaves_retweet_text_unchanged_when_original_not_in_included():
+    fetched_at = datetime(2026, 7, 1, 1, tzinfo=UTC)
+    tweet = {
+        "id": "12",
+        "created_at": "2026-07-01T00:00:00.000Z",
+        "text": "RT @someone: short trunca…",
+        "referenced_tweets": [{"type": "retweeted", "id": "9"}],
+    }
+
+    post = _map_tweet(tweet, "someone", fetched_at)
+
+    assert post.text == "RT @someone: short trunca…"
+
+
 def test_map_tweet_no_references_leaves_context_fields_empty():
     fetched_at = datetime(2026, 7, 1, 1, tzinfo=UTC)
     tweet = {
