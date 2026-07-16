@@ -75,6 +75,14 @@ CREATE TABLE IF NOT EXISTS x_signals (
     signal_json TEXT NOT NULL,
     captured_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS x_gate_predictions (
+    post_id TEXT NOT NULL,
+    predictor TEXT NOT NULL,
+    prediction TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '',
+    predicted_at TEXT NOT NULL,
+    PRIMARY KEY (post_id, predictor)
+);
 """
 
 
