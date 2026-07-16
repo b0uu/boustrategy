@@ -38,6 +38,7 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 014  | Backfill rehydration: enrich pre-012/013 unreviewed posts by ID lookup | P1 | S-M | 012, 013 | DONE (verified 2026-07-14; ran same day: 1,348 enriched, 0 missing) |
 | 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; Luna judged all 1,761: 72.5% agreement, 485 disagreements — report at data/gate_experiment/report-luna.md) |
 | 016  | Adjudication UI: resolve disagreements, correct labels auditably, re-score, compare rounds | P1 | M | 011, 015 | DONE (verified 2026-07-16; smoke-tested against a live-db copy; captured posts never auto-flip; label corrections audited with label_before) |
+| 017  | Micro-fix: retweets store full original text (was ~140-char truncated echo; 222 historical RTs affected) | P1 | S | — | DONE (verified 2026-07-16; zero-cost — includes already fetched; historical RT repair deferred, ~500 reads, pending X balance headroom) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
