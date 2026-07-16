@@ -103,6 +103,23 @@ should improvise around them:
   `claims_substantiated`) is deferred — cheap to do later, not worth churn
   now.
 
+2026-07-15, during the trial week:
+
+- **LLM execution model**: subscription agent sessions (Codex/Claude goal
+  mode; e.g. gpt-5.6-luna/terra), NOT per-token APIs, for near-term LLM
+  stages including the gate-agreement experiment. Matches the spec's
+  Codex-subscription cost posture. Revisit only if scheduled-session
+  ergonomics break down for 24/7 stages.
+- **Paywalled content approved as reference** (Citrini Research,
+  SemiAnalysis, etc.): via the maintainer's own subscriptions, internal
+  reference only — private-archive doctrine applies; never republish
+  content or excerpts on the public dashboard.
+- **Trial finding (day 3)**: curated core feed measured at 63% positive —
+  the relevance gate's ROI is the future scan tier; the core tier's real
+  need is ranking/digest for the reasoning agent. Account tier data:
+  aaronp613 (2%) and ch402 (13%) are scan/removal candidates; seven
+  accounts at 81-99% are always-feed.
+
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
 - **X provider**: official X API pay-per-use is the system of record
@@ -181,6 +198,11 @@ should improvise around them:
   process-quality evals only). The trial week is capsule #1. Eval harness
   becomes plan-worthy only after the reasoning prompts/worker exist
   (human checkpoint 5).
+- Curated newsletter ingestion (maintainer note + approval 2026-07-15):
+  Citrini Research, SemiAnalysis, etc. via maintainer subscriptions — the
+  "curated corpus" differentiator's second source class after X. Needs a
+  per-source ingestion decision (email parsing vs manual drop folder) and
+  inherits the INTERNAL_MEMO trust prior + annotation-ledger design.
 - Events calendar ingestion (maintainer note 2026-07-12): earnings dates
   for holdings/watchlist + FOMC/macro schedule from free sources — the
   autonomous "boring but rock solid" news floor. Cheap, no human input.
