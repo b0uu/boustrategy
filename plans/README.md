@@ -35,7 +35,8 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 011  | Local labeling interface: button-click review inbox for the trial | P1 | M | 010 | DONE (verified 2026-07-12; one approved deviation: capture endpoint reuses stored captured_at on identical re-submits so save_signal's idempotency contract is reachable via the API) |
 | 012  | Thread context: parent-post capture, conversation grouping, consolidated review | P1 | M | 010, 011 | DONE (verified 2026-07-13; migration proven against a copy of the live trial db — 1,398 rows intact) |
 | 013  | Media capture: fetch image/video metadata, render inline in review UI | P1 | M | 012 | DONE (verified 2026-07-13; migration proven against a live-db copy; media excluded from billed reads) |
-| 014  | Backfill rehydration: enrich pre-012/013 unreviewed posts by ID lookup | P1 | S-M | 012, 013 | DONE (verified 2026-07-14; reviewed rows frozen by SQL guard; spend happens only when maintainer runs `rehydrate`) |
+| 014  | Backfill rehydration: enrich pre-012/013 unreviewed posts by ID lookup | P1 | S-M | 012, 013 | DONE (verified 2026-07-14; ran same day: 1,348 enriched, 0 missing) |
+| 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; 1,761 posts exported in 36 batches; judging session pending — maintainer runs it in Codex/Claude goal mode) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
