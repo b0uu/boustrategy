@@ -242,6 +242,13 @@ should improvise around them:
   process-quality evals only). The trial week is capsule #1. Eval harness
   becomes plan-worthy only after the reasoning prompts/worker exist
   (human checkpoint 5).
+- X article reader (2026-07-16): 59 article-pattern posts in trial data at
+  76% positive — the feed's highest value-density class, invisible to the
+  API (read endpoints don't exist; verified twice). Path: pilot Grok
+  (sanctioned native X access, fits subscription-agent stance) as a daily
+  article summarizer; human-routed via digest flags meanwhile. Gate design
+  rule regardless: link-only posts from roster accounts are NEVER
+  auto-skipped — always routed to the article queue.
 - Curated newsletter ingestion (maintainer note + approval 2026-07-15):
   Citrini Research, SemiAnalysis, etc. via maintainer subscriptions — the
   "curated corpus" differentiator's second source class after X. Needs a
