@@ -83,6 +83,22 @@ CREATE TABLE IF NOT EXISTS x_gate_predictions (
     predicted_at TEXT NOT NULL,
     PRIMARY KEY (post_id, predictor)
 );
+CREATE TABLE IF NOT EXISTS x_adjudications (
+    post_id TEXT NOT NULL,
+    predictor TEXT NOT NULL,
+    verdict TEXT NOT NULL,
+    label_before TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    adjudicated_at TEXT NOT NULL,
+    PRIMARY KEY (post_id, predictor)
+);
+CREATE TABLE IF NOT EXISTS x_score_snapshots (
+    predictor TEXT NOT NULL,
+    label TEXT NOT NULL,
+    metrics_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (predictor, label)
+);
 """
 
 

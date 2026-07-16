@@ -5,6 +5,7 @@ lives here beyond rendering and request/response shaping.
 """
 
 import argparse
+import json
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.labeling.adjudication import adjudicate, next_payload
 from app.storage.database import connect
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
@@ -71,6 +73,15 @@ class CaptureRequest(BaseModel):
     horizon: Horizon
     scrutiny_verdict: ScrutinyVerdict
     why_it_matters: str
+
+
+class AdjudicateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    predictor: str = Field(min_length=1)
+    post_id: str = Field(min_length=1)
+    verdict: str
+    note: str = ""
 
 
 def _next_payload(conn: Any) -> dict[str, Any]:
@@ -209,6 +220,72 @@ def _theme_buttons() -> str:
         for t in THEMES
     )
     return f'<div class="radio-group" id="group-theme">{buttons}</div>'
+
+
+def _metric_cells(prefix: str, metrics: dict[str, Any] | None) -> str:
+    agreement = f"{metrics['agreement_pct']:.1f}%" if metrics else "n/a"
+    precision = f"{metrics['precision']:.3f}" if metrics else "n/a"
+    recall = f"{metrics['recall']:.3f}" if metrics else "n/a"
+    return (
+        f'<td id="{prefix}-agreement">{agreement}</td>'
+        f'<td id="{prefix}-precision">{precision}</td>'
+        f'<td id="{prefix}-recall">{recall}</td>'
+    )
+
+
+def _render_comparison(progress: dict[str, Any]) -> str:
+    rows = (
+        f"<tr><td>original</td>{_metric_cells('original', progress['original_metrics'])}</tr>"
+        f"<tr><td>live</td>{_metric_cells('live', progress['live_metrics'])}</tr>"
+        f"<tr><td>live (excl. borderline)</td>"
+        f"{_metric_cells('live-excl', progress['live_metrics_excluding_borderline'])}</tr>"
+    )
+    return (
+        '<table id="comparison-table"><thead><tr><th></th><th>agreement</th>'
+        "<th>precision</th><th>recall</th></tr></thead><tbody>"
+        f"{rows}</tbody></table>"
+        f'<p id="progress">adjudicated {progress["adjudicated_count"]}/'
+        f"{progress['total_disagreements']}</p>"
+    )
+
+
+def _render_disagreement_block(payload: dict[str, Any]) -> str:
+    item = payload.get("next")
+    if payload["empty"] or item is None:
+        return '<p id="disagreement-empty">All disagreements adjudicated.</p>'
+    post_id = escape(str(item["post_id"]))
+    handle = escape(str(item["handle"]))
+    posted_at = escape(str(item["posted_at"]))
+    text = escape(str(item["text"]))
+    url = escape(str(item["url"]))
+    reply_context = _render_reply_context(item)
+    media = _render_media(item.get("media", []))
+    human_label = escape(str(item["human_label"]))
+    prediction = escape(str(item["prediction"]))
+    reason = escape(str(item.get("reason", "")))
+    captured_note = (
+        '<p id="captured-flag">captured post: overturn will not auto-flip; '
+        "flagged for manual review.</p>"
+        if item.get("captured")
+        else ""
+    )
+    return f"""
+      <div id="disagreement" data-post-id="{post_id}">
+        {reply_context}
+        <p><strong>@{handle}</strong> &mdash; {posted_at}</p>
+        <p id="disagreement-text">{text}</p>
+        {media}
+        <p><a href="{url}" target="_blank" rel="noopener">{url}</a></p>
+        {captured_note}
+        <div class="label-compare">
+          <div><strong>YOUR LABEL</strong>:
+            <span id="disagreement-human-label">{human_label}</span></div>
+          <div><strong>MODEL</strong>:
+            <span id="disagreement-prediction">{prediction}</span>
+            &mdash; <span id="disagreement-reason">{reason}</span></div>
+        </div>
+      </div>
+    """
 
 
 _PAGE_TEMPLATE = """<!doctype html>
@@ -457,6 +534,209 @@ def _render_page(payload: dict[str, Any]) -> str:
     )
 
 
+_ADJUDICATE_TEMPLATE = """<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Adjudication: {predictor}</title>
+<style>
+body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
+table#comparison-table {{ border-collapse: collapse; margin-bottom: 0.5rem; }}
+table#comparison-table td, table#comparison-table th {{
+  padding: 0.2rem 0.6rem; border: 1px solid #ccc; text-align: right;
+}}
+table#comparison-table td:first-child, table#comparison-table th:first-child {{
+  text-align: left;
+}}
+#reply-context {{
+  border-left: 3px solid #999; margin: 0.5rem 0; padding: 0.25rem 0.75rem;
+  color: #555; font-style: italic;
+}}
+#error-banner {{
+  display: none; background: #fdd; border: 1px solid #c00; color: #900;
+  padding: 0.5rem 0.75rem; margin: 0.5rem 0; border-radius: 0.2rem;
+}}
+#captured-flag {{ color: #900; font-style: italic; }}
+.label-compare {{ display: flex; gap: 1.5rem; margin: 0.75rem 0; }}
+.media {{ display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0; }}
+.media-item {{ position: relative; display: inline-block; }}
+.media-item img {{ max-width: 100%; max-height: 320px; display: block; }}
+.media-badge {{
+  position: absolute; bottom: 0.25rem; left: 0.25rem; background: rgba(0, 0, 0, 0.7);
+  color: #fff; font-size: 0.75rem; padding: 0.1rem 0.4rem; border-radius: 0.2rem;
+}}
+</style>
+</head>
+<body>
+<h1>Adjudication: {predictor}</h1>
+<div id="comparison">{comparison}</div>
+<div id="error-banner"></div>
+{disagreement_block}
+<div id="controls">
+  <button id="uphold-btn">Uphold mine (1)</button>
+  <button id="overturn-btn">Model was right (2)</button>
+  <button id="borderline-btn">Borderline (3)</button>
+</div>
+<div><label>Note <input type="text" id="note"></label></div>
+<script>
+var predictor = {predictor_json};
+
+function renderMedia(media) {{
+  if (!media || !media.length) return '';
+  var items = media.map(function(m) {{
+    var badge = (m.media_type === 'video' || m.media_type === 'animated_gif')
+      ? '<span class="media-badge">' + m.media_type + '</span>'
+      : '';
+    return '<span class="media-item"><img src="' + m.url + '" alt="' + m.alt_text +
+      '" loading="lazy">' + badge + '</span>';
+  }}).join('');
+  return '<div class="media">' + items + '</div>';
+}}
+
+function showError(message) {{
+  var el = document.getElementById('error-banner');
+  el.textContent = message;
+  el.style.display = 'block';
+}}
+
+function clearError() {{
+  var el = document.getElementById('error-banner');
+  el.style.display = 'none';
+  el.textContent = '';
+}}
+
+// Every response is read as JSON regardless of status so FastAPI's 422/404
+// detail can be shown to the user; only an ok response is passed on to
+// render, so a rejected request never gets treated as a completed verdict.
+function handleResponse(r) {{
+  return r.json().then(function(data) {{
+    if (!r.ok) {{
+      var detail = data && data.detail;
+      var message = Array.isArray(detail)
+        ? detail.map(function(d) {{ return d.msg || JSON.stringify(d); }}).join('; ')
+        : (detail || ('request failed with status ' + r.status));
+      throw new Error(message);
+    }}
+    return data;
+  }});
+}}
+
+function currentPostId() {{
+  var el = document.getElementById('disagreement');
+  return el ? el.getAttribute('data-post-id') : null;
+}}
+
+function metricsRow(prefix, m) {{
+  var agreement = m ? m.agreement_pct.toFixed(1) + '%' : 'n/a';
+  var precision = m ? m.precision.toFixed(3) : 'n/a';
+  var recall = m ? m.recall.toFixed(3) : 'n/a';
+  document.getElementById(prefix + '-agreement').textContent = agreement;
+  document.getElementById(prefix + '-precision').textContent = precision;
+  document.getElementById(prefix + '-recall').textContent = recall;
+}}
+
+function renderComparison(payload) {{
+  metricsRow('original', payload.original_metrics);
+  metricsRow('live', payload.live_metrics);
+  metricsRow('live-excl', payload.live_metrics_excluding_borderline);
+  document.getElementById('progress').textContent =
+    'adjudicated ' + payload.adjudicated_count + '/' + payload.total_disagreements;
+}}
+
+function renderDisagreement(payload) {{
+  var container = document.getElementById('disagreement') ||
+    document.getElementById('disagreement-empty');
+  var item = payload.next;
+  var html;
+  if (payload.empty || !item) {{
+    html = '<p id="disagreement-empty">All disagreements adjudicated.</p>';
+  }} else {{
+    var replyHtml = '';
+    if (item.reply_context) {{
+      replyHtml = '<blockquote id="reply-context"><p><em>in reply to</em></p>' +
+        '<p class="reply-context-text"></p></blockquote>';
+    }}
+    var capturedHtml = item.captured
+      ? '<p id="captured-flag">captured post: overturn will not auto-flip; ' +
+        'flagged for manual review.</p>'
+      : '';
+    html = '<div id="disagreement" data-post-id="' + item.post_id + '">' +
+      replyHtml +
+      '<p><strong>@' + item.handle + '</strong> &mdash; ' + item.posted_at + '</p>' +
+      '<p id="disagreement-text"></p>' +
+      renderMedia(item.media) +
+      '<p><a href="' + item.url + '" target="_blank" rel="noopener"></a></p>' +
+      capturedHtml +
+      '<div class="label-compare">' +
+      '<div><strong>YOUR LABEL</strong>: <span id="disagreement-human-label"></span></div>' +
+      '<div><strong>MODEL</strong>: <span id="disagreement-prediction"></span>' +
+      ' &mdash; <span id="disagreement-reason"></span></div></div></div>';
+  }}
+  container.outerHTML = html;
+  if (!payload.empty && item) {{
+    document.getElementById('disagreement-text').textContent = item.text;
+    if (item.reply_context) {{
+      document.querySelector('.reply-context-text').textContent = item.reply_context;
+    }}
+    var link = document.querySelector('#disagreement a');
+    link.href = item.url;
+    link.textContent = item.url;
+    document.getElementById('disagreement-human-label').textContent = item.human_label;
+    document.getElementById('disagreement-prediction').textContent = item.prediction;
+    document.getElementById('disagreement-reason').textContent = item.reason || '';
+  }}
+  var note = document.getElementById('note');
+  if (note) note.value = '';
+}}
+
+function renderPayload(payload) {{
+  clearError();
+  renderComparison(payload);
+  renderDisagreement(payload);
+}}
+
+function submitVerdict(verdict) {{
+  var postId = currentPostId();
+  if (!postId) return;
+  var note = document.getElementById('note').value;
+  fetch('/api/adjudicate', {{
+    method: 'POST',
+    headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{predictor: predictor, post_id: postId, verdict: verdict, note: note}})
+  }}).then(handleResponse).then(renderPayload).catch(function(err) {{ showError(err.message); }});
+}}
+
+document.getElementById('uphold-btn').addEventListener('click', function() {{
+  submitVerdict('upheld');
+}});
+document.getElementById('overturn-btn').addEventListener('click', function() {{
+  submitVerdict('overturned');
+}});
+document.getElementById('borderline-btn').addEventListener('click', function() {{
+  submitVerdict('borderline');
+}});
+document.addEventListener('keydown', function(e) {{
+  var tag = (e.target && e.target.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === '1') submitVerdict('upheld');
+  if (e.key === '2') submitVerdict('overturned');
+  if (e.key === '3') submitVerdict('borderline');
+}});
+</script>
+</body>
+</html>
+"""
+
+
+def _render_adjudicate_page(predictor: str, payload: dict[str, Any]) -> str:
+    return _ADJUDICATE_TEMPLATE.format(
+        predictor=escape(predictor),
+        predictor_json=json.dumps(predictor),
+        comparison=_render_comparison(payload),
+        disagreement_block=_render_disagreement_block(payload),
+    )
+
+
 def create_app(db_path: str | Path) -> FastAPI:
     app = FastAPI()
     app.state.db_path = str(db_path)
@@ -565,6 +845,34 @@ def create_app(db_path: str | Path) -> FastAPI:
                 if thread_row is not None and thread_row[0] == "unreviewed":
                     mark_reviewed(conn, thread_post_id, "captured")
             return _next_payload(conn)
+        finally:
+            conn.close()
+
+    @app.get("/adjudicate", response_class=HTMLResponse)
+    def adjudicate_page(predictor: str) -> str:
+        conn = get_conn()
+        try:
+            payload = next_payload(conn, predictor)
+        finally:
+            conn.close()
+        return _render_adjudicate_page(predictor, payload)
+
+    @app.get("/api/adjudicate/next")
+    def api_adjudicate_next(predictor: str) -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            return next_payload(conn, predictor)
+        finally:
+            conn.close()
+
+    @app.post("/api/adjudicate")
+    def api_adjudicate(body: AdjudicateRequest) -> dict[str, Any]:
+        conn = get_conn()
+        try:
+            try:
+                return adjudicate(conn, body.predictor, body.post_id, body.verdict, body.note)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
         finally:
             conn.close()
 
