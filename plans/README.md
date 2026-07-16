@@ -141,10 +141,16 @@ should improvise around them:
   calendar events, and daily-digest flags. EXTRAORDINARY_OPPORTUNITY
   survives as a reasoning-layer judgment. Spec §9's 0-20 numeric scoring
   rubric is retired unless judgment-based classification misbehaves.
-- **MCP vs CLI for the reasoning worker**: decision PENDING maintainer
-  clarity; current lean recorded for context — CLI-first through paper
-  mode, MCP server as a go-live gate (containment: enforced no-direct-
-  LLM-to-order rather than instructed).
+- **MCP vs CLI for the reasoning worker**: DECIDED 2026-07-15 — CLI for
+  now; MCP decision explicitly deferred (recorded lean: revisit as a
+  go-live containment gate, where enforced no-direct-LLM-to-order beats
+  instructed).
+- **Proposals pending maintainer review** (drafted 2026-07-15, in
+  `docs/proposals/`, clearly headed NOT IN EFFECT): PROPOSED-mandate-v2
+  (epistemic doctrine only), PROPOSED-risk_posture (the extracted tunable
+  dials, numerically identical to current), PROPOSED-spec-amendments
+  (section-by-section spec v0.2 changes). Nothing applies until the
+  maintainer adopts them.
 - Spec v0.2 rewrite needed to absorb: §12 limits, §15 costs/subscription
   stance, §8 two-level signal model, §5 regime-input v0 subset, §9
   simplification, §13 interface decision once made.
