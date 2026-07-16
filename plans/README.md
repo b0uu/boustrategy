@@ -121,6 +121,34 @@ should improvise around them:
   aaronp613 (2%) and ch402 (13%) are scan/removal candidates; seven
   accounts at 81-99% are always-feed.
 
+2026-07-15, architecture audit (spec-vs-reality reconciliation):
+
+- **Risk-appetite placement — hybrid split**: the thinking layer's mandate
+  keeps epistemic doctrine (decisive, calibrated, variant perception, no
+  hedging-mush) but stops prescribing boldness; conviction tiers,
+  escalation appetite, and sizing aggression move to a tunable risk-posture
+  layer (`docs/risk_posture.md`, to be drafted for maintainer sign-off).
+  Matches the NOTES modularity vision: reusable unbiased intelligence,
+  dialable autonomy.
+- **Scan tier — full-fetch, no keywords, smaller graph**: maintainer
+  supersedes both earlier decisions. Target ~50 total accounts, ALL
+  full-fetch (single tier), curated for on-topic density; no keyword
+  filtering machinery ever. New accounts enter on probation and are
+  auditioned by measured positive-rate before permanence. Budget
+  consequence accepted knowingly: ~$50-90/month X at that scale (parents
+  included, conservative counting).
+- **Trigger system simplified**: v0 triggers are price/volume thresholds,
+  calendar events, and daily-digest flags. EXTRAORDINARY_OPPORTUNITY
+  survives as a reasoning-layer judgment. Spec §9's 0-20 numeric scoring
+  rubric is retired unless judgment-based classification misbehaves.
+- **MCP vs CLI for the reasoning worker**: decision PENDING maintainer
+  clarity; current lean recorded for context — CLI-first through paper
+  mode, MCP server as a go-live gate (containment: enforced no-direct-
+  LLM-to-order rather than instructed).
+- Spec v0.2 rewrite needed to absorb: §12 limits, §15 costs/subscription
+  stance, §8 two-level signal model, §5 regime-input v0 subset, §9
+  simplification, §13 interface decision once made.
+
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
 - **X provider**: official X API pay-per-use is the system of record
