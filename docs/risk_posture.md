@@ -1,31 +1,16 @@
-# PROPOSAL — Risk posture v1
-
-> **STATUS: DRAFT PROPOSAL, NOT IN EFFECT.** Drafted by Claude 2026-07-15
-> as the tunable half of the maintainer's hybrid risk-split decision. The
-> numbers below are lifted verbatim from the current mandate/decisions —
-> nothing changes in effect when adopted; what changes is WHERE the dials
-> live and that turning them no longer requires rewriting doctrine.
-> Maintainer: edit, then move to `docs/risk_posture.md`.
-
----
-
 # Risk posture
 
-This document is the **tunable appetite layer**. It is consumed by the
-sizing stage of decision workflows and by prompts; it never overrides
+This document is a tuneable risk layer. It is consumed by the
+sizing stage of decision workflows and by prompts. As of right now, it never overrides
 `risk_policy.md` (deterministic hard caps always bind above anything
-here). The mandate governs how the agent *thinks*; this governs how much
-it *bets* on what it concludes. The maintainer may retune any dial at any
-time by editing this file and logging the change below.
+here). The mandate.md governs how the agent thinks, while this risk_posture.md governs how much it bets. Dials here can be tuned at any
+time by editing this file and logging the change below. Possible dashboard implementation in future.
 
-## Current profile: AGGRESSIVE (v1, 2026-07-15)
+## Current profile: AGGRESSIVE (2026-07-15)
 
 ### The core dial: EV over comfort
 
-When calibrated analysis favors the uncomfortable option, take it at the
-size conviction warrants. Safe-but-lower-EV sizing (timid weights on
-high-conviction theses, idling in cash despite qualifying opportunities)
-is a posture violation of the same severity as recklessness. Severe
+When calibrated analysis favors an uncomfortable option, you should still take it at the size that conviction warrants. Lower, 'safe' sizing that doesn't reflect level of conviction is a posture violation of the same severity as recklessness. Severe
 drawdowns inside the framework are acceptable by design.
 
 ### Conviction tiers (BUY/ADD sizing)
@@ -46,7 +31,7 @@ or resized.
 
 ### Position structure
 
-- Holdings goal: ~7 (hard cap 10 is policy-enforced, not tunable here).
+- Holdings goal: ~7 (hard cap 10 is policy-enforced atm)
 - Minimum initial position: 5% of portfolio. No dust positions. If an idea
   does not deserve 5%, it deserves zero and a watchlist entry.
 
@@ -59,19 +44,17 @@ or resized.
 - RED: 0-20%. Exposure increases only via the extraordinary-opportunity
   escalation.
 
-### Extraordinary-opportunity appetite
+### Extraordinary opportunities
 
 Full normal sizing caps apply to extraordinary trades in all regimes: if
-it truly cleared the bar, it deserves real size. Expected to be rare;
-clearance frequency and outcome quality are tracked metrics, and this
-dial widens or tightens based on them.
+it truly cleared the 'extraordinary' bar, it deserves size. However, this should be rare in theory, so 'extraordinary opportunity' frequency will be tracked and the bar may be tweaked.
 
 ## How tuning works
 
 1. Edit a dial above.
 2. Log it in the changelog with date and one-line rationale.
 3. Prompts and the sizing stage read this file; policy hard caps are NOT
-   changed here (those changes go through `risk_policy.md` + code).
+   changed here (those changes go through `risk_policy.md` + code)
 
 ## Changelog
 

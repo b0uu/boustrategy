@@ -19,18 +19,31 @@ under each tagged item as a dated `> review:` block
 
 ---
 
-## Current snapshot (2026-07-12, delete when stale)
+## Current snapshot (2026-07-18, delete when stale)
 
-- Plans 001-011 all DONE. Backbone + X trial stack + labeling UI live on main.
-- Trial blocked only on me: token (`setx X_BEARER_TOKEN`), finalize wk1
-  roster, then daily fetch → review at 127.0.0.1:8377 → status.
-- Carrying items: theme memos (14), skeptic/short-seller seat still empty,
-  budget recalibration after trial, spec §12 reconciliation (15 min),
-  relevance-gate plan gets written FROM trial labels.
+- Plans 001-017 are DONE. The deterministic backbone, X trial stack,
+  labeling/adjudication UI, and gate-agreement harness are implemented.
+- The monitored X trial and gate experiment are complete. Corrected agreement
+  reached 85.2%; the next X deliverable is the scheduled relevance/ranking pass,
+  article routing, and daily digest.
+- The mandate, risk posture, and spec v0.2 amendments are adopted. Their proposal
+  files were retired after consolidation.
+- Theme classification and theme memos are not part of the current reasoning
+  process. `docs/theme_classification.md` is retained as an inactive reference.
+- Next builds: daily X automation/digest, regime scorer v0, then the paper
+  reasoning worker and its evaluation loop. Carrying human items are the
+  skeptic/short-seller seat, prompt sign-off, and optional review of the 85
+  remaining borderline adjudications.
 
 ---
 
 ## Notes
+
+- I want to add newsletters that agent draws from, including but not limited to Citrini Research, Semi Analysis, etc.
+- I want the autonomous part of the agent and the thinking part of the agent to be modular. The autonomous part should be able to be very tweakable according to how risk-on the user wants to be, while the thinking part is very calculated and unbiased. Not sure if this is optimal structure though, but I'd imagine that with something like this, autonomous trading is one of many utilities of a smart and context-informed thought process.
+- While manually labeling, I tend to tag as significant even when IM not sure bot will parse the context, because I know that the context is significant. For example, X articles, or images of charts or polymarket predictions.
+- I'm concerned about what model(s) I'm going to use for the agent(s). I definitely want the smartest model at decision-making, something like Fable 5 or GPT-5.6 Sol, but I also need to consider costs and frequency. I'm thinking that I'm definitely willing to sacrifice frequency for model quality, now that I think about it, frequency is not as important as quality.
+- I know that AI is currently the emphasized theme, but I don't want to laser focus on solely AI. I want tthe agent to be able to explore other investment sectors as well. However, the curated X accounts does make it convenient to lock in on a single bubble.
 
 - I'm thinking that the differentiating factors for this agent are the following:
   - Feeding agent a live, curated X feed (automatically), either inciting the agent to take action, or for the agent to refer to and bounce off of while making its  decisions based off other evidence
@@ -118,5 +131,3 @@ under each tagged item as a dated `> review:` block
 ---
 
 ## Archive
-
-

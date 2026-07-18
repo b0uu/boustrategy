@@ -55,9 +55,11 @@ should improvise around them:
 2. **Curated X account list** — human-only curation per
    `docs/source_policy.md`. Gates any real X signal generation — and the
    manual run starting this week needs at least a first version of it.
-3. **Theme memos** (14 themes, spec §4) — agents may draft, the maintainer's
-   bull/bear cases and invalidation instincts make them real. Gates
-   high-quality thesis chains.
+3. ~~**Theme memos**~~ — REMOVED 2026-07-18 as a standing checkpoint. Theme
+   IDs remain classification and concentration-accounting fields. Individual
+   decisions must stand on their own records; `docs/theme_classification.md`
+   is an inactive reference and must not enter agent reasoning unless the
+   maintainer explicitly adopts it later.
 4. **Approved/rejected historical trade examples** — preference-alignment
    eval data only the maintainer can label.
 5. **Reasoning prompts sign-off** — thesis-chain and daily-management
@@ -149,15 +151,14 @@ should improvise around them:
   now; MCP decision explicitly deferred (recorded lean: revisit as a
   go-live containment gate, where enforced no-direct-LLM-to-order beats
   instructed).
-- **Proposals pending maintainer review** (drafted 2026-07-15, in
-  `docs/proposals/`, clearly headed NOT IN EFFECT): PROPOSED-mandate-v2
-  (epistemic doctrine only), PROPOSED-risk_posture (the extracted tunable
-  dials, numerically identical to current), PROPOSED-spec-amendments
-  (section-by-section spec v0.2 changes). Nothing applies until the
-  maintainer adopts them.
-- Spec v0.2 rewrite needed to absorb: §12 limits, §15 costs/subscription
-  stance, §8 two-level signal model, §5 regime-input v0 subset, §9
-  simplification, §13 interface decision once made.
+- **Mandate/risk/spec proposals adopted** (2026-07-18): the maintainer
+  consolidated the mandate and risk posture into `docs/mandate.md` and
+  `docs/risk_posture.md`; the necessary amendments were incorporated into
+  `boustrategy_spec.md` v0.2. The superseded proposal files were retired.
+- **Theme-document architecture revised** (2026-07-18): the 14 theme IDs remain
+  a taxonomy for signals, decisions, and concentration, but no standing set of
+  theme memos is required. `docs/theme_classification.md` is retained as an
+  explicitly inactive reference and is excluded from decision-making.
 - **No ongoing manual labeling** (2026-07-15): the trial dataset as
   adjudicated is the working ground truth; no recurring labeling duty.
   Human labels acknowledged fallible — the adjudication UI (plan 016)
@@ -275,9 +276,8 @@ should improvise around them:
   needs inputs (thesis-quality scoring, liquidity data) that don't exist;
   plan 003 removes the dead field.
 - **Untracked implementation**: resolved — baseline committed `01193d1`.
-- **Spec §12/§15 reconciliation**: `boustrategy_spec.md` still shows the old
-  limits (3-6 holdings, unified 2/day quota, flat RED ban) and the old X
-  budget. Maintainer-owned doc; 15-minute human task, not a plan.
+- **Spec §12/§15 reconciliation**: resolved 2026-07-18 in
+  `boustrategy_spec.md` v0.2.
 
 ## Not audited (2026-06-12 run)
 

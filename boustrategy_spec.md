@@ -8,7 +8,9 @@
 
 **Project name:** BouStrategy  
 
-**Spec version:** v0.1  
+**Spec version:** v0.2
+
+The strategy documents in `docs/` likely take precedence where they overlap with this spec.
 
 **Goal:** Build a public investment agent with live autonomous execution, detailed logging, and a sophisticated trading framework based on personal strategy.  
 
@@ -55,7 +57,7 @@ The core challenge is building an investment harness that is able to deeply cons
 
 ---
 
-## 3. v0.1 scope and mandate
+## 3. v0.2 scope and mandate
 
 ### In scope
 
@@ -63,7 +65,7 @@ The core challenge is building an investment harness that is able to deeply cons
 - Long-only U.S.-listed equities and ETFs
 - Autonomous execution through a Robinhood broker adapter
 - Utilize robinhood functions (such as fetching price)
-- Codex powered reasoning worker where possible
+- LLM work runs through subscription agent sessions (Codex/Claude goal mode), not per-token APIs, until economics or unattended-operation needs dictate otherwise
 - Investment intelligence MCP for context, schemas, records, source packs, and policy checks
 - Daily portfolio management chain
 - Full thesis chain when necessary
@@ -124,7 +126,9 @@ Thesis should map to specific 'strategy beliefs'.
 
 ### Theme docs
 
-Each theme should eventually have a concise memo with overview, tickers/ETFs, curated X accounts, primary sources, bull cases, bear cases, important metrics, invalidation patterns, and warning signs to watch for.
+Theme IDs are classification and concentration-accounting categories, not investment endorsements. Individual decisions must stand on the company-specific reasoning in their Investment Decision Records. Dedicated theme memos are optional and may be created later when several decisions share a causal chain or shared monitoring would add value.
+
+`docs/theme_classification.md` is retained as an inactive reference and must not be included in agent context or decision-making unless the maintainer explicitly adopts it later.
 
 `emergent_theme` may create a research initiative, but cannot directly create an order until vetted
 
@@ -134,7 +138,7 @@ Each theme should eventually have a concise memo with overview, tickers/ETFs, cu
 
 ### Operating modes
 
-- **Capital Deployment:** Used when exposure is below the regime target band. Run up to 3-5 full thesis chains/day. Goal is 3-6 high-conviction holdings.
+- **Capital Deployment:** Used when exposure is below the regime target band. Run up to 3-5 full thesis chains/day. The current posture targets about 7 high-conviction holdings; policy hard-caps holdings at 10.
 - **Portfolio Management.** Used when exposure is within target. Run one portfolio management chain per trading day. New BUY/ADD chains require extraordinary-opportunity classification. Most days should end HOLD / NO ACTION.
 - **Derisk** Used in RED or after major invalidation/risk triggers. Focus on TRIM, SELL, HOLD, cash, and re-entry watchlists. Significantly limit new high-beta buys while RED persists.
 
@@ -142,11 +146,15 @@ Each theme should eventually have a concise memo with overview, tickers/ETFs, cu
 
 - **GREEN:** AI risk-on intact. Target exposure 80%-100%. High-beta buys and adds allowed when evidence supports them.
 - **YELLOW:** AI risk-on weakening or unclear. Target exposure 40%-70%. New buys need stronger evidence, and smaller sizing, trims, and delayed entries are preferred.
-- **RED:** AI risk-on broken or falling apart. Target exposure 0%-20%. No new high-beta buys: prioritize de-risking and re-entry research.
+- **RED:** AI risk-on broken or falling apart. Target exposure 0%-20%. Prioritize de-risking and re-entry research. BUY/ADD requires the extraordinary-opportunity escalation.
 
 ### Regime inputs
 
 QQQ trend, SPY trend, SMH trend and leadership, AI leader relative strength, breadth, volatility/liquidity pressure, reaction to positive and negative AI news, AI capex outlook, hyperscaler commentary, bottlenecks, government AI spend, macro/liquidity, curated X narrative health, portfolio drawdown, and hit rate.
+
+The v0 subset computes QQQ/SPY/SMH trend, AI-leader relative strength from the price cache, and news reaction, AI capex outlook, and curated X narrative health from the daily digest. Calendar context joins this subset when the events feed exists. Breadth, volatility/liquidity pressure, portfolio drawdown, and hit rate are deferred until their required data exists; portfolio drawdown and hit rate require live trading history.
+
+The `scores` object is versioned and includes only inputs that are actually computable in that version.
 
 ### Regime json output
 
@@ -157,14 +165,12 @@ QQQ trend, SPY trend, SMH trend and leadership, AI leader relative strength, bre
   "as_of": "timestamp",
   "scores": {
     "qqq_trend": 0,
-    "smh_leadership": 0,
+    "spy_trend": 0,
+    "smh_trend_and_leadership": 0,
     "ai_leader_relative_strength": 0,
-    "breadth": 0,
     "news_reaction": 0,
     "ai_capex_outlook": 0,
-    "macro_liquidity": 0,
-    "x_narrative_health": 0,
-    "portfolio_health": 0
+    "x_narrative_health": 0
   },
   "summary": "string",
   "state_change": {
@@ -179,7 +185,7 @@ QQQ trend, SPY trend, SMH trend and leadership, AI leader relative strength, bre
 
 ## 6. Data and source policy
 
-v0.1 should utilize free data. The system should reason from curated and/or public sources, curated X signals, portfolio state, historical daily price data, and Robinhood execution data.
+v0.2 should utilize free data. The system should reason from curated and/or public sources, curated X signals, portfolio state, historical daily price data, and Robinhood execution data.
 
 ### Preferred sources
 
@@ -188,7 +194,8 @@ v0.1 should utilize free data. The system should reason from curated and/or publ
 - FRED or similar free macro data.
 - Company investor relations, press releases, earnings materials, and filings.
 - Public news, research posts, ETF issuer pages, and government/regulatory sources.
-- Curated X tracking via X API, the only paid source rn
+- Curated X tracking through the official X API pay-per-use service, the system of record for raw posts and attribution
+- Paywalled newsletters and research available through the maintainer's subscriptions may be used as internal reference only; their content or excerpts are never republished
 
 ### Reliability rule
 
@@ -196,17 +203,17 @@ Every source used in an Investment Decision Record must be timestamped and class
 
 ### Historical price data
 
-Daily OHLCV is sufficient for v0.1. Store date, open, high, low, close, adjusted close when available, volume, source, and fetched_at.
+Daily OHLCV is sufficient for v0.2. Store date, open, high, low, close, adjusted close when available, volume, source, and fetched_at.
 
 Cache prices for QQQ, SPY, SMH, active holdings, watchlist tickers, curated AI leaders, and trigger-generated candidates. Refresh after market close and on demand for new candidates.
 
-Primary source candidate: `yfinance` or equivalent free daily OHLCV source. Fallbacks: Stooq, Alpha Vantage compact daily endpoint, or FMP Basic/free tier. Paid historical data should wait until free data blocks reliability, replay quality, dashboard quality, intraday triggers, or breadth/regime scoring.
+Primary source: `yfinance` or equivalent free daily OHLCV source. Fallback order: Massive, then Alpha Vantage. Paid historical data should wait until free data blocks reliability, replay quality, dashboard quality, intraday triggers, or breadth/regime scoring.
 
 ---
 
 ## 7. Source packs
 
-A Source pack is structured research context sent to the reasoning worker before a serious decision. Look into utilizing Gemini research reports for this (free student plan)
+A Source pack is structured research context sent to the reasoning worker before a serious decision. Look into utilizing Gemini research reports for this (free student plan). Paywalled research from the maintainer's subscriptions may be included as private internal context but never republished.
 
 ### Inputs
 
@@ -247,6 +254,8 @@ Ticker/ETF metadata, theme memo excerpts, strategy belief IDs, current regime, h
 
 The X graph is versioned, categorized by theme, and scored over time. Accounts may belong to multiple categories.
 
+The current target is about 20 accounts in a single full-fetch tier. There is no keyword-filtered scan tier. Accounts are selected for on-topic density; new accounts enter on probation and earn permanence through measured positive rate. At trial-measured volumes, the estimated steady-state X cost is about $35-$55/month.
+
 ### Account categories
 
 Semiconductor specialist, AI infrastructure specialist, data center/power expert, macro/liquidity commentator, growth/tech equity investor, skeptic/short seller, market structure/flows account, company specific expert, news account, and general high-signal finance account.
@@ -273,30 +282,25 @@ Semiconductor specialist, AI infrastructure specialist, data center/power expert
 
 Score accounts on early theme detection, specificity, source quality, primary-source alignment, cross-cluster confirmation, counter-evidence handling, early vs late tendency, consensus amplification after price movement, hype/pump behavior, and usefulness for counter-thesis.
 
-### X signal object
+### Two-level X signal model
+
+Level 1 is the per-post captured signal used for auditability, scrutiny, and account-history updates:
 
 ```json
 {
-  "x_signal_id": "string",
-  "theme_or_ticker": "string",
-  "as_of": "timestamp",
-  "narrative_velocity": 0,
-  "novelty": 0,
-  "cross_cluster_confirmation": 0,
-  "skeptic_strength": 0,
-  "late_consensus_risk": 0,
-  "account_quality_weighted_score": 0,
-  "influential_accounts": [
-    {
-      "handle": "@example",
-      "category": "string",
-      "signal_type": "idea_source | confirmation | counter_thesis | crowding_warning",
-      "weight": 0.0
-    }
-  ],
-  "summary": "string"
+  "post_id": "string",
+  "handle": "@example",
+  "captured_at": "timestamp",
+  "primary_theme_id": "string",
+  "claim": "string",
+  "claim_type": "fact | interpretation",
+  "stance": "idea_source | confirmation | counter_thesis | crowding_warning | theme_discovery",
+  "horizon": "short | medium | long",
+  "scrutiny_verdict": "substantiated | unsupported | wrong | nonsense | cannot_assess"
 }
 ```
+
+Level 2 is the daily digest. It aggregates captured posts into theme-level narrative velocity, disagreement, crowding, supporting evidence, and counter-evidence for the reasoning chain. The account scrutiny ledger accrues from level-1 verdicts and may only reduce an account's influence below the human-set prior.
 
 ---
 
@@ -306,7 +310,7 @@ The trigger system decides when the agent should reason more deeply.
 
 ### Trigger types
 
-Price/volume breakout or breakdown, relative strength shift, regime change, curated X narrative velocity spike, high-quality skeptic/counter-thesis, earnings/capex/filing/news event, active position invalidation, exposure drift, and extraordinary-opportunity candidate.
+v0 triggers are price/volume thresholds on holdings and the watchlist, calendar events such as earnings and FOMC meetings, and flags surfaced by the daily digest.
 
 May place automatic triggers for certain accounts and certain triggers. (Ex. important figures, significant events).
 
@@ -315,7 +319,7 @@ May place automatic triggers for certain accounts and certain triggers. (Ex. imp
 - Underexposed for regime: more BUY/ADD thesis chains are allowed.
 - Within target exposure: new BUY/ADD thesis chains require extraordinary-opportunity classification.
 - Overexposed: no new BUY chains; focus on TRIM/SELL/risk review.
-- RED: no new high-beta BUY chains.
+- RED: BUY/ADD chains require extraordinary-opportunity classification.
 
 ### Trigger object
 
@@ -323,7 +327,7 @@ May place automatic triggers for certain accounts and certain triggers. (Ex. imp
 {
   "trigger_id": "string",
   "created_at": "timestamp",
-  "trigger_type": "PRICE | VOLUME | X_SIGNAL | NEWS | FILING | EARNINGS | REGIME_CHANGE | POSITION_INVALIDATION | EXPOSURE_DRIFT",
+  "trigger_type": "PRICE | VOLUME | CALENDAR_EVENT | DAILY_DIGEST_FLAG",
   "ticker": "string",
   "theme_ids": ["string"],
   "description": "string",
@@ -342,13 +346,9 @@ May place automatic triggers for certain accounts and certain triggers. (Ex. imp
 - **REVIEW:** meaningful enough for compact review or active thesis update.
 - **EXTRAORDINARY_OPPORTUNITY:** strong enough to trigger a full thesis chain even when exposure is already in range.
 
-### Score and gates
+### Judgment and gates
 
-These are all prone to adjustments
-
-- Score novelty 0-20, magnitude 0-20, causal link 0-20, cross-source confirmation 0-15, market confirmation/mispricing 0-15, framework fit 0-10, actionability 0-10, late-consensus penalty 0 to -20, and weak-source penalty 0 to -20.
-
-- Thresholds: NOISE below 40 or failed hard gate, MONITOR 40-59, REVIEW 60-74, EXTRAORDINARY_OPPORTUNITY 75+ with all gates passed.
+Classification is a reasoning-layer judgment recorded with justification, not a numeric point total. Revisit numeric scoring only if evals show that judgment-based classification is inconsistent.
 
 - A trigger cannot become extraordinary if it lacks a plausible causal link, has no allowed ticker/ETF expression, cannot map to a strategy belief, relies on stale or unavailable data
 
@@ -360,7 +360,7 @@ Questions before escalation: what is new, why it matters, causal chain, investab
 
 ### Research Prior
 
-Before a full thesis chain, the agent receives human curated context to supplement autonomous research. Handpicked context includes strategy memos, theme memos, curated X accounts, internal examples, and approved/disapproved historical cases. Autonomous research includes public company information, filings, news, earnings materials, macro data, price data, and public web sources.
+Before a full thesis chain, the agent receives human curated context to supplement autonomous research. Handpicked context includes adopted strategy memos, explicitly active theme memos when any exist, curated X accounts, internal examples, and approved/disapproved historical cases. Autonomous research includes public company information, filings, news, earnings materials, macro data, price data, and public web sources.
 
 'Research prior' should score or summarize macro environment, regime fit, recent narrative, curated X signal, high-signal commentary, primary-source validation, price/volume confirmation, what is priced in, portfolio fit, risk, and invalidation. Output candidates, themes, supporting evidence, contradictory evidence, open questions, and initial classification: PASS / WATCHLIST / FULL THESIS CANDIDATE.
 
@@ -506,20 +506,20 @@ Reject order intent if ticker, asset type, thesis, invalidation criteria, source
 
 ### Sizing adjustment
 
-The policy engine may reduce target weight for single-name, ETF, or theme concentration for following reasons:
-- If in YELLOW regime: good but not extraordinary thesis quality
-- weak liquidity/spread
-- portfolio exposure already near target
+Automatic downsizing instead of rejection is deferred until the system has the required thesis-quality, liquidity/spread, and portfolio inputs. Policy currently approves or rejects the requested target weight; a sizing-adjustment field should return only when the behavior is implemented.
 
 ### Initial limits
 
-- Max stock target weight: 20%
-- Max ETF target weight: 50%
-- Max holdings: 3-6
-- Max executed trades/day: 2
+- Max stock target weight: 20% for BUY/ADD only
+- Max ETF target weight: 50% for BUY/ADD only
+- Max single primary theme: 60% of portfolio for BUY/ADD
+- Max holdings: 10; the current posture targets about 7
+- BUY/ADD trades/day: 2
+- TRIM/SELL: exempt from the trade quota, with a 10/day malfunction circuit breaker
+- Minimum initial position: 5%, enforced by risk posture rather than deterministic policy
 - Max full thesis chains/loops per day in Capital Deployment: ~3-5
 - Max full thesis chains/day in Portfolio Management: 0-1 unless invalidation occurs
-- No new high-beta buys in RED.
+- BUY/ADD in RED or DE_RISKING requires `extraordinary_opportunity=true` with written justification
 
 ### Order execution
 
@@ -562,8 +562,8 @@ Decision Record
 
 ### Components
 
-- **Investment Intelligence MCP/API:** strategy constitution, theme taxonomy, source packs, regime snapshots, schemas, policy checks, and records database.
-- **Codex Reasoning Worker:** runs predetermined thesis/management workflows, calls MCP/API tools, writes structured records back through MCP/API.
+- **Investment Intelligence Library/CLI:** strategy constitution, theme taxonomy, source packs, regime snapshots, schemas, policy checks, and records database. Reasoning sessions use CLI and files through the paper period; the decision-worker CLI surface is not yet complete.
+- **LLM Reasoning Worker:** runs predetermined thesis/management workflows and writes structured records through the investment intelligence interface.
 - **Backend State Machine:** validates schemas, runs policy checks, prevents duplicate orders, manages order intent status, controls broker execution, logs transitions.
 - **Robinhood Execution Adapter:** portfolio state, positions, quotes, tradability, order review, order placement, and order status.
 - **Public Dashboard:** public portfolio, decision feed (could be cool to make an interactive graph interface to showcase agent workflow), regime color indicator, rejected decisions log, audit log
@@ -574,7 +574,7 @@ Decision Record
 Trigger / Schedule
 > Source Pack Builder
 > Candidate Screen
-> Codex Reasoning Worker
+> LLM Reasoning Worker
 > Investment Decision Record
 > Schema Validation
 > Policy Engine
@@ -586,6 +586,8 @@ Trigger / Schedule
 ### Decision statuses
 
 `trigger_detected`, `source_pack_created`, `candidate_screened`, `decision_record_created`, `schema_validated`, `schema_failed`, `policy_approved`, `policy_rejected`, `order_intent_created`, `broker_reviewed`, `submitted`, `filled`, `partially_filled`, `canceled`, `failed`, `published`.
+
+Statuses are implemented through `order_intent_created`. Broker and publication statuses arrive with their corresponding adapters. An MCP wrapper over the same library remains a go-live decision; the recorded lean is to require physical no-direct-LLM-to-order containment before live execution.
 
 ### Idempotency
 
@@ -607,30 +609,29 @@ The dashboard should showcase agent process along with nice P&L display (hopeful
 
 ## 15. Documentation, cost, and evals
 
-### Static docs to develop
+### Static docs
 
-- `investment_mandate_v0.1.md`
-- `strategy_beliefs_v0.1.md`
-- `theme_taxonomy_v0.1.yaml`
-- `thesis_chain_prompt_v0.1.md`
-- `daily_portfolio_management_prompt_v0.1.md`
-- `source_policy_v0.1.md`
-- `risk_policy_v0.1.md`
-- `order_execution_policy_v0.1.md`
-- `eval_rubric_v0.1.md`
-- Theme files such as `themes/ai_semiconductors.md`, `themes/power_grid_electrification.md`, and `themes/data_centers.md` (shoudl cover all the themes)
+Current strategy and record docs:
+
+- `docs/mandate.md`
+- `docs/risk_posture.md`
+- `docs/risk_policy.md`
+- `docs/source_policy.md`
+- `docs/decision_record.md`
+
+Still to develop: thesis-chain and daily-portfolio-management prompts, an eval rubric, and theme files covering the full taxonomy.
 
 The human may add strategy memos, resonant memos, approved/disapproved historical trades, and market taste/framework notes as aligning context.
 
 ### Cost policy
 
-Assume a $500 live account, Codex subscription powered reasoning for LLM-heavy workflows, one daily portfolio management chain in steady state, rare full thesis chains, backend-owned retrieval/validation/policy/order/dashboard work, and minimal paid API spend.
+Assume a $500 live account, subscription agent sessions for LLM-heavy workflows, one daily portfolio management chain in steady state, rare full thesis chains, backend-owned retrieval/validation/policy/order/dashboard work, and minimal paid API spend.
 
 Expected monthly operating cost excluding capital:
 
-- Practical demonstration v0.1: $30-$100/month.
+- Practical demonstration v0.2: $30-$100/month.
 
-Cost buckets: Codex/ChatGPT subscription ~$20/month if limits suffice, could use multiple chatGPT accounts if necessary, hosting/API $0-$25, database/storage $0-$25, dashboard/domain/logging $0-$30, historical price data $0 target, market/fundamental data $0 initially, X/Grok/social tracking ~$10-$30
+Cost buckets: LLM subscriptions ~$20/month if limits suffice, hosting/API $0-$25, database/storage $0-$25, dashboard/domain/logging $0-$30, historical price data $0 target, market/fundamental data $0 initially, and X/social tracking estimated at ~$35-$55 for the target ~20-account graph.
 
 Dashboard should separate portfolio P&L, benchmark-relative P&L, operating costs, and all-in experiment cost.
 
@@ -651,11 +652,11 @@ Test historical and synthetic cases for:
 
 ### Phase 0: Spec and schemas
 
-Finalize this spec and create JSON schemas for Regime Snapshot, Source Pack, Trigger, X Signal, Investment Decision Record, Active Position Record, Order Intent, and Broker Execution Record.
+Investment Decision Record, Order Intent, and captured X signal schemas are implemented. Regime Snapshot, Source Pack, Trigger, Active Position Record, and Broker Execution Record schemas arrive with their features.
 
 ### Phase 1: Local simulation with live-like records
 
-Build local MCP/API, source pack builder, daily price cache, and decision record storage. Use Codex worker to generate mock decision records. No broker execution yet.
+In progress. Decision and intent storage, the state machine, daily price cache, and X ingestion are implemented. The source-pack builder, reasoning interface, and paper decision runs remain. No broker execution yet.
 
 ### Phase 2: Live $500 account with strict policy
 
@@ -663,7 +664,7 @@ Connect broker execution adapter, start live with tiny account, enforce strict o
 
 ### Phase 3: Better triggers and evals
 
-Add curated X tracking, trigger classification, daily portfolio management, historical/synthetic evals, and ablation tests.
+Curated X tracking and eval groundwork were pulled forward through the monitored trial and gate experiment. Trigger classification, daily portfolio management, historical/synthetic evals, and ablation tests remain.
 
 ### Phase 4: Hardening
 
@@ -673,23 +674,17 @@ Improve state machine, retries/fallbacks, monitoring, dashboard, and paid data d
 
 ## 17. Open questions
 
-- Exact curated X accounts (I have a good idea)
 - Daily portfolio management timing
-- GREEN/YELLOW/RED thresholds.
-- Initial max position sizes
+- Exact regime-scoring calibration beyond the declared v0 input subset
 - Exact Daily Portfolio Management and Full Thesis Chain prompts.
-- Exact backend state machine details.
+- Broker-phase state machine details
+- Whether an MCP wrapper is required at the live-execution boundary
 
 ---
 
 ## 18. Immediate next steps
 
-1. Finalize Investment Decision Record schema
-2. Finalize Daily Portfolio Management Chain prompt
-3. Define initial position/order limits for the $500 account.
-4. Create initial theme files.
-5. Create initial curated X account list
-6. Decide free historical price source and cache format
-7. Build local MCP/API skeleton.
-8. Build dashboard skeleton with fake records
-9. Run first mock Codex generated decision records
+1. Build the scheduled X fetch, rubric-based relevance pass, article routing, and daily digest.
+2. Build the v0 regime scorer from the declared computable inputs.
+3. Finalize the Daily Portfolio Management and Full Thesis Chain prompts and the paper-period reasoning interface.
+4. Run and grade the first paper decision records before any live-money work.
