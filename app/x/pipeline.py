@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from app.events.store import upcoming_events
 from app.x.calendar import slot_should_run
 from app.x.posts import MAX_MONTHLY_POST_READS, reads_remaining
 
@@ -276,6 +277,12 @@ def render_digest(conn: sqlite3.Connection, digest_date: date, out_path: str | P
     ).fetchall()
     lines += ["", "## Article queue", ""]
     lines += [f"- {url} | queued {queued_at}" for url, queued_at in articles]
+    events = upcoming_events(conn, digest_date, 7)
+    if events:
+        lines += ["", "## Calendar", ""]
+        for event_date, event_type, ticker, label in events:
+            subject = ticker or "FOMC"
+            lines.append(f"- {event_date} | {event_type} | {subject} | {label}")
     notes = conn.execute(
         "SELECT slot, synthesis, author FROM x_digest_notes WHERE note_date = ?", (day,)
     ).fetchall()
