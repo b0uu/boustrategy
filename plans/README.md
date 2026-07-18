@@ -19,6 +19,8 @@ done.
 
 Recommended order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 008
 runnable at any point in parallel (it is research-only and touches no code).
+Current wave (2026-07-18): 018 → 019; 020 independent once the maintainer
+amends `docs/risk_policy.md` (prerequisite stated in the plan).
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
@@ -39,6 +41,9 @@ runnable at any point in parallel (it is research-only and touches no code).
 | 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; Luna judged all 1,761: 72.5% agreement, 485 disagreements — report at data/gate_experiment/report-luna.md) |
 | 016  | Adjudication UI: resolve disagreements, correct labels auditably, re-score, compare rounds | P1 | M | 011, 015 | DONE (verified 2026-07-16; smoke-tested against a live-db copy; captured posts never auto-flip; label corrections audited with label_before) |
 | 017  | Micro-fix: retweets store full original text (was ~140-char truncated echo; 222 historical RTs affected) | P1 | S | — | DONE (verified 2026-07-16; zero-cost — includes already fetched; historical RT repair deferred, ~500 reads, pending X balance headroom) |
+| 018  | X pipeline backbone: run ledger, routing store, article queue, digest renderer, market calendar | P1 | M | 010-014 | TODO |
+| 019  | Digester session runbooks + gate rubric v2 (docs only) | P1 | S | 018 (hard) | TODO |
+| 020  | Extraordinary-opportunity override for BUY/ADD daily quota (+5/day brake) | P2 | S | maintainer amends risk_policy.md first | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -167,6 +172,35 @@ should improvise around them:
   raw agreement; disagreements split model-error / human-error (notably
   non-English posts) / borderline.
 
+2026-07-18, pipeline planning session:
+
+- **Run schedule**: three weekday sessions at 08:45 / 12:30 / 17:45 ET
+  (third slot deliberately POST-close — captures the after-hours earnings
+  window same-day; the "decision before close" rationale was dropped as
+  urgency bias) plus Sunday 18:00 ET weekly consolidation. Exchange
+  calendar with half-day handling; the daily digest closes after the
+  close run; after-hours flows into next morning.
+- **Digest is the seam**: ingestion/digester sessions NEVER launch
+  reasoning or thesis-chain sessions — they flag ACTIONABLE in the
+  digest; the reasoning worker (post checkpoint 5) consumes it as its own
+  session. Enforced structurally (separate runbooks, prohibition printed
+  in DIGESTER.md).
+- **Crowding identification cut from the per-run rubric** — crowding
+  detection stays deferred (UW eval gate) and inferring it from X
+  engagement collides with the never-filter-on-engagement rule.
+- **Autonomy clarified**: checkpoints 5 and 6 are one-time gates (prompt
+  sign-off; broker activation), NOT per-decision review. No human in the
+  decision loop by design; the structural guardrails + evals are the
+  entire safety system.
+- **Frequency limits are posture dials, evidence-gated**: the maintainer
+  is open to loosening the low-frequency posture, but unlocks come from
+  paper-capsule/eval evidence — never from the agent's self-assessed
+  edge. Minimal first step approved: extraordinary-opportunity override
+  of the BUY/ADD daily quota with an absolute 5/day brake (plan 020,
+  gated on a risk_policy.md amendment). Intraday/daytrading would
+  additionally require real-time data the system does not have; not
+  pursued.
+
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
 - **X provider**: official X API pay-per-use is the system of record
@@ -220,14 +254,15 @@ should improvise around them:
 
 ## Direction items not yet planned
 
-- X ingestion build (unblocked 2026-07-12; execute after the manual week) —
-  includes the scrutiny-event record schema for the account ledger
-  (`docs/source_policy.md`) AND the versioned curated-account-graph store:
-  accounts live in the database with every change logged, seeded from
-  `docs/x_manual/README.md`. Maintainer decision 2026-07-12: the dashboard
-  must eventually expose an admin-only surface for the maintainer to
-  dynamically edit the graph (human-only curation, better tooling — the
-  public side shows it read-only if at all).
+- ~~X ingestion build~~ — PLANNED 2026-07-18 as plans 018 (deterministic
+  backbone) + 019 (rubric v2 + session runbooks). Still outstanding from
+  the original item: the scrutiny-event record schema for the account
+  ledger (`docs/source_policy.md`), and the dashboard admin-only surface
+  for dynamic graph editing (human-only curation, better tooling — the
+  public side shows it read-only if at all). Prerequisites before first
+  production cycle (maintainer): trim roster toward ~20, recalibrate
+  `MAX_MONTHLY_POST_READS`, schedule the four recurring sessions (ops
+  note in plan 019).
 - Backend state machine (order intent status transitions, crash recovery) —
   next natural plan after 006; write it once 005/006 land and the shape is
   proven.
@@ -251,7 +286,10 @@ should improvise around them:
   (sanctioned native X access, fits subscription-agent stance) as a daily
   article summarizer; human-routed via digest flags meanwhile. Gate design
   rule regardless: link-only posts from roster accounts are NEVER
-  auto-skipped — always routed to the article queue.
+  auto-skipped — always routed to the article queue. *Update 2026-07-18*:
+  the queue + code-enforced always-flag routing land in plan 018; the
+  reader (Grok pilot, writes `x_article_queue` status transitions)
+  remains unplanned.
 - Curated newsletter ingestion (maintainer note + approval 2026-07-15):
   Citrini Research, SemiAnalysis, etc. via maintainer subscriptions — the
   "curated corpus" differentiator's second source class after X. Needs a
