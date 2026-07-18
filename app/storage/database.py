@@ -157,6 +157,23 @@ CREATE TABLE IF NOT EXISTS regime_snapshots (
     components_json TEXT NOT NULL,
     computed_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS paper_fills (
+    fill_id TEXT PRIMARY KEY,
+    order_intent_id TEXT NOT NULL UNIQUE,
+    ticker TEXT NOT NULL,
+    side TEXT NOT NULL,
+    shares REAL NOT NULL,
+    price REAL NOT NULL,
+    fill_date TEXT NOT NULL,
+    filled_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS paper_positions (
+    ticker TEXT PRIMARY KEY,
+    shares REAL NOT NULL,
+    avg_cost REAL NOT NULL,
+    opened_at TEXT NOT NULL,
+    primary_theme_id TEXT NOT NULL DEFAULT ''
+);
 """
 
 
