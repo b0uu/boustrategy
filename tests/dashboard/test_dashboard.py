@@ -85,3 +85,10 @@ def test_x_snippet_public_switch_is_single_seam() -> None:
 
     assert len(render_x_snippet(text)) == 280
     assert render_x_snippet(text, public=True) == "[private snippet hidden]"
+
+
+def test_overview_tiles_link_to_detail_pages(tmp_path: Path) -> None:
+    response = TestClient(create_app(tmp_path / "synthetic.db")).get("/")
+
+    assert "href='/portfolio'" in response.text
+    assert "href='/regime'" in response.text
