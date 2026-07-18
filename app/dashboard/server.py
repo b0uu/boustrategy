@@ -83,7 +83,21 @@ def create_app(db_path: str | Path) -> FastAPI:
     def overview() -> str:
         conn = connect(path)
         payload = queries.overview(conn, digest_dir)
-        return _page("Overview", f"<pre>{escape(json.dumps(payload, indent=2))}</pre>")
+        links = {
+            "paper": "/portfolio",
+            "regime": "/regime",
+            "pending_triggers": "/triggers",
+            "pending_articles": "/x",
+            "last_digest": "/digests",
+            "decision_statuses": "/decisions",
+            "x_reads": "/x",
+        }
+        tiles = "".join(
+            f"<a class='tile' href='{links[key]}'><strong>{escape(key)}</strong>"
+            f"<pre>{escape(json.dumps(value, indent=2))}</pre></a>"
+            for key, value in payload.items()
+        )
+        return _page("Overview", tiles)
 
     @app.get("/portfolio", response_class=HTMLResponse)
     def portfolio() -> str:

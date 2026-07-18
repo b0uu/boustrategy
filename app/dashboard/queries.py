@@ -96,6 +96,17 @@ def portfolio(conn: sqlite3.Connection) -> dict[str, Any]:
             FROM paper_positions p ORDER BY p.ticker
             """,
         )
+        if positions:
+            positions_value = sum(
+                item["shares"] * (item["latest_close"] or 0) for item in positions
+            )
+            equity = cash_balance(conn) + positions_value
+            for item in positions:
+                item["value"] = item["shares"] * (item["latest_close"] or 0)
+                item["weight"] = item["value"] / equity if equity else 0.0
+                item["unrealized_pl"] = item["shares"] * (
+                    (item["latest_close"] or 0) - item["avg_cost"]
+                )
     return {
         "positions": positions,
         "fills": rows(conn, "paper_fills", "SELECT * FROM paper_fills ORDER BY fill_date DESC"),
