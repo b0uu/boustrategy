@@ -97,7 +97,22 @@ CREATE TABLE IF NOT EXISTS x_article_queue (
     status TEXT NOT NULL DEFAULT 'pending',  -- pending | summarized | dismissed
     resolution TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS x_digest_notes (
+    note_date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    synthesis TEXT NOT NULL,
+    author TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (note_date, slot)
+);
 ```
+
+**Capsule/privacy decision (maintainer, 2026-07-18)**: the repo is
+public and stays public; `data/` is gitignored and X post content NEVER
+enters git. The DATABASE is the capsule — which is why session-authored
+synthesis goes in `x_digest_notes` rather than living only in the
+rendered markdown. Digest files under `data/digests/` are fully
+regenerable artifacts.
 
 ### `app/x/calendar.py`
 
@@ -133,9 +148,13 @@ non-trading days/slots.
    except the run row — the weekly run fetches nothing itself (Sunday
    posts are caught by Monday morning); it exists so `weekly-render` has
    a ledger anchor.
-2. Insert `x_runs` row (status `started`). Duplicate run_id → crash
-   early (re-running a completed slot is a maintainer decision, not an
-   auto-overwrite).
+2. Insert `x_runs` row (status `started`). If the run_id already
+   exists: exit 0 with an "already ran" notice when the existing row
+   reached `routed`/`digested` (the scheduler fires the close slot at
+   both 14:45 and 17:45 so half-days are covered — the redundant fire
+   must be a clean no-op), but CRASH when it sits at
+   `started`/`exported`/`failed` (a stuck run needs eyes, not a silent
+   second attempt).
 3. Fetch: existing `_cmd_fetch` logic but over ALL active accounts
    (`list_active_accounts(conn)` — drop `tier="core"`; the 2026-07-15
    decision is a single full-fetch tier). Record `posts_fetched` and
@@ -178,11 +197,16 @@ non-trading days/slots.
 - `## Notable` and `## Context` — same shape, tighter snippets.
 - `## Article queue` — ALL `pending` x_article_queue items (not just
   today's), oldest first, with url and queued_at.
-- `## Synthesis` — the literal placeholder text
-  `_(session-authored; see docs/x_pipeline/DIGESTER.md)_` between
-  `<!-- synthesis:start -->` / `<!-- synthesis:end -->` markers. The
-  renderer must preserve existing content between the markers on
-  re-render (runs re-render the same file three times a day).
+- `## Synthesis` — rendered FROM `x_digest_notes` rows for the date
+  (one subsection per slot, chronological). Empty when no notes exist.
+  Sessions write notes via the `note` subcommand, never by editing the
+  file — the file is regenerable output, the db row is the record.
+
+`note --date YYYY-MM-DD --slot SLOT --author NAME --in FILE` — store a
+synthesis note (plain text/markdown from FILE) into `x_digest_notes`;
+re-submitting the same date+slot replaces (a session refining its own
+note within a run is fine; notes are per-slot, so it never overwrites a
+different run's note).
 - `## Ops` — per-run rows (slot, fetched, exported, routed, reads_used),
   monthly reads used/remaining, any run with status `failed`/stuck.
 - Marks the day's runs `digested`.
@@ -191,9 +215,10 @@ non-trading days/slots.
 `data/digests/weekly-<date>.md`): aggregates the prior 7 days —
 headline items list, per-account counts (fetched vs digest-rank
 distribution; feeds roster audition decisions), pending + resolved
-article-queue items, ops totals. Same preserved synthesis block. The
-narrative (thesis review, watchlist, open questions) is session-authored
-per plan 019's WEEKLY runbook, not rendered here.
+article-queue items, ops totals. Synthesis section rendered from the
+`weekly` slot's `x_digest_notes` row. The narrative (thesis review,
+watchlist, open questions) is session-authored per plan 019's WEEKLY
+runbook via `note`, not rendered here.
 
 ## Steps
 
@@ -206,9 +231,12 @@ per plan 019's WEEKLY runbook, not rendered here.
 3. `route`: validation matrix tests (bad rank combos, unknown post_id,
    cross-run reject, same-run replace, review_status untouched —
    explicit assertion).
-4. `digest-render` + `weekly-render`: synthetic fixture; assert section
-   presence, ACTIONABLE marker only when headline items exist, synthesis
-   block preserved across re-render, pending articles carry over.
+4. `note` + `digest-render` + `weekly-render`: synthetic fixture; assert
+   section presence, ACTIONABLE marker only when headline items exist,
+   synthesis rendered from x_digest_notes (and stable across
+   re-renders), same-slot note replacement, pending articles carry over.
+   Explicit test: rendered digest files land under a path covered by
+   `.gitignore` (`git check-ignore data/digests/x.md` succeeds).
 5. Gates: pytest -q, ruff check, ruff format --check, mypy app tests →
    all exit 0; `git status --porcelain` clean after commit.
 

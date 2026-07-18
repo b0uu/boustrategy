@@ -111,19 +111,17 @@ Steps the session follows, in order:
    RUBRIC.md; write `predictions.jsonl` alongside.
 3. `python -m app.x.run route --run <run_id> --predictor <session-name>
    --in <predictions.jsonl>`.
-4. `python -m app.x.run digest-render --date <today>`.
-5. Author the synthesis block (between the markers, which the renderer
-   preserves): 3-8 sentences — what changed since the last run, which
-   theses/themes the headline items touch, contradictions between
-   sources, and what the article queue is still hiding. Plain claims
-   with handles, no hype.
-6. Close run only: read the whole day's digest once for coherence, then
-   commit the day's digest + run artifacts
-   (`git add data/digests data/x_runs && git commit`) — daily capsule
-   discipline. Do NOT push (standing rule: push needs maintainer
-   approval).
-7. Escalations to note at the TOP of the synthesis block, never act on:
-   fetch failures or a tripped budget guard ("BUDGET" line with
+4. Author your synthesis as a small file: 3-8 sentences — what changed
+   since the last run, which theses/themes the headline items touch,
+   contradictions between sources, and what the article queue is still
+   hiding. Plain claims with handles, no hype. Store it with
+   `python -m app.x.run note --date <today> --slot <slot>
+   --author <session-name> --in <file>`, then
+   `python -m app.x.run digest-render --date <today>`.
+5. Close run only: read the whole day's rendered digest once for
+   coherence; refine your note and re-render if something reads wrong.
+6. Escalations go as the FIRST line of your synthesis note, never acted
+   on: fetch failures or a tripped budget guard ("BUDGET" line with
    remaining reads); any single run exporting > 150 posts (roster or
    API anomaly).
 
@@ -136,12 +134,17 @@ Hard prohibitions (print these verbatim in the doc):
   edit anything under `docs/` except nothing — this runbook grants zero
   doc edits.
 - NEVER exceed the budget guard by fetching manually.
+- NEVER run `git add`/`git commit` on anything under `data/`, and never
+  force-add past `.gitignore`. The repo is PUBLIC; X post content never
+  enters git (private-archive doctrine). The database is the capsule —
+  your synthesis is already durable via `note`.
 
 ## WEEKLY.md (Sunday runbook — write with this structure)
 
-1. `python -m app.x.run cycle --slot weekly` then
-   `python -m app.x.run weekly-render --date <today>`.
-2. Author the weekly synthesis: narrative deltas across the week (what
+1. `python -m app.x.run cycle --slot weekly`.
+2. Author the weekly synthesis (stored via `note --slot weekly`, then
+   `python -m app.x.run weekly-render --date <today>`): narrative
+   deltas across the week (what
    strengthened, what broke), per-theme rollup of headline/notable
    items, unresolved article-queue entries worth human attention,
    roster observations from the per-account table (audition candidates
@@ -153,7 +156,10 @@ Hard prohibitions (print these verbatim in the doc):
 3. Until the reasoning worker exists, the thesis-review section is the
    literal line "No active theses — reasoning worker not yet live."
    Never draft theses here.
-4. Commit the weekly file (no push) — this is the sealed weekly capsule.
+4. Seal the weekly capsule LOCALLY: copy the database to
+   `data/backups/boustrategy-<date>.db` (gitignored) and record the
+   backup filename as the last line of the weekly synthesis note. No
+   git commits — the repo is public and `data/` never enters it.
 
 ## Steps
 
@@ -174,13 +180,15 @@ Hard prohibitions (print these verbatim in the doc):
 
 ## Maintenance notes
 
-- **Scheduling is a maintainer ops step, not part of this plan**: four
-  recurring session launches (08:45 / 12:30 / 17:45 ET weekdays, 18:00
-  ET Sunday) each pointed at the matching runbook — via Claude Code
-  scheduled routines or Windows Task Scheduler. Because `cycle` is
-  calendar-aware and no-ops safely, a naive every-day schedule is
-  correct; half-day close runs need either a second 14:45 trigger or a
-  scheduler that fires both (the extra fire no-ops harmlessly).
+- **Scheduling is a maintainer ops step, not part of this plan.**
+  DECIDED 2026-07-18: Windows Task Scheduler on this server launching
+  local headless Claude Code CLI sessions (the db is local, so cloud
+  routines can't reach it). Five daily triggers — 08:45, 12:30, 14:45,
+  17:45 ET weekdays and 18:00 ET Sunday — each pointed at the matching
+  runbook. Because `cycle` is calendar-aware and no-ops safely, the
+  extra 14:45 trigger only does work on half-days and the 17:45 one
+  no-ops those days; a naive every-day schedule is correct. The server
+  must be running at slot times.
 - **Drift eval**: after any rubric edit (and otherwise monthly), re-run
   the plan 015 harness — export the frozen trial set, judge with the
   current rubric + session model under a new predictor name, `score` —

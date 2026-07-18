@@ -216,6 +216,28 @@ should improvise around them:
   additionally require real-time data the system does not have; not
   pursued.
 
+2026-07-18, pre-execution Q&A (maintainer answers before the 018+ wave):
+
+- **Repo stays PUBLIC; X content never enters git.** `data/` is entirely
+  gitignored (verified: nothing under it has ever been committed) and
+  that is the enforcement mechanism. The DATABASE is the capsule; plan
+  018 gained `x_digest_notes` so session synthesis is durable in the db
+  and digest files are regenerable, gitignored artifacts; the weekly
+  seal is a local db backup, not a git commit. Claim summaries + links
+  (the log.jsonl pattern) remain the only X-derived content allowed in
+  committed files.
+- **Data sources: all-yfinance v0, reliability upgrade wanted later**
+  including paid options — recorded as a direction item (Massive/Polygon
+  primary for bars, Alpha Vantage earnings calendar are the researched
+  candidates; the injected-fetcher seams are the landing points).
+- **Scheduling: Windows Task Scheduler + local headless CLI sessions**
+  on this server (the db is local; cloud routines can't reach it).
+  Triggers at 08:45/12:30/14:45/17:45 ET weekdays + 18:00 ET Sunday;
+  redundant fires no-op via the calendar check and completed-run check.
+- **X read cap recalibrated: `MAX_MONTHLY_POST_READS = 11000`**
+  (~$55/mo, top of the stated $35-55 range) — committed alongside these
+  plans. The real X API balance must be funded to match.
+
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
 - **X provider**: official X API pay-per-use is the system of record
@@ -317,6 +339,12 @@ should improvise around them:
   volume thresholds, calendar proximity, digest headlines; nothing else).
 - Regime scorer v1 inputs (credit spreads, breadth, rates) — only after
   v0 (plan 023) earns sign-off and shows its gaps.
+- Reliable market-data provider (maintainer direction 2026-07-18, paid
+  OK): Massive/Polygon primary for daily bars with yfinance demoted to
+  fallback, Alpha Vantage earnings calendar replacing yfinance earnings
+  estimates. Plan it after the v0 stack runs and shows where yfinance
+  actually hurts; the injected-fetcher seams (007/021) are the landing
+  points.
 - LLM eval harness — plan-worthy the day plan 025's first paper sessions
   produce records; build it against real session logs (forward-capsule
   doctrine above).

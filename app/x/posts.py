@@ -7,9 +7,11 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 # Tracks the maintainer's real X API balance (the authoritative constraint),
 # not a budget guess. 2026-07-15: set to 4900 against the then-$5 balance.
 # 2026-07-17: maintainer topped up (~$5 assumed) to finish the trial week;
-# +1000 reads. Post-trial the steady-state budget gets set from measured
-# cost at the pruned ~20-account roster.
-MAX_MONTHLY_POST_READS = 5900
+# +1000 reads. 2026-07-18: production steady-state cap set by maintainer
+# decision to ~11,000 reads/month (~$55, top of the stated $35-55 range)
+# for the pruned ~20-account roster. The real X balance must be funded to
+# match — this constant assumes the maintainer keeps it topped up.
+MAX_MONTHLY_POST_READS = 11000
 
 
 class MediaItem(BaseModel):

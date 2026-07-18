@@ -29,9 +29,10 @@ reference only, never republished, never surfaced on any public page.
   annotation model mirrors it.
 - `app/schemas/decision_record.py`: `SourceType` includes
   INTERNAL_MEMO — the trust prior newsletters inherit.
-- `data/` is gitignored except committed artifacts; verify `.gitignore`
-  treatment of new paths and keep newsletter CONTENT out of git (the
-  archive is content; the db rows are metadata).
+- `data/` is ENTIRELY gitignored (verified 2026-07-18) and the repo is
+  public — newsletter content must never enter git. The archive under
+  `data/newsletters/` is automatically covered; the `.gitignore` test in
+  the steps guards against future path mistakes.
 - No `app/newsletters/`, no tables.
 
 ## Scope
