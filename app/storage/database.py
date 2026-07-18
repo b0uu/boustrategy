@@ -149,6 +149,14 @@ CREATE TABLE IF NOT EXISTS trigger_events (
     details_json TEXT NOT NULL DEFAULT '{}',
     status TEXT NOT NULL DEFAULT 'pending'
 );
+CREATE TABLE IF NOT EXISTS regime_snapshots (
+    snapshot_date TEXT PRIMARY KEY,
+    regime TEXT NOT NULL,
+    raw_regime TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    components_json TEXT NOT NULL,
+    computed_at TEXT NOT NULL
+);
 """
 
 
