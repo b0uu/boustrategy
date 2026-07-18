@@ -141,6 +141,14 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     fetched_at TEXT NOT NULL,
     PRIMARY KEY (event_type, ticker, event_date)
 );
+CREATE TABLE IF NOT EXISTS trigger_events (
+    trigger_id TEXT PRIMARY KEY,
+    trigger_type TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    fired_at TEXT NOT NULL,
+    details_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'pending'
+);
 """
 
 
