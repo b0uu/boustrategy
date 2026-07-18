@@ -99,6 +99,39 @@ CREATE TABLE IF NOT EXISTS x_score_snapshots (
     created_at TEXT NOT NULL,
     PRIMARY KEY (predictor, label)
 );
+CREATE TABLE IF NOT EXISTS x_runs (
+    run_id TEXT PRIMARY KEY,
+    slot TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    posts_fetched INTEGER NOT NULL DEFAULT 0,
+    posts_exported INTEGER NOT NULL DEFAULT 0,
+    reads_used INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'started'
+);
+CREATE TABLE IF NOT EXISTS x_route_decisions (
+    post_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    route TEXT NOT NULL,
+    rank TEXT NOT NULL DEFAULT '',
+    reason TEXT NOT NULL DEFAULT '',
+    predictor TEXT NOT NULL,
+    decided_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS x_article_queue (
+    post_id TEXT PRIMARY KEY,
+    queued_at TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    resolution TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS x_digest_notes (
+    note_date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    synthesis TEXT NOT NULL,
+    author TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (note_date, slot)
+);
 """
 
 

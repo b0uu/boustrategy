@@ -1,11 +1,14 @@
 import argparse
 import sqlite3
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
 from app.x.client import FetchResult, fetch_posts_by_ids, fetch_user_posts, resolve_user_ids
+from app.x.pipeline import cycle, render_digest, render_weekly, route_predictions, store_note
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
     insert_new_posts,
@@ -56,7 +59,7 @@ def _cmd_fetch(
     resolve_ids: Callable[[list[str]], dict[str, str]] = resolve_user_ids,
     fetch_posts: Callable[[str, str, str | None], FetchResult] = fetch_user_posts,
 ) -> None:
-    accounts = list_active_accounts(conn, tier="core")
+    accounts = list_active_accounts(conn)
 
     missing_handles = [account.handle for account in accounts if account.user_id is None]
     if missing_handles:
@@ -184,8 +187,42 @@ def _cmd_review(conn: sqlite3.Connection) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.x.run")
-    parser.add_argument("command", choices=["seed", "fetch", "review", "status", "rehydrate"])
     parser.add_argument("--db", default=DEFAULT_DB_PATH)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    for command in ("seed", "fetch", "review", "status", "rehydrate"):
+        subparsers.add_parser(command)
+
+    cycle_parser = subparsers.add_parser("cycle")
+    cycle_parser.add_argument(
+        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+    )
+    cycle_parser.add_argument("--date", dest="run_date")
+    cycle_parser.add_argument("--out")
+
+    route_parser = subparsers.add_parser("route")
+    route_parser.add_argument("--run", dest="run_id", required=True)
+    route_parser.add_argument("--predictor", required=True)
+    route_parser.add_argument("--in", dest="in_path", required=True)
+
+    note_parser = subparsers.add_parser("note")
+    note_parser.add_argument("--date", dest="note_date", required=True)
+    note_parser.add_argument(
+        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+    )
+    note_parser.add_argument("--author", required=True)
+    note_parser.add_argument("--in", dest="in_path", required=True)
+
+    digest_parser = subparsers.add_parser("digest-render")
+    digest_parser.add_argument("--date", dest="digest_date", required=True)
+    digest_parser.add_argument("--out")
+
+    weekly_parser = subparsers.add_parser("weekly-render")
+    weekly_parser.add_argument("--date", dest="weekly_date", required=True)
+    weekly_parser.add_argument("--out")
+
+    for command_parser in subparsers.choices.values():
+        command_parser.add_argument("--db", default=argparse.SUPPRESS)
+
     args = parser.parse_args()
 
     conn = connect(args.db)
@@ -196,7 +233,33 @@ def main() -> None:
         "status": _cmd_status,
         "rehydrate": _cmd_rehydrate,
     }
-    handlers[args.command](conn)
+    if args.command in handlers:
+        handlers[args.command](conn)
+    elif args.command == "cycle":
+        run_date = (
+            date.fromisoformat(args.run_date)
+            if args.run_date
+            else datetime.now(ZoneInfo("America/New_York")).date()
+        )
+        run_id = f"{run_date.isoformat()}-{args.slot}"
+        out = args.out or f"data/x_runs/{run_id}"
+        cycle(conn, args.slot, run_date, out, _cmd_fetch)
+    elif args.command == "route":
+        route_predictions(conn, args.run_id, args.predictor, args.in_path)
+    elif args.command == "note":
+        synthesis = Path(args.in_path).read_text(encoding="utf-8")
+        store_note(conn, date.fromisoformat(args.note_date), args.slot, args.author, synthesis)
+        print(f"stored note for {args.note_date}-{args.slot}")
+    elif args.command == "digest-render":
+        digest_date = date.fromisoformat(args.digest_date)
+        out = args.out or f"data/digests/{digest_date.isoformat()}.md"
+        render_digest(conn, digest_date, out)
+        print(f"rendered {out}")
+    elif args.command == "weekly-render":
+        weekly_date = date.fromisoformat(args.weekly_date)
+        out = args.out or f"data/digests/weekly-{weekly_date.isoformat()}.md"
+        render_weekly(conn, weekly_date, out)
+        print(f"rendered {out}")
 
 
 if __name__ == "__main__":
