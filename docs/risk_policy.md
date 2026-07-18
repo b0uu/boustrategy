@@ -15,7 +15,7 @@ enforced through prompts, records, and evals.
 | Max ETF target weight | 50% | BUY/ADD only |
 | Max single primary theme | 60% of portfolio | BUY/ADD, computed on `primary_theme_id` |
 | Max holdings | 10 (goal of ~7 lives in the mandate, not policy) | BUY of a new position |
-| BUY/ADD trades per day | 2 | BUY/ADD only |
+| BUY/ADD trades per day | 2; a declared `extraordinary_opportunity` (with written justification) may exceed the quota, up to an absolute circuit breaker of 5/day that no declaration can exceed | BUY/ADD only |
 | TRIM/SELL circuit breaker | 10 per day | Malfunction brake only; de-risking is never quota-blocked by design |
 | RED regime / de-risking mode | BUY/ADD rejected unless `extraordinary_opportunity` is declared with written justification | Escalation gate, not a ban |
 | Actionable decisions | Require refined thesis, invalidation criteria, source claims, strategy belief mapping | Schema + policy |
