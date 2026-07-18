@@ -138,7 +138,9 @@ should improvise around them:
   filtering machinery ever. New accounts enter on probation and are
   auditioned by measured positive-rate before permanence. Budget
   consequence accepted knowingly: ~$50-90/month X at that scale (parents
-  included, conservative counting).
+  included, conservative counting). *Revised 2026-07-17: target reduced
+  to ~20 accounts for cost — estimated ~$35-55/month at trial-measured
+  volumes; same full-fetch/no-keywords/audition rules.*
 - **Trigger system simplified**: v0 triggers are price/volume thresholds,
   calendar events, and daily-digest flags. EXTRAORDINARY_OPPORTUNITY
   survives as a reasoning-layer judgment. Spec §9's 0-20 numeric scoring
