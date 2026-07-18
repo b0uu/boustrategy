@@ -7,6 +7,8 @@ venv/
 scratchpad/
 .agents/
 skills-lock.json
+data/newsletters/inbox/
+data/newsletters/archive/
 data/
 .env
 .claude/settings.local.json
