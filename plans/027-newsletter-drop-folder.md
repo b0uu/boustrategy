@@ -9,7 +9,7 @@
 
 - Priority P3. Effort S-M. Depends on 006 (done); soft on 019 (amends
   WEEKLY.md if it exists). Independent of everything else — parallel
-  runway. Planned at local main `088c69e`, 2026-07-18.
+  runway. Planned at local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -22,7 +22,7 @@ folder works for EVERY source today and loses nothing if email parsing
 arrives later. Private-archive doctrine applies absolutely: internal
 reference only, never republished, never surfaced on any public page.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/x/signals.py`: `CapturedSignal` field vocabulary (claim,
   claim_type, stance, horizon, scrutiny_verdict, why_it_matters) — the
@@ -124,7 +124,7 @@ maintainer for conversion." Sessions do NOT annotate in v0.
 - You find yourself committing newsletter content to git, adding an
   email client/IMAP dependency, or writing PDF-parsing code.
 - Any test needs the real database.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

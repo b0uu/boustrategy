@@ -8,7 +8,7 @@
 
 - Priority P1. Effort M. Depends on 005/006/007/009 (done). Independent
   of 018-023 (may run in parallel with them). Planned at local main
-  `088c69e`, 2026-07-18.
+  `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -20,7 +20,7 @@ posture unlock the maintainer approved on 2026-07-18 (frequency changes
 come from paper-capsule results, never agent self-belief). This is pure
 simulation; the live broker adapter remains Phase 2, human checkpoint 6.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/schemas/order_intent.py`: `OrderIntent` (order_intent_id,
   decision_id, ticker, side BUY|SELL, order_type, `target_weight`
@@ -141,7 +141,7 @@ PortfolioContext`:
 - The `OrderIntent` or `PortfolioContext` shapes differ from Current
   state.
 - Any test needs the real database.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

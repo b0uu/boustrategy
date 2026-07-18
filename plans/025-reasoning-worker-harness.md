@@ -12,7 +12,7 @@
 - Priority P1. Effort M-L. Depends on 018/019 (digest + ACTIONABLE),
   021 (calendar), 022 (triggers), 023 (regime snapshots), 024 (paper
   broker + PortfolioContext) — all hard. Planned at local main
-  `088c69e`, 2026-07-18.
+  `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -28,7 +28,7 @@ deferred); the enforced boundary is that a session can only create
 decisions through `submit`, which runs the full schema + policy + intent
 pipeline — no direct path from LLM output to an order intent.
 
-## Current state (local main `088c69e` + plans 018-024 merged)
+## Current state (local main `460977d` + plans 018-024 merged)
 
 - `app/state/pipeline.py`: `process_decision(conn, record_data,
   portfolio)` — validate → persist → policy → order intent, idempotent

@@ -10,7 +10,7 @@
 
 - Priority P2. Effort S-M. Depends on 004/007 (done); soft on 018 (adds
   a digest section — if 018 is unmerged, deliver the section renderer as
-  a standalone function and note it). Planned at local main `088c69e`,
+  a standalone function and note it). Planned at local main `460977d`,
   2026-07-18.
 
 ## Why this matters
@@ -21,7 +21,7 @@ v0 is deliberately just earnings dates for watchlist tickers plus the
 FOMC meeting schedule — cheap, free-source, no human input required to
 operate. CPI/jobs and other macro prints are explicitly deferred.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/prices/yfinance_source.py`: yfinance is already a dependency.
 - `app/x/signals.py` / `x_signals` table: `signal_json` contains a
@@ -130,7 +130,7 @@ each; omitted entirely when empty.
 - No web access, or federalreserve.gov unreachable (FOMC table must
   come from the primary source).
 - yfinance earnings API surface differs from the design.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

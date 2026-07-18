@@ -8,7 +8,7 @@
 ## Status
 
 - Priority P1. Effort M. Depends on 007 (hard). Planned at local main
-  `088c69e`, 2026-07-18.
+  `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -27,7 +27,7 @@ must approve the rules, informed by the backtest this plan produces.
 Logging a daily track record in the meantime is exactly how the rules
 earn that approval.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/prices/cache.py`: `refresh_ticker`, `get_daily_prices` (returns
   bars for a ticker/date range), `latest_bar_date`.
@@ -124,7 +124,7 @@ reachable within a bad week.
 - You find yourself adding inputs beyond SPY/QQQ bars or points outside
   the table — the rule set is fixed until maintainer review.
 - Any test needs the real database or network.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

@@ -10,7 +10,7 @@
 ## Status
 
 - Priority P1. Effort S. Depends on plan 018 (hard: the runbooks drive
-  its CLI). Planned at local main `a97a85f`, 2026-07-18.
+  its CLI). Planned at local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -24,7 +24,7 @@ weekly runbook. The rubric v2 content below is derived from
 `docs/research/gate_experiment_findings.md` findings 1, 3, 6, 7 and the
 plan 015 rubric v0.
 
-## Current state (local main `a97a85f` + plan 018 merged)
+## Current state (local main `460977d` + plan 018 merged)
 
 - `docs/x_pipeline/` does not exist yet.
 - Plan 018 provides: `python -m app.x.run cycle|route|digest-render|

@@ -8,7 +8,7 @@
 
 - Priority P2. Effort M. Depends on 007 (hard: price cache), 018 (hard:
   digest headlines), 021 (hard: calendar events + watchlist). Planned at
-  local main `088c69e`, 2026-07-18.
+  local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -21,7 +21,7 @@ deserves attention TODAY without re-reading everything; the maintainer's
 recorded rationale is that movement thresholds beat cron on
 reactivity-per-dollar.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/prices/cache.py`: `refresh_ticker(conn, ticker, fetch)` and
   `get_daily_prices`, `latest_bar_date`; daily bars in `daily_prices`.
@@ -116,7 +116,7 @@ anything else crashes).
 - You find yourself adding a trigger type beyond the four (especially
   anything engagement- or crowding-based — both explicitly rejected).
 - Any test needs the real database or live network.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

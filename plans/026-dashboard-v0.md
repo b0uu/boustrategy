@@ -10,7 +10,7 @@
   data where present — every section must degrade gracefully (empty
   table → "none yet" line, missing table → section hidden) so this plan
   can run IN PARALLEL with the 018-025 wave, before or after any of
-  them. Planned at local main `088c69e`, 2026-07-18.
+  them. Planned at local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -22,7 +22,7 @@ read-only: a private instrument panel. Public hosting, auth, and the
 admin roster-editing surface are explicitly out — publishing anything
 is a separate maintainer decision with source-policy implications.
 
-## Current state (local main `088c69e`)
+## Current state (local main `460977d`)
 
 - `app/labeling/server.py`: the house pattern — FastAPI, inline-HTML
   render functions, `create_app(db_path)`, `main()` with uvicorn on
@@ -91,7 +91,7 @@ tables detected via `sqlite_master`, rendering the section-hidden path.
 - You find yourself adding a POST/mutation route, auth, an external
   frontend dependency, or a non-localhost bind.
 - Any test needs the real database.
-- Current-state signatures don't match local main `088c69e`.
+- Current-state signatures don't match local main `460977d`.
 
 ## Maintenance notes
 

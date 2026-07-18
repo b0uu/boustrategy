@@ -15,6 +15,17 @@ done.
 > schemas, and prompts must stay consistent with them. Executors never edit
 > them.
 
+## Baseline rule for executors
+
+A plan's "Planned at local main `<hash>`" records WHEN its Current-state
+facts were verified — it is not a requirement that HEAD equal that hash.
+Commits that only touch `plans/`, `NOTES.md`, or maintainer-owned docs
+do not invalidate a baseline. The binding check is the plan's named
+Current-state SIGNATURES (functions, constants, tables, doc clauses the
+plan cites): verify each against actual code. STOP only when a cited
+fact is actually false — and then report the specific mismatch, not the
+hash delta.
+
 ## Execution order & status
 
 Recommended order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 008

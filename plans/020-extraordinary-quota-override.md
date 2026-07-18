@@ -9,7 +9,7 @@
 ## Status
 
 - Priority P2. Effort S. Depends on nothing in code; gated on a
-  maintainer doc amendment. Planned at local main `a97a85f`, 2026-07-18.
+  maintainer doc amendment. Planned at local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -28,7 +28,7 @@ Also per the 2026-07-18 session: frequency loosening beyond this is an
 evidence-gated posture change (paper-capsule results), never a response
 to agent self-assessment. This plan is deliberately the minimal version.
 
-## Current state (local main `a97a85f`)
+## Current state (local main `460977d`)
 
 - `app/policy/decision_policy.py`: constants
   `MAX_BUY_ADD_TRADES_PER_DAY = 2`, `MAX_SELL_TRIM_TRADES_PER_DAY = 10`;
@@ -42,17 +42,10 @@ to agent self-assessment. This plan is deliberately the minimal version.
   `extraordinary_opportunity=True` with an empty justification — the
   override leans on that invariant. If it doesn't, STOP (that's a plan
   001 regression, not something to patch here silently).
-- `docs/risk_policy.md` table row: `| BUY/ADD trades per day | 2 |
-  BUY/ADD only |` — the amendment below must land first.
-
-## Required maintainer amendment (prerequisite, not executor work)
-
-`docs/risk_policy.md` quota row replaced with words to this effect:
-
-> BUY/ADD trades per day: 2; a declared `extraordinary_opportunity`
-> (with written justification) may exceed the quota, subject to an
-> absolute circuit breaker of 5 BUY/ADD per day that no declaration can
-> exceed.
+- `docs/risk_policy.md` quota row: AMENDED by the maintainer 2026-07-18
+  (commit `460977d`) — the row now declares the extraordinary override
+  with the 5/day absolute circuit breaker. The doc prerequisite is
+  SATISFIED; the related STOP condition below checks it stays that way.
 
 ## Design
 

@@ -7,7 +7,7 @@
 ## Status
 
 - Priority P1. Effort M. Depends on plans 010-014 (all DONE on main).
-  Planned at local main `a97a85f`, 2026-07-18.
+  Planned at local main `460977d`, 2026-07-18.
 
 ## Why this matters
 
@@ -37,7 +37,7 @@ implements structurally:
   `x_posts.review_status` are the eval ground truth. Production routing
   NEVER writes `review_status`; it lives in a new table.
 
-## Current state (local main `a97a85f`)
+## Current state (local main `460977d`)
 
 - `app/storage/database.py`: `_SCHEMA` executescript + `_ensure_columns`;
   tables incl. `x_accounts` (handle, user_id, categories, tier, status),
@@ -47,8 +47,8 @@ implements structurally:
   `_cmd_fetch` reads `list_active_accounts(conn, tier="core")`, resolves
   missing user_ids, computes since_id via `MAX(CAST(post_id AS INTEGER))`
   per handle, honors `_BUDGET_FLOOR = 100`.
-- `app/x/posts.py`: `MAX_MONTHLY_POST_READS = 5900` (trial top-up; the
-  maintainer recalibrates this constant separately — do not change it),
+- `app/x/posts.py`: `MAX_MONTHLY_POST_READS = 11000` (production cap
+  set by maintainer 2026-07-18 — do not change it),
   `record_post_reads`, `reads_remaining`, `insert_new_posts`.
 - `app/labeling/experiment.py`: `export_batches` writes blind JSONL
   batches (`post_id, handle, posted_at, text, reply_context, media, url`)
@@ -242,7 +242,7 @@ runbook via `note`, not rendered here.
 
 ## STOP conditions
 
-- Current-state signatures don't match local main `a97a85f`.
+- Current-state signatures don't match local main `460977d`.
 - You find yourself importing an LLM client or calling any network API
   other than the existing `app/x/client.py` fetch path.
 - Any code path writes `x_posts.review_status` — production routing must
