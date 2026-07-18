@@ -21,6 +21,14 @@ Recommended order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 008
 runnable at any point in parallel (it is research-only and touches no code).
 Current wave (2026-07-18): 018 → 019; 020 independent once the maintainer
 amends `docs/risk_policy.md` (prerequisite stated in the plan).
+Extended wave (2026-07-18, planned to the checkpoint-5 wall): the
+critical path is 018 → 019, then 021 → 022, with 023 and 024 runnable in
+parallel any time after 007, converging on 025 (which requires 018-024
+and deliberately ends AT human checkpoint 5 — built, never run). 026 and
+027 are parallel runway with no human gate; run them whenever, including
+while checkpoint-5 sign-off is pending. **The wall**: after 025, no
+executor proceeds until the maintainer signs off prompts + regime rules
+and runs the first supervised paper session.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
@@ -44,6 +52,13 @@ amends `docs/risk_policy.md` (prerequisite stated in the plan).
 | 018  | X pipeline backbone: run ledger, routing store, article queue, digest renderer, market calendar | P1 | M | 010-014 | TODO |
 | 019  | Digester session runbooks + gate rubric v2 (docs only) | P1 | S | 018 (hard) | TODO |
 | 020  | Extraordinary-opportunity override for BUY/ADD daily quota (+5/day brake) | P2 | S | maintainer amends risk_policy.md first | TODO |
+| 021  | Events calendar ingestion: watchlist earnings + FOMC | P2 | S-M | 004, 007; soft 018 | TODO |
+| 022  | Trigger system v0: price/volume, calendar proximity, digest headlines | P2 | M | 007, 018, 021 (hard) | TODO |
+| 023  | Regime scorer v0: deterministic GREEN/YELLOW/RED + backtest report | P1 | M | 007 (hard) | TODO |
+| 024  | Paper broker: simulated fills, positions, real PortfolioContext | P1 | M | 005-007, 009 | TODO |
+| 025  | Reasoning worker harness + prompt drafts (builds all, runs nothing — ends AT checkpoint 5) | P1 | M-L | 018-024 (hard) | TODO |
+| 026  | Dashboard v0: localhost read-only panel over all stores | P2 | M | 006; renders others if present | TODO |
+| 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -266,10 +281,12 @@ should improvise around them:
 - Backend state machine (order intent status transitions, crash recovery) —
   next natural plan after 006; write it once 005/006 land and the shape is
   proven.
-- Reasoning prompts (thesis chain, daily portfolio management) — draftable
-  from the docs; ends at human checkpoint 5.
-- Public dashboard (spec §14) — also the compensating risk control for the
-  drawdown doctrine.
+- ~~Reasoning prompts~~ — PLANNED 2026-07-18 as plan 025 (drafts + worker
+  harness; the run itself stays behind checkpoint 5).
+- ~~Public dashboard~~ — the private localhost v0 is PLANNED 2026-07-18 as
+  plan 026; the PUBLIC dashboard (hosting, auth, claim-summary-only X
+  rendering, "source deleted" markers) remains unplanned and is the part
+  that carries the compensating-risk-control duty in full.
 - LLM evals on past trades (spec §15) — includes the extraordinary-bar
   frequency metric and the counter-thesis kill-rate metric
   (`docs/source_policy.md`). Maintainer decision 2026-07-12: **forward
@@ -290,17 +307,22 @@ should improvise around them:
   the queue + code-enforced always-flag routing land in plan 018; the
   reader (Grok pilot, writes `x_article_queue` status transitions)
   remains unplanned.
-- Curated newsletter ingestion (maintainer note + approval 2026-07-15):
-  Citrini Research, SemiAnalysis, etc. via maintainer subscriptions — the
-  "curated corpus" differentiator's second source class after X. Needs a
-  per-source ingestion decision (email parsing vs manual drop folder) and
-  inherits the INTERNAL_MEMO trust prior + annotation-ledger design.
-- Events calendar ingestion (maintainer note 2026-07-12): earnings dates
-  for holdings/watchlist + FOMC/macro schedule from free sources — the
-  autonomous "boring but rock solid" news floor. Cheap, no human input.
-- Trigger system build (spec §9) including the PRICE threshold trigger
-  (maintainer idea 2026-07-12: movement thresholds beat cron on
-  reactivity-per-dollar) — natural plan after the trial + relevance gate.
+- ~~Curated newsletter ingestion~~ — v0 (drop folder, archive, annotation
+  store) PLANNED 2026-07-18 as plan 027. The per-source email-parsing
+  decision stays open with the maintainer; a future feeder reuses 027's
+  ingest path.
+- ~~Events calendar ingestion~~ — PLANNED 2026-07-18 as plan 021
+  (watchlist earnings + FOMC; other macro prints deferred).
+- ~~Trigger system build~~ — v0 PLANNED 2026-07-18 as plan 022 (price/
+  volume thresholds, calendar proximity, digest headlines; nothing else).
+- Regime scorer v1 inputs (credit spreads, breadth, rates) — only after
+  v0 (plan 023) earns sign-off and shows its gaps.
+- LLM eval harness — plan-worthy the day plan 025's first paper sessions
+  produce records; build it against real session logs (forward-capsule
+  doctrine above).
+- Article reader Grok pilot — operates plan 018's `x_article_queue`;
+  needs maintainer's native X access, so it is ops + a short runbook, not
+  autonomous build work.
 - Broker adapter (Phase 2, human checkpoint 6).
 
 ## Findings considered and rejected
