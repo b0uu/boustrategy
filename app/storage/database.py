@@ -174,6 +174,27 @@ CREATE TABLE IF NOT EXISTS paper_positions (
     opened_at TEXT NOT NULL,
     primary_theme_id TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS newsletter_docs (
+    doc_id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    title TEXT NOT NULL,
+    received_at TEXT NOT NULL,
+    archive_path TEXT NOT NULL,
+    parse_status TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS newsletter_claims (
+    claim_id TEXT PRIMARY KEY,
+    doc_id TEXT NOT NULL,
+    claim TEXT NOT NULL,
+    claim_type TEXT NOT NULL,
+    stance TEXT NOT NULL,
+    horizon TEXT NOT NULL,
+    tickers TEXT NOT NULL DEFAULT '[]',
+    primary_theme_id TEXT NOT NULL DEFAULT '',
+    why_it_matters TEXT NOT NULL DEFAULT '',
+    annotated_by TEXT NOT NULL,
+    annotated_at TEXT NOT NULL
+);
 """
 
 
