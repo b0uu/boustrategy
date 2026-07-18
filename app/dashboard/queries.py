@@ -1,0 +1,208 @@
+import json
+import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from app.paper.broker import STARTING_CASH, cash_balance
+from app.x.posts import MAX_MONTHLY_POST_READS
+
+
+def table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (table,)
+        ).fetchone()
+        is not None
+    )
+
+
+def rows(conn: sqlite3.Connection, table: str, query: str) -> list[dict[str, Any]] | None:
+    if not table_exists(conn, table):
+        return None
+    cursor = conn.execute(query)
+    names = [item[0] for item in cursor.description]
+    return [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
+
+
+def overview(conn: sqlite3.Connection, digest_dir: Path) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    positions = rows(
+        conn,
+        "paper_positions",
+        "SELECT ticker, shares FROM paper_positions ORDER BY ticker",
+    )
+    if positions is not None and table_exists(conn, "daily_prices"):
+        value = 0.0
+        for position in positions:
+            latest = conn.execute(
+                "SELECT close FROM daily_prices WHERE ticker = ? ORDER BY bar_date DESC LIMIT 1",
+                (position["ticker"],),
+            ).fetchone()
+            if latest:
+                value += position["shares"] * latest[0]
+        cash = cash_balance(conn)
+        result["paper"] = {"cash": cash, "equity": cash + value, "starting": STARTING_CASH}
+    regime = rows(
+        conn,
+        "regime_snapshots",
+        """
+        SELECT snapshot_date, regime, score FROM regime_snapshots
+        ORDER BY snapshot_date DESC LIMIT 1
+        """,
+    )
+    result["regime"] = regime[0] if regime else None
+    if table_exists(conn, "x_post_reads"):
+        month = datetime.now(UTC).strftime("%Y-%m")
+        row = conn.execute(
+            "SELECT post_reads FROM x_post_reads WHERE month = ?", (month,)
+        ).fetchone()
+        used = row[0] if row else 0
+        result["x_reads"] = {"used": used, "remaining": MAX_MONTHLY_POST_READS - used}
+    for key, table in (
+        ("pending_triggers", "trigger_events"),
+        ("pending_articles", "x_article_queue"),
+    ):
+        if table_exists(conn, table):
+            result[key] = conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE status = 'pending'"
+            ).fetchone()[0]
+    digests = sorted(digest_dir.glob("*.md"), reverse=True) if digest_dir.exists() else []
+    result["last_digest"] = digests[0].name if digests else None
+    if table_exists(conn, "status_events"):
+        result["decision_statuses"] = dict(
+            conn.execute(
+                """
+                SELECT status, COUNT(*) FROM status_events s
+                WHERE subject_type = 'decision' AND event_id = (
+                    SELECT MAX(event_id) FROM status_events s2 WHERE s2.subject_id = s.subject_id
+                ) GROUP BY status
+                """
+            ).fetchall()
+        )
+    return result
+
+
+def portfolio(conn: sqlite3.Connection) -> dict[str, Any]:
+    positions = None
+    if table_exists(conn, "paper_positions") and table_exists(conn, "daily_prices"):
+        positions = rows(
+            conn,
+            "paper_positions",
+            """
+            SELECT p.ticker, p.shares, p.avg_cost, p.primary_theme_id,
+                   (SELECT close FROM daily_prices d WHERE d.ticker = p.ticker
+                    ORDER BY bar_date DESC LIMIT 1) AS latest_close
+            FROM paper_positions p ORDER BY p.ticker
+            """,
+        )
+    return {
+        "positions": positions,
+        "fills": rows(conn, "paper_fills", "SELECT * FROM paper_fills ORDER BY fill_date DESC"),
+        "equity_series": equity_series(conn),
+    }
+
+
+def equity_series(conn: sqlite3.Connection) -> list[float] | None:
+    if not table_exists(conn, "paper_fills") or not table_exists(conn, "daily_prices"):
+        return None
+    dates = [
+        row[0]
+        for row in conn.execute("SELECT DISTINCT bar_date FROM daily_prices ORDER BY bar_date")
+    ]
+    series: list[float] = []
+    for day in dates:
+        cash = STARTING_CASH
+        shares: dict[str, float] = {}
+        fills = conn.execute(
+            "SELECT ticker, side, shares, price FROM paper_fills WHERE fill_date <= ?", (day,)
+        ).fetchall()
+        for ticker, side, amount, price in fills:
+            direction = 1 if side == "BUY" else -1
+            shares[ticker] = shares.get(ticker, 0.0) + direction * amount
+            cash -= direction * amount * price
+        value = cash
+        for ticker, amount in shares.items():
+            close = conn.execute(
+                """
+                SELECT close FROM daily_prices WHERE ticker = ? AND bar_date <= ?
+                ORDER BY bar_date DESC LIMIT 1
+                """,
+                (ticker, day),
+            ).fetchone()
+            if close is not None:
+                value += amount * close[0]
+        series.append(value)
+    return series
+
+
+def decisions(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    items = rows(
+        conn,
+        "decision_records",
+        """
+        SELECT decision_id, created_at, ticker, decision, record_json
+        FROM decision_records ORDER BY created_at DESC
+        """,
+    )
+    if items is None:
+        return None
+    for item in items:
+        record = json.loads(item["record_json"])
+        item["regime"] = record.get("regime_state")
+        item["extraordinary"] = record.get("extraordinary_opportunity", False)
+        events = (
+            conn.execute(
+                """
+                SELECT status, occurred_at, detail FROM status_events
+                WHERE subject_id = ? ORDER BY event_id
+                """,
+                (item["decision_id"],),
+            ).fetchall()
+            if table_exists(conn, "status_events")
+            else []
+        )
+        item["events"] = events
+        item["final_status"] = events[-1][0] if events else ""
+        item["policy_reasons"] = events[-1][2] if events else ""
+    return items
+
+
+def x_data(conn: sqlite3.Connection) -> dict[str, Any]:
+    accounts = None
+    if all(table_exists(conn, table) for table in ("x_accounts", "x_posts", "x_route_decisions")):
+        accounts = rows(
+            conn,
+            "x_accounts",
+            """
+            SELECT a.handle, COUNT(p.post_id) AS fetched,
+              SUM(CASE WHEN r.rank = 'headline' THEN 1 ELSE 0 END) AS headline,
+              SUM(CASE WHEN r.rank = 'notable' THEN 1 ELSE 0 END) AS notable,
+              SUM(CASE WHEN r.rank = 'context' THEN 1 ELSE 0 END) AS context
+            FROM x_accounts a LEFT JOIN x_posts p ON p.handle = a.handle
+            LEFT JOIN x_route_decisions r ON r.post_id = p.post_id GROUP BY a.handle
+            """,
+        )
+    return {
+        "runs": rows(conn, "x_runs", "SELECT * FROM x_runs ORDER BY started_at DESC"),
+        "accounts": accounts,
+        "articles": rows(
+            conn, "x_article_queue", "SELECT * FROM x_article_queue ORDER BY queued_at DESC"
+        ),
+    }
+
+
+def regime(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    return rows(
+        conn,
+        "regime_snapshots",
+        "SELECT * FROM regime_snapshots ORDER BY snapshot_date DESC",
+    )
+
+
+def triggers(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    return rows(
+        conn,
+        "trigger_events",
+        "SELECT * FROM trigger_events ORDER BY status, fired_at DESC",
+    )
