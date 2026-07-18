@@ -27,10 +27,13 @@ plan 015 rubric v0.
 ## Current state (local main `460977d` + plan 018 merged)
 
 - `docs/x_pipeline/` does not exist yet.
-- Plan 018 provides: `python -m app.x.run cycle|route|digest-render|
+- Plan 018 provides: `python -m app.x.run cycle|route|note|digest-render|
   weekly-render`, run ledger, article auto-routing, rank vocabulary
-  headline|notable|context, digest files at `data/digests/` with a
-  preserved `<!-- synthesis:start/end -->` block.
+  headline|notable|context, digest files at `data/digests/` rendered
+  from the `x_digest_notes` table (session synthesis stored via `note`,
+  not a preserved-marker block — the repo-goes-public reconciliation on
+  2026-07-18 replaced the original marker design with this table so
+  digest files stay fully regenerable, gitignored artifacts).
 - Plan 015's rubric v0 lives verbatim in
   `plans/015-gate-agreement-harness.md`; the experiment export dir has a
   copy. Its maintenance note designates it "the seed of the production
