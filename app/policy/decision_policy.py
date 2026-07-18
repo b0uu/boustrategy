@@ -12,6 +12,7 @@ from app.schemas.decision_record import (
 MAX_EQUITY_TARGET_WEIGHT = 0.20
 MAX_ETF_TARGET_WEIGHT = 0.50
 MAX_BUY_ADD_TRADES_PER_DAY = 2
+MAX_BUY_ADD_TRADES_PER_DAY_BRAKE = 5
 MAX_SELL_TRIM_TRADES_PER_DAY = 10
 MAX_HOLDINGS = 10
 MAX_PRIMARY_THEME_WEIGHT = 0.60
@@ -91,7 +92,13 @@ def evaluate_decision_policy(
     if portfolio is not None:
         if (
             record.decision in _EXPOSURE_INCREASING
+            and portfolio.buy_add_trades_today >= MAX_BUY_ADD_TRADES_PER_DAY_BRAKE
+        ):
+            reasons.append("buy_add_circuit_breaker_tripped")
+        elif (
+            record.decision in _EXPOSURE_INCREASING
             and portfolio.buy_add_trades_today >= MAX_BUY_ADD_TRADES_PER_DAY
+            and not record.extraordinary_opportunity
         ):
             reasons.append("daily_buy_add_limit_reached")
 

@@ -245,6 +245,46 @@ def test_rejects_add_when_daily_buy_add_limit_reached():
     assert "daily_buy_add_limit_reached" in result.reasons
 
 
+def test_allows_third_buy_when_extraordinary_opportunity_is_justified():
+    record = decision_record_with(
+        extraordinary_opportunity=True,
+        extraordinary_justification="A time-sensitive catalyst creates an unusual entry window.",
+    )
+    portfolio = portfolio_context(buy_add_trades_today=2)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert result.approved
+
+
+def test_rejects_extraordinary_buy_at_absolute_brake():
+    record = decision_record_with(
+        extraordinary_opportunity=True,
+        extraordinary_justification="A time-sensitive catalyst creates an unusual entry window.",
+    )
+    portfolio = portfolio_context(buy_add_trades_today=5)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "buy_add_circuit_breaker_tripped" in result.reasons
+
+
+def test_red_extraordinary_buy_over_brake_only_trips_brake():
+    record = decision_record_with(
+        regime_state="RED",
+        extraordinary_opportunity=True,
+        extraordinary_justification="A time-sensitive catalyst creates an unusual entry window.",
+    )
+    portfolio = portfolio_context(buy_add_trades_today=5)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert not result.approved
+    assert "buy_add_circuit_breaker_tripped" in result.reasons
+    assert "buy_or_add_in_red_requires_extraordinary_opportunity" not in result.reasons
+
+
 def test_allows_sell_when_buy_add_limit_reached():
     record = decision_record_with(decision="SELL")
     portfolio = portfolio_context(buy_add_trades_today=2, sell_trim_trades_today=0)
