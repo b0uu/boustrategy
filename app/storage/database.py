@@ -132,6 +132,15 @@ CREATE TABLE IF NOT EXISTS x_digest_notes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (note_date, slot)
 );
+CREATE TABLE IF NOT EXISTS calendar_events (
+    event_type TEXT NOT NULL,
+    ticker TEXT NOT NULL DEFAULT '',
+    event_date TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT '',
+    source TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    PRIMARY KEY (event_type, ticker, event_date)
+);
 """
 
 

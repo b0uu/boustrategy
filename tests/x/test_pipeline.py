@@ -307,6 +307,26 @@ def test_digest_has_no_actionable_marker_without_headlines(tmp_path: Path) -> No
 
     assert text.startswith("# X digest: 2026-07-20\n")
     assert "ACTIONABLE" not in text
+    assert "## Calendar" not in text
+
+
+def test_digest_renders_calendar_events_in_next_seven_days(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    conn.executemany(
+        """
+        INSERT INTO calendar_events
+            (event_type, ticker, event_date, label, source, fetched_at)
+        VALUES ('earnings', 'NVDA', ?, 'estimated', 'test', '2026-01-01')
+        """,
+        [("2026-07-20",), ("2026-07-26",), ("2026-07-27",)],
+    )
+
+    text = render_digest(conn, date(2026, 7, 20), tmp_path / "digest.md")
+
+    assert "## Calendar" in text
+    assert "2026-07-20 | earnings | NVDA | estimated" in text
+    assert "2026-07-26 | earnings | NVDA | estimated" in text
+    assert "2026-07-27" not in text
 
 
 def test_default_digest_path_is_gitignored() -> None:
