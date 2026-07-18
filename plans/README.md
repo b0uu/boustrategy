@@ -248,6 +248,12 @@ should improvise around them:
 - **X read cap recalibrated: `MAX_MONTHLY_POST_READS = 11000`**
   (~$55/mo, top of the stated $35-55 range) — committed alongside these
   plans. The real X API balance must be funded to match.
+- **Continuous wave execution authorized** (2026-07-18): a single goal
+  session may execute plans 018-027 in dependency order, MERGING each
+  gate-passing advisor branch into LOCAL main before starting the next
+  plan. Push remains forbidden; the maintainer audits the merged wave
+  afterward. Per-plan branch + STOP discipline unchanged; the wall after
+  025 (checkpoint 5) is unchanged.
 
 2026-07-12, resolving plan 008's open decisions (human checkpoint 1):
 
