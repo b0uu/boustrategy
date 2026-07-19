@@ -49,6 +49,21 @@ or resized.
 Full normal sizing caps apply to extraordinary trades in all regimes: if
 it truly cleared the 'extraordinary' bar, it deserves size. However, this should be rare in theory, so 'extraordinary opportunity' frequency will be tracked and the bar may be tweaked.
 
+**Frequency is contextual, not absolute (2026-07-18).** "Rare" means rare
+relative to the regime, not a flat count. The regime scorer is trend-
+following by construction and will always confirm GREEN well after a
+real bottom has passed (the v0 backtest shows RED persisting almost the
+entire length of the 2022 bear market, roughly ten months). If the
+extraordinary bar is genuinely cleared multiple times across a
+regime-confirmed, multi-month RED stretch, because multiple independent
+stock-specific theses each earned it on the evidence, that is not the
+same signal as multiple extraordinary flags inside an otherwise calm
+GREEN month. The former is what surviving-conviction accumulation into
+a real drawdown is supposed to look like under this doctrine; only the
+latter should read as rubber-stamping. When reviewing the
+extraordinary-frequency metric, weigh it against how long and how deep
+the regime has been RED, not as a raw count.
+
 ## How tuning works
 
 1. Edit a dial above.
@@ -60,3 +75,9 @@ it truly cleared the 'extraordinary' bar, it deserves size. However, this should
 
 - 2026-07-15: v1 created by extracting appetite dials from mandate v1
   (hybrid risk-split decision). No numeric changes.
+- 2026-07-18: clarified extraordinary-opportunity frequency as contextual
+  to regime duration, not a flat count — prompted by the v0 regime
+  backtest showing ~10 months continuously RED during the 2022 bear
+  market, which would otherwise chill the reasoning worker from
+  clearing the extraordinary bar repeatedly during a genuine sustained
+  drawdown out of fear of tripping the rubber-stamp metric.

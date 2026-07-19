@@ -27,10 +27,12 @@ enforced through prompts, records, and evals.
 - The escalation is auditable by design: flag plus written justification on
   the record, visible on the dashboard.
 - **Tracked metric**: how often the extraordinary bar is cleared, and the
-  outcome quality of those trades. The bar is intended to be rare. If evals
-  show the flag becoming a rubber stamp, tighten here (e.g. require a
-  matching trigger classification). If they show consistently excellent
-  reasoning, the maintainer intends to expand extraordinary positioning.
+  outcome quality of those trades. The bar is intended to be rare relative
+  to the regime, not a flat count — see `docs/risk_posture.md` for the
+  regime-duration context this reads against. If evals show the flag
+  becoming a rubber stamp, tighten here (e.g. require a matching trigger
+  classification). If they show consistently excellent reasoning, the
+  maintainer intends to expand extraordinary positioning.
 
 ## Mandate-enforced rules (see mandate.md)
 
