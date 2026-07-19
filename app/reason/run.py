@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from app.paper.context import portfolio_context
+from app.regime.run import latest_published_regime
 from app.state.pipeline import DecisionStatus, ProcessOutcome, process_decision
 from app.storage.database import connect
 from app.triggers.store import mark_triggers
@@ -28,7 +29,8 @@ def submit_decision(
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
     portfolio = portfolio_context(conn, on_date, exclude_ticker=ticker)
-    outcome = process_decision(conn, record_data, portfolio)
+    true_regime_state = latest_published_regime(conn, on_date)
+    outcome = process_decision(conn, record_data, portfolio, true_regime_state)
     if consume_trigger_ids and outcome.final_status in _CONSIDERED_STATUSES:
         mark_triggers(conn, consume_trigger_ids, "consumed")
     return outcome

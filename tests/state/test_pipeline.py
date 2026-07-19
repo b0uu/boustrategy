@@ -1,6 +1,7 @@
 import pytest
 
 from app.policy.decision_policy import PortfolioContext
+from app.schemas.decision_record import RegimeState
 from app.state.pipeline import DecisionStatus, append_status, process_decision
 from app.storage.database import connect
 from app.storage.records import get_decision_record, get_order_intent
@@ -117,3 +118,13 @@ def test_portfolio_context_flows_through() -> None:
 
     assert outcome.final_status == DecisionStatus.POLICY_REJECTED
     assert "max_holdings_reached" in outcome.policy_reasons
+
+
+def test_true_regime_state_flows_through() -> None:
+    conn = connect(":memory:")
+    data = valid_decision_record_data()
+
+    outcome = process_decision(conn, data, true_regime_state=RegimeState.RED)
+
+    assert outcome.final_status == DecisionStatus.POLICY_REJECTED
+    assert "regime_state_mismatch" in outcome.policy_reasons

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PortfolioContext, evaluate_decision_policy
-from app.schemas.decision_record import Decision, InvestmentDecisionRecord
+from app.schemas.decision_record import Decision, InvestmentDecisionRecord, RegimeState
 from app.storage.records import (
     get_order_intent,
     save_decision_record,
@@ -101,6 +101,7 @@ def process_decision(
     conn: sqlite3.Connection,
     record_data: dict[str, Any],
     portfolio: PortfolioContext | None = None,
+    true_regime_state: RegimeState | None = None,
 ) -> ProcessOutcome:
     try:
         record = InvestmentDecisionRecord.model_validate(record_data)
@@ -117,7 +118,7 @@ def process_decision(
     append_status(conn, record.decision_id, DecisionStatus.DECISION_RECORD_CREATED)
     append_status(conn, record.decision_id, DecisionStatus.SCHEMA_VALIDATED)
 
-    policy_result = evaluate_decision_policy(record, portfolio)
+    policy_result = evaluate_decision_policy(record, portfolio, true_regime_state)
     if not policy_result.approved:
         append_status(
             conn,

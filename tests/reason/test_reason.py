@@ -121,6 +121,38 @@ def test_submit_trigger_consumption_matrix(
     assert status == ("consumed" if consumed else "pending")
 
 
+def test_submit_rejects_self_reported_regime_mismatch(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    conn.execute(
+        """
+        INSERT INTO regime_snapshots VALUES
+        ('2026-06-10', 'RED', 'RED', -5, '{"trend": -1}', '2026-06-10T10:00:00Z')
+        """
+    )
+    record = valid_decision_record_data()  # fixture's regime_state defaults to GREEN
+
+    outcome = submit_decision(conn, record, date(2026, 6, 10))
+
+    assert outcome.final_status == DecisionStatus.POLICY_REJECTED
+    assert "regime_state_mismatch" in outcome.policy_reasons
+
+
+def test_submit_uses_latest_snapshot_on_or_before_the_submit_date(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    conn.execute(
+        """
+        INSERT INTO regime_snapshots VALUES
+        ('2026-06-01', 'GREEN', 'GREEN', 5, '{"trend": 1}', '2026-06-01T10:00:00Z')
+        """
+    )
+    record = valid_decision_record_data()  # regime_state GREEN matches the only snapshot
+
+    outcome = submit_decision(conn, record, date(2026, 6, 10))
+
+    assert outcome.final_status == DecisionStatus.ORDER_INTENT_CREATED
+    assert "regime_state_mismatch" not in outcome.policy_reasons
+
+
 def test_submit_passes_record_ticker_to_portfolio_context(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
     expected_portfolio = PortfolioContext(
@@ -133,12 +165,18 @@ def test_submit_passes_record_ticker_to_portfolio_context(monkeypatch: pytest.Mo
         captured["ticker"] = exclude_ticker
         return expected_portfolio
 
-    def fake_process(conn: object, record: object, portfolio: PortfolioContext) -> ProcessOutcome:
+    def fake_process(
+        conn: object, record: object, portfolio: PortfolioContext, true_regime_state: object
+    ) -> ProcessOutcome:
         captured["portfolio"] = portfolio
         return ProcessOutcome(decision_id=None, final_status=DecisionStatus.SCHEMA_FAILED)
 
+    def fake_regime(conn: object, on_date: date) -> None:
+        return None
+
     monkeypatch.setattr("app.reason.run.portfolio_context", fake_context)
     monkeypatch.setattr("app.reason.run.process_decision", fake_process)
+    monkeypatch.setattr("app.reason.run.latest_published_regime", fake_regime)
 
     submit_decision(object(), {"ticker": "nvda"}, date(2026, 6, 10))  # type: ignore[arg-type]
 

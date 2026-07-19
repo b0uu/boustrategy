@@ -37,8 +37,18 @@ class PolicyResult(BaseModel):
 def evaluate_decision_policy(
     record: InvestmentDecisionRecord,
     portfolio: PortfolioContext | None = None,
+    true_regime_state: RegimeState | None = None,
 ) -> PolicyResult:
     reasons: list[str] = []
+
+    # regime_state is self-reported by the record's author. Without this check
+    # the RED/de-risking escalation gate below is enforceable only by honesty:
+    # a record could claim GREEN during an actual RED regime and never trip it.
+    # true_regime_state is the caller's independently looked-up ground truth
+    # (see app.regime.run.latest_published_regime), so a mismatch is always an
+    # error, regardless of decision type.
+    if true_regime_state is not None and record.regime_state != true_regime_state:
+        reasons.append("regime_state_mismatch")
 
     if (
         record.decision in _EXPOSURE_INCREASING

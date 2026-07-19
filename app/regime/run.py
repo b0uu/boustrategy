@@ -20,6 +20,17 @@ def _components_json(score: RegimeScore) -> str:
     )
 
 
+def latest_published_regime(conn: sqlite3.Connection, on_date: date) -> RegimeState | None:
+    row = conn.execute(
+        """
+        SELECT regime FROM regime_snapshots WHERE snapshot_date <= ?
+        ORDER BY snapshot_date DESC LIMIT 1
+        """,
+        (on_date.isoformat(),),
+    ).fetchone()
+    return RegimeState(row[0]) if row is not None else None
+
+
 def save_snapshot(conn: sqlite3.Connection, snapshot_date: date, score: RegimeScore) -> RegimeState:
     rows = conn.execute(
         "SELECT regime, raw_regime FROM regime_snapshots ORDER BY snapshot_date"

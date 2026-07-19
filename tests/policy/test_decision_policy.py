@@ -1,4 +1,5 @@
 from app.policy.decision_policy import PortfolioContext, evaluate_decision_policy
+from app.schemas.decision_record import RegimeState
 from tests.fixtures.decision_records import decision_record_with, valid_decision_record
 
 
@@ -361,3 +362,41 @@ def test_portfolio_rules_skipped_without_context():
     result = evaluate_decision_policy(record)
 
     assert result.approved
+
+
+def test_regime_check_skipped_without_true_regime():
+    record = decision_record_with(regime_state="RED", operating_mode="DE_RISKING")
+
+    result = evaluate_decision_policy(record)
+
+    assert "regime_state_mismatch" not in result.reasons
+
+
+def test_rejects_self_reported_regime_mismatch():
+    record = valid_decision_record()
+
+    result = evaluate_decision_policy(record, true_regime_state=RegimeState.RED)
+
+    assert not result.approved
+    assert "regime_state_mismatch" in result.reasons
+
+
+def test_approves_when_self_reported_regime_matches_truth():
+    record = decision_record_with(
+        regime_state="RED",
+        extraordinary_opportunity=True,
+        extraordinary_justification="Panic selloff disconnected from evidence.",
+    )
+
+    result = evaluate_decision_policy(record, true_regime_state=RegimeState.RED)
+
+    assert result.approved
+
+
+def test_regime_mismatch_reported_even_when_underlying_decision_would_pass():
+    record = decision_record_with(decision="SELL")
+
+    result = evaluate_decision_policy(record, true_regime_state=RegimeState.RED)
+
+    assert not result.approved
+    assert result.reasons == ["regime_state_mismatch"]
