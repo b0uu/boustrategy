@@ -113,6 +113,40 @@ should improvise around them:
 
 ## Maintainer decisions (resolved)
 
+2026-07-19, human checkpoint 5 sign-off:
+
+- **Prompts approved**: `docs/prompts/thesis_chain.md` and
+  `docs/prompts/daily_management.md` reviewed and edited by the
+  maintainer directly (tightened prose, added the repo writing-style
+  rule in `AGENTS.md` #8, fixed the counter-thesis field mapping and the
+  survivorship-bias/absent-counter-thesis asymmetry). DRAFT banners
+  removed in commit `1338bcd`.
+- **Regime rule table approved**: `docs/research/regime_backtest_v0.md`
+  reviewed against the full 2018-2026 cached history (regenerated in
+  commit `c50a6ea` after the original 2-year backtest window was found
+  to leave only 18 scoreable days post-warmup). RED correctly captured
+  both the 2020 COVID crash and the 2022 bear market; ~20% of days
+  historically RED, driven mostly by the ~10-month 2022 stretch —
+  accepted as the intended behavior of this rule table.
+- **Structural gap closed as part of sign-off**: the reviewed regime
+  table exposed that `evaluate_decision_policy` trusted the
+  self-reported `regime_state` on a submitted record with no
+  cross-check against the deterministic `regime_snapshots` truth,
+  meaning the RED/de-risking escalation gate was enforceable only by
+  honesty. Fixed in commit `e4ab86f` — `process_decision` /
+  `submit_decision` now look up the true published regime and reject on
+  mismatch, regardless of decision type.
+- **Doctrine clarified alongside sign-off**: `docs/risk_posture.md` and
+  `docs/risk_policy.md` amended (commit `5bf5daf`) so extraordinary-
+  opportunity frequency reads against regime duration, not as a flat
+  count — the backtest's ~10-month 2022 RED stretch would otherwise
+  make repeated, individually-justified extraordinary buys during a
+  genuine sustained drawdown misread as rubber-stamping.
+- **Checkpoint 5 is CLEARED.** The reasoning worker (plan 025) may run
+  its first session, human-supervised, once ops setup (Task Scheduler,
+  X balance funding) is complete. Per `docs/reasoning/RUNBOOK.md`, the
+  session remains manually launched, not scheduled, for this first run.
+
 2026-07-08, working session:
 
 - RED/DE_RISKING gate: **escalation gate** — BUY/ADD rejected unless the
