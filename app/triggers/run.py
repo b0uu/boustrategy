@@ -3,6 +3,7 @@ import json
 from datetime import date, timedelta
 
 from app.events.store import parse_watchlist
+from app.paper.context import position_tickers
 from app.prices.cache import refresh_ticker
 from app.storage.database import connect
 from app.triggers.evaluate import evaluate_triggers
@@ -21,7 +22,7 @@ def main() -> None:
     conn = connect(args.db)
     if args.command == "evaluate":
         refresh_through = date.fromisoformat(args.date) if args.date else date.today()
-        tickers = parse_watchlist(args.watchlist)
+        tickers = sorted(set(parse_watchlist(args.watchlist)) | set(position_tickers(conn)))
         for ticker in tickers:
             refresh_ticker(
                 conn,

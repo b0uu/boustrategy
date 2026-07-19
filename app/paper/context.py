@@ -5,6 +5,10 @@ from app.paper.broker import cash_balance
 from app.policy.decision_policy import PortfolioContext
 
 
+def position_tickers(conn: sqlite3.Connection) -> list[str]:
+    return [row[0] for row in conn.execute("SELECT ticker FROM paper_positions ORDER BY ticker")]
+
+
 def _latest_close(conn: sqlite3.Connection, ticker: str, on_date: date) -> float:
     row = conn.execute(
         """
