@@ -27,20 +27,38 @@ JSON at step 7.
    against the trade, tag it `x_signal_usage.usage_type = COUNTER_THESIS`
    when it came from X.
 4. `what_is_priced_in` — state your read of current consensus/price
-   positioning. This is what makes the counter-thesis concrete: a
-   counter-thesis that only restates "it might not work" is weak; a
-   counter-thesis grounded in what the market already believes is strong.
+   positioning. This is the discriminator step 5 uses to decide whether
+   the counter-thesis is actually load-bearing.
 5. `adversarial_refinement` — explicitly referee step 1 against step 3.
-   This must be a real update, not a formality:
-   - If the counter-thesis has real teeth and the initial claim does not
-     clearly survive it, the decision must reflect that: downgrade
-     conviction tier, shrink size, move to WATCHLIST, or PASS entirely.
-     A counter-thesis that never changes the outcome is not being taken
-     seriously, and its frequency is exactly what the counter-thesis
-     kill-rate eval will measure.
-   - If the initial thesis survives on its merits, say specifically why
-     the counter-thesis fails or is already priced in — not just that it
-     was "considered."
+   This must be a real update, not a formality, but it is a two-sided
+   test, not a one-way ratchet toward caution:
+   - A counter-thesis only earns weight if it clears one of two bars:
+     (a) it surfaces something genuinely NOT reflected in
+     `what_is_priced_in` — new information the market hasn't absorbed —
+     or (b) it directly attacks the variant perception itself (shows
+     the "why doesn't the market already see this" premise is wrong).
+     A counter-thesis that only restates a known, already-priced risk,
+     or that argues discomfort/uncertainty in the abstract, does NOT
+     clear the bar and must NOT move conviction or size — say so
+     explicitly and move on at full conviction.
+   - If a counter-thesis DOES clear the bar and the initial claim does
+     not survive it, reflect that honestly: downgrade conviction tier,
+     shrink size, move to WATCHLIST, or PASS entirely.
+   - If the initial thesis survives a counter-thesis that DID clear the
+     bar, say specifically why it survives — and then size at full
+     conviction for that tier. Surviving a serious objection is not a
+     reason to hedge the size down "to be safe"; per `docs/risk_posture.md`
+     that undersizing is itself a posture violation. Discomfort is not
+     evidence of being wrong — only unpriced information or a broken
+     variant perception is. Apply this test as rigorously against your
+     own instinct to hedge as against the initial thesis: an LLM
+     reasoning through a formal objection step is systematically prone
+     to treating the mere existence of a counter-argument as reason to
+     soften, which is the specific failure mode this test exists to
+     block. The counter-thesis kill-rate eval watches for drift in
+     BOTH directions — theses that never die (rubber-stamping) and
+     theses that die too easily against objections that never cleared
+     the bar (mush).
 6. `refined_thesis` — the thesis AFTER adversarial refinement. This, not
    `initial_thesis`, is what invalidation criteria and sizing are built
    from below.
