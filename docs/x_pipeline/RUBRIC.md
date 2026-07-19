@@ -1,4 +1,4 @@
-# Gate rubric v2 (production digester standard)
+# Gate rubric (production digester standard)
 
 Judge each exported post `significant` or `skip`; every significant post
 also gets a `rank`. Judge from the FULL provided content: text, reply

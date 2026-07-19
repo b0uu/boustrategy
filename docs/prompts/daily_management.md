@@ -1,7 +1,3 @@
-> **DRAFT — PENDING HUMAN CHECKPOINT 5 SIGN-OFF. No decision-generating
-> session may load this prompt until the maintainer approves it and
-> records the approval in plans/README.md.**
-
 # Daily-management reasoning prompt
 
 Read `docs/mandate.md`, `docs/risk_policy.md`, `docs/risk_posture.md`, and
