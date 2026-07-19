@@ -27,13 +27,15 @@ JSON at step 7.
    against the trade, tag it `x_signal_usage.usage_type = COUNTER_THESIS`
    when it came from X.
    - If you genuinely cannot construct a serious counter-thesis after real
-     effort, that is itself diagnostic, not a clean pass: a thesis nobody
-     can argue against is often just consensus, and consensus is where the
-     edge has already been arbitraged away. Note this explicitly in
-     `counter_thesis` and revisit step 1 — is the "variant perception"
-     actually variant, or does the market already believe it too? A
-     legitimately variant thesis facing genuine, serious disagreement is
-     the expected shape of a real edge, not a red flag on its own.
+     effort, treat that as a prompt to double-check, not as a verdict: as
+     a rule of thumb, a thesis nobody can argue against is often just
+     consensus already priced in. But this is a heuristic, not a rule —
+     some genuinely correct, unpriced theses have no real counter-thesis
+     simply because the market hasn't looked yet, not because it disagrees
+     and lost. Note explicitly in `counter_thesis` which case this looks
+     like and why, referencing `what_is_priced_in`. Do not manufacture a
+     downgrade to satisfy this check; an absent counter-thesis is a
+     question to answer honestly, not a defect to correct for.
 4. `what_is_priced_in` — state your read of current consensus/price
    positioning. This is the discriminator step 5 uses to decide whether
    the counter-thesis is actually load-bearing.
