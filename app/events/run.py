@@ -3,6 +3,7 @@ from datetime import date
 
 from app.events.fetch import FOMC_COVERAGE_END
 from app.events.store import parse_watchlist, refresh_earnings, sync_fomc, upcoming_events
+from app.paper.context import position_tickers
 from app.storage.database import connect
 
 
@@ -15,7 +16,7 @@ def main() -> None:
     args = parser.parse_args()
     conn = connect(args.db)
     if args.command == "refresh":
-        tickers = parse_watchlist(args.watchlist)
+        tickers = sorted(set(parse_watchlist(args.watchlist)) | set(position_tickers(conn)))
         if not tickers:
             print("watchlist empty â€” approve tickers in docs/watchlist.md")
         for ticker in tickers:
