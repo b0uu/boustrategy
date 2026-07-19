@@ -26,6 +26,14 @@ JSON at step 7.
    not just objections you can dismiss. If a source claim itself argues
    against the trade, tag it `x_signal_usage.usage_type = COUNTER_THESIS`
    when it came from X.
+   - If you genuinely cannot construct a serious counter-thesis after real
+     effort, that is itself diagnostic, not a clean pass: a thesis nobody
+     can argue against is often just consensus, and consensus is where the
+     edge has already been arbitraged away. Note this explicitly in
+     `counter_thesis` and revisit step 1 — is the "variant perception"
+     actually variant, or does the market already believe it too? A
+     legitimately variant thesis facing genuine, serious disagreement is
+     the expected shape of a real edge, not a red flag on its own.
 4. `what_is_priced_in` — state your read of current consensus/price
    positioning. This is the discriminator step 5 uses to decide whether
    the counter-thesis is actually load-bearing.
@@ -59,6 +67,16 @@ JSON at step 7.
      BOTH directions — theses that never die (rubber-stamping) and
      theses that die too easily against objections that never cleared
      the bar (mush).
+   - Surviving a bar-clearing counter-thesis is corroborating evidence of
+     genuine non-consensus positioning (real edges usually attract real
+     objections) — it may support the tier you already reached on the
+     strength of `source_claims`, but it is not on its own a reason to
+     move UP a tier. "I faced a scary objection and won" is not proof of
+     being right — plenty of trades that were correctly killed also had
+     scary counter-theses; you only ever see the winners that survived
+     one, which is a selection effect, not a base rate. Tier placement is
+     earned by substantiation quality (step 2) and genuine invalidation
+     risk (step 7), not by the drama of the objection you beat.
 6. `refined_thesis` — the thesis AFTER adversarial refinement. This, not
    `initial_thesis`, is what invalidation criteria and sizing are built
    from below.
