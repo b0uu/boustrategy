@@ -30,16 +30,12 @@ hash delta.
 
 Recommended order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 008
 runnable at any point in parallel (it is research-only and touches no code).
-Current wave (2026-07-18): 018 → 019; 020 independent once the maintainer
-amends `docs/risk_policy.md` (prerequisite stated in the plan).
-Extended wave (2026-07-18, planned to the checkpoint-5 wall): the
-critical path is 018 → 019, then 021 → 022, with 023 and 024 runnable in
-parallel any time after 007, converging on 025 (which requires 018-024
-and deliberately ends AT human checkpoint 5 — built, never run). 026 and
-027 are parallel runway with no human gate; run them whenever, including
-while checkpoint-5 sign-off is pending. **The wall**: after 025, no
-executor proceeds until the maintainer signs off prompts + regime rules
-and runs the first supervised paper session.
+**Wave 018-027 complete** (executed 2026-07-18, local main `5e88d2f`; all
+gates green, nothing pushed). The system is fully built up to the
+checkpoint-5 wall and stops there by design: plan 025 built the
+reasoning worker and drafted its prompts but ran nothing. Standing at
+the wall now — see "Human checkpoints" below for what's still open
+before any decision-generating session may run.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
@@ -60,16 +56,16 @@ and runs the first supervised paper session.
 | 015  | Gate-agreement harness: blind export / ingest / score for subscription-agent judging | P1 | S-M | trial labels | DONE (verified 2026-07-15; Luna judged all 1,761: 72.5% agreement, 485 disagreements — report at data/gate_experiment/report-luna.md) |
 | 016  | Adjudication UI: resolve disagreements, correct labels auditably, re-score, compare rounds | P1 | M | 011, 015 | DONE (verified 2026-07-16; smoke-tested against a live-db copy; captured posts never auto-flip; label corrections audited with label_before) |
 | 017  | Micro-fix: retweets store full original text (was ~140-char truncated echo; 222 historical RTs affected) | P1 | S | — | DONE (verified 2026-07-16; zero-cost — includes already fetched; historical RT repair deferred, ~500 reads, pending X balance headroom) |
-| 018  | X pipeline backbone: run ledger, routing store, article queue, digest renderer, market calendar | P1 | M | 010-014 | TODO |
-| 019  | Digester session runbooks + gate rubric v2 (docs only) | P1 | S | 018 (hard) | TODO |
-| 020  | Extraordinary-opportunity override for BUY/ADD daily quota (+5/day brake) | P2 | S | maintainer amends risk_policy.md first | TODO |
-| 021  | Events calendar ingestion: watchlist earnings + FOMC | P2 | S-M | 004, 007; soft 018 | TODO |
-| 022  | Trigger system v0: price/volume, calendar proximity, digest headlines | P2 | M | 007, 018, 021 (hard) | TODO |
-| 023  | Regime scorer v0: deterministic GREEN/YELLOW/RED + backtest report | P1 | M | 007 (hard) | TODO |
-| 024  | Paper broker: simulated fills, positions, real PortfolioContext | P1 | M | 005-007, 009 | TODO |
-| 025  | Reasoning worker harness + prompt drafts (builds all, runs nothing — ends AT checkpoint 5) | P1 | M-L | 018-024 (hard) | TODO |
-| 026  | Dashboard v0: localhost read-only panel over all stores | P2 | M | 006; renders others if present | TODO |
-| 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | TODO |
+| 018  | X pipeline backbone: run ledger, routing store, article queue, digest renderer, market calendar | P1 | M | 010-014 | DONE (verified 2026-07-18; merged `ec3d845`) |
+| 019  | Digester session runbooks + gate rubric v2 (docs only) | P1 | S | 018 (hard) | DONE (verified 2026-07-18; merged `85e287c`) |
+| 020  | Extraordinary-opportunity override for BUY/ADD daily quota (+5/day brake) | P2 | S | maintainer amends risk_policy.md first | DONE (verified 2026-07-18; merged `bd1cb00`) |
+| 021  | Events calendar ingestion: watchlist earnings + FOMC | P2 | S-M | 004, 007; soft 018 | DONE (verified 2026-07-18; merged `27d996b`/`af690c8`; live FOMC + NVDA earnings check) |
+| 022  | Trigger system v0: price/volume, calendar proximity, digest headlines | P2 | M | 007, 018, 021 (hard) | DONE (verified 2026-07-18; merged `fb914bc`) |
+| 023  | Regime scorer v0: deterministic GREEN/YELLOW/RED + backtest report | P1 | M | 007 (hard) | DONE (verified 2026-07-18; merged `a52c7da`; backtest report `docs/research/regime_backtest_v0.md`, sign-off pending) |
+| 024  | Paper broker: simulated fills, positions, real PortfolioContext | P1 | M | 005-007, 009 | DONE (verified 2026-07-18; merged `9dae08a`) |
+| 025  | Reasoning worker harness + prompt drafts (builds all, runs nothing — ends AT checkpoint 5) | P1 | M-L | 018-024 (hard) | DONE (verified 2026-07-18; merged `5e88d2f`; prompts carry DRAFT banner, checkpoint 5 not yet cleared) |
+| 026  | Dashboard v0: localhost read-only panel over all stores | P2 | M | 006; renders others if present | DONE (verified 2026-07-18; merged `857e33a`) |
+| 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | DONE (verified 2026-07-18; merged `da97255`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
