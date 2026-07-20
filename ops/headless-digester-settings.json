@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(python -m app.x.run *)",
+      "Read",
+      "Write(data)",
+      "Write(data/**)",
+      "Write(data/*)",
+      "Edit(data)",
+      "Edit(data/**)",
+      "Edit(data/*)"
+    ],
+    "deny": [
+      "Bash(git *)",
+      "Write(plans/README.md)",
+      "Edit(plans/README.md)",
+      "Write(docs/**)",
+      "Edit(docs/**)",
+      "Write(docs)",
+      "Edit(docs)"
+    ],
+    "ask": []
+  }
+}
