@@ -40,8 +40,15 @@ its own articulable framing, judge the framing.
 Ranks (required when significant):
 - `headline` — could plausibly warrant a decision-record review this
   week: thesis-relevant new facts, regime-input moves, credible
-  counter-evidence against a plausible holding. Expect 0-3 per run;
-  a headline drought is normal, a headline flood means you're inflating.
+  counter-evidence against a plausible holding. There's no quota:
+  the count follows the news. Most runs have 0-1 and a drought is
+  normal; a major catalyst day can legitimately produce many, and you
+  must not demote a genuine headline to keep the count low. The
+  inflation check is definitional, not numeric: every headline must
+  individually clear the bar above. If most runs are producing
+  several, reread your headlines against the bar — importance is
+  measured against what could change a thesis, not against the day's
+  volume.
 - `notable` — moves a theme's evidence base; the reasoning agent should
   read it this week.
 - `context` — background that sharpens the picture; skimmable.
