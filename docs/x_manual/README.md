@@ -51,9 +51,9 @@ skimming this week with `(wk1)`.
 - @synthwavedd - [company:openai, high-signal] - potential openAI insider, very in touch with frontier model progress and competition
 - @ArfurGrok - [news, company:frontier-labs] - insider for frontier lab & company employment notifications
 * @aaronp613 - [company:apple, news] - early news and rumors insider for apple, looks behind the scenes for early news and credible rumors in other notable companies as well
-- @evrgn11112231 - [investor, high-signal] - provides personal insights on large cap stocks, tech, semis, and AI
+* @evrgn11112231 - [investor, high-signal] - provides personal insights on large cap stocks, tech, semis, and AI
 - @CharlesRollet1 - [news] - tech reporter at Business Insider, provides some good inside scoops
-- @alexeheath - [news] - good reporting on the AI race, with focus on top companies and competition
+* @alexeheath - [news] - good reporting on the AI race, with focus on top companies and competition
 * @aleabitoreddit - [semis, high-signal] - very influential insights on AI and semi supply chains. likely has power to move market short-term in some areas. good analyses.
 - @KobeissiLetter - [macro-liquidity, news] - commentary on global capital markets & geopolitics
 * @AndrewCurran_ - [news, high-signal] - good insights on AI, frontier labs and their models
@@ -63,7 +63,7 @@ skimming this week with `(wk1)`.
 * @ch402 - [company:anthropic, high-signal] - Chris Olah, Anthropic co-founder; mechanistic interpretability research; a window into frontier-lab research direction and capability trajectory rather than markets
 * @zekramu - [high-signal] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
 * @user_bin_roygbiv - [high-signal] - lots of thoughts on AI ecosystem, anon but seems in touch with the atmosphere
-- @SemiAnalysis_ - [semis, dc-power, ai-infra] - good semiconductor analysis
+* @SemiAnalysis_ - [semis, dc-power, ai-infra] - good semiconductor analysis
 * @__tinygrad__ - [ai-infra, company:tinygrad] - cool company that actually makes commentary on stuff
 * @haydonryan - [high-signal] - dev that has random bits of commentary
 * @dylan522p - [semis, dc-power, ai-infra] - Dylan Patel, SemiAnalysis; probably the most influential public analyst on AI datacenter/semis supply chains; caveat: so widely read that his takes price in fast. treat as a substance benchmark, not early signal

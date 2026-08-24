@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 from app.storage.database import connect
 from app.x.accounts import Account, list_active_accounts, seed_from_manual_readme, upsert_account
@@ -68,3 +69,25 @@ def test_handle_normalization_treats_variants_as_the_same_account():
     assert first is True
     assert second is False
     assert len(list_active_accounts(conn)) == 1
+
+
+def test_seed_parks_removed_handles_and_preserves_provider_ids(tmp_path: Path) -> None:
+    conn = connect(":memory:")
+    roster = tmp_path / "roster.md"
+    roster.write_text("- @keep - [news] - useful\n- @remove - [semis] - useful\n", encoding="utf-8")
+    seed_from_manual_readme(conn, roster)
+    conn.execute("UPDATE x_accounts SET user_id = 'provider-id' WHERE handle = 'keep'")
+    conn.commit()
+
+    roster.write_text("- @keep - [news] - still useful\n", encoding="utf-8")
+    changed = seed_from_manual_readme(conn, roster)
+
+    assert changed == 2
+    assert [account.handle for account in list_active_accounts(conn)] == ["keep"]
+    assert conn.execute(
+        "SELECT user_id, included_reason FROM x_accounts WHERE handle = 'keep'"
+    ).fetchone() == ("provider-id", "still useful")
+    assert (
+        conn.execute("SELECT status FROM x_accounts WHERE handle = 'remove'").fetchone()[0]
+        == "parked"
+    )

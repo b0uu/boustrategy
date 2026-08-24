@@ -151,12 +151,47 @@ def _parse_line(line: str) -> tuple[str, list[str], str] | None:
 def seed_from_manual_readme(conn: sqlite3.Connection, path: str | Path) -> int:
     text = Path(path).read_text(encoding="utf-8")
     changed = 0
+    approved_handles: set[str] = set()
     for line in text.splitlines():
         parsed = _parse_line(line)
         if parsed is None:
             continue
         handle, categories, reason = parsed
-        account = Account(handle=handle, categories=categories, included_reason=reason)
+        normalized_handle = handle.lower()
+        approved_handles.add(normalized_handle)
+        existing = conn.execute(
+            "SELECT user_id, tier FROM x_accounts WHERE handle = ?", (normalized_handle,)
+        ).fetchone()
+        account = Account(
+            handle=normalized_handle,
+            user_id=existing[0] if existing else None,
+            categories=categories,
+            included_reason=reason,
+            tier=existing[1] if existing else "core",
+            status="active",
+        )
         if upsert_account(conn, account):
+            changed += 1
+
+    rows = conn.execute(
+        """
+        SELECT handle, user_id, categories, included_reason, tier
+        FROM x_accounts WHERE status = 'active'
+        """
+    ).fetchall()
+    for handle, user_id, categories_json, reason, tier in rows:
+        if handle in approved_handles:
+            continue
+        if upsert_account(
+            conn,
+            Account(
+                handle=handle,
+                user_id=user_id,
+                categories=json.loads(categories_json),
+                included_reason=reason,
+                tier=tier,
+                status="parked",
+            ),
+        ):
             changed += 1
     return changed
