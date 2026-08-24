@@ -229,7 +229,8 @@ def store_note(
 def _post_lines(rows: Sequence[sqlite3.Row | tuple[object, ...]], snippet: int) -> list[str]:
     lines: list[str] = []
     for handle, posted_at, text, reason, url in rows:
-        lines.append(f"- @{handle} | {posted_at} | {str(text)[:snippet]} | {reason} | {url}")
+        normalized_text = " ".join(str(text).split())
+        lines.append(f"- @{handle} | {posted_at} | {normalized_text[:snippet]} | {reason} | {url}")
     return lines
 
 
@@ -255,8 +256,10 @@ def render_digest(conn: sqlite3.Connection, digest_date: date, out_path: str | P
         ).fetchall()
     roster = conn.execute("SELECT COUNT(*) FROM x_accounts WHERE status = 'active'").fetchone()[0]
     completed = sum(1 for row in runs if row[5] in ("routed", "digested"))
+    # Keep the marker off the section heading used as the intake extraction boundary.
+    marker = " ACTIONABLE" if ranked["headline"] else ""
     lines = [
-        f"# X digest: {day}",
+        f"# X digest: {day}{marker}",
         "",
         f"Runs completed: {completed}",
         f"Roster size: {roster}",
@@ -266,8 +269,7 @@ def render_digest(conn: sqlite3.Connection, digest_date: date, out_path: str | P
         ("Notable", "notable", 200),
         ("Context", "context", 160),
     ):
-        marker = " ACTIONABLE" if rank == "headline" and ranked[rank] else ""
-        lines += ["", f"## {title}{marker}", "", *_post_lines(ranked[rank], snippet)]
+        lines += ["", f"## {title}", "", *_post_lines(ranked[rank], snippet)]
     articles = conn.execute(
         """
         SELECT p.url, q.queued_at FROM x_article_queue AS q

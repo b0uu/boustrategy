@@ -5,7 +5,7 @@ import pytest
 
 from app.storage.database import connect
 from app.x.accounts import Account, upsert_account
-from app.x.client import FetchResult
+from app.x.client import FetchResult, UsageResult
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
     MediaItem,
@@ -14,11 +14,12 @@ from app.x.posts import (
     mark_reviewed,
     reads_remaining,
     record_post_reads,
+    set_post_reads,
     unreviewed_posts,
     unreviewed_thread_posts,
     update_post_enrichment,
 )
-from app.x.run import _cmd_fetch, _cmd_rehydrate
+from app.x.run import _cmd_fetch, _cmd_rehydrate, _cmd_usage_sync
 
 
 def make_post(post_id: str = "1", handle: str = "someone") -> XPost:
@@ -246,6 +247,30 @@ def test_fetch_records_billed_reads_including_included_tweets():
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
 
     assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 3
+
+
+def test_set_post_reads_replaces_local_estimate_with_authoritative_usage():
+    conn = connect(":memory:")
+    record_post_reads(conn, 500)
+
+    set_post_reads(conn, 450)
+
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 450
+
+
+def test_usage_sync_reconciles_reads_and_reports_x_cap(capsys):
+    conn = connect(":memory:")
+    record_post_reads(conn, 500)
+
+    def fake_fetch_usage() -> UsageResult:
+        return UsageResult(post_reads=450, project_cap=2_000_000, cap_reset_day=1)
+
+    _cmd_usage_sync(conn, fetch_usage=fake_fetch_usage)
+
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 450
+    assert capsys.readouterr().out == (
+        "usage sync: used=450 remaining=11550 x_project_cap=2000000 reset_day=1\n"
+    )
 
 
 def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):

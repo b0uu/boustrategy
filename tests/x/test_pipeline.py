@@ -273,7 +273,8 @@ def test_notes_and_renderers_are_deterministic_and_carry_pending_articles(
     weekly = render_weekly(conn, date(2026, 7, 20), tmp_path / "weekly.md")
 
     assert first == second
-    assert "## Actionable ACTIONABLE" in first
+    assert first.startswith("# X digest: 2026-07-20 ACTIONABLE\n")
+    assert "## Actionable ACTIONABLE" not in first
     assert all(
         section in first
         for section in (

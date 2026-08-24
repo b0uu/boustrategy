@@ -278,3 +278,41 @@ def test_fetch_posts_by_ids_uses_shared_tweet_params_and_joins_ids(monkeypatch):
     assert params["ids"] == "1,2,3"
     for key, value in _TWEET_PARAMS.items():
         assert params[key] == value
+
+
+def test_fetch_post_usage_returns_authoritative_project_usage(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict[str, object]:
+            return {
+                "data": {
+                    "project_usage": 4321,
+                    "project_cap": 2_000_000,
+                    "cap_reset_day": 1,
+                }
+            }
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        captured["url"] = url
+        captured["params"] = params
+        return FakeResponse()
+
+    monkeypatch.setenv("X_BEARER_TOKEN", "test-token")
+    monkeypatch.setattr("app.x.client.httpx.get", fake_get)
+
+    from app.x.client import fetch_post_usage
+
+    result = fetch_post_usage()
+
+    assert result.post_reads == 4321
+    assert result.project_cap == 2_000_000
+    assert result.cap_reset_day == 1
+    assert captured["url"] == "https://api.x.com/2/usage/tweets"
+    assert captured["params"] == {
+        "days": "31",
+        "usage.fields": "project_usage,project_cap,cap_reset_day",
+    }

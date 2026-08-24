@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -75,20 +75,20 @@ def test_intake_renders_every_section_and_does_not_mutate_database(tmp_path: Pat
         "## Required runtime reading",
     ):
         assert section in bundle
-    assert "RULES NOT YET SIGNED OFF" in bundle
+    assert "RULES NOT YET SIGNED OFF" not in bundle
     assert "Headline 2026-06-10" in bundle
     assert json.loads((tmp_path / "out" / "portfolio.json").read_text())["equity"] == 101_120
     assert json.loads((tmp_path / "out" / "triggers.json").read_text())[0]["subject"] == "NVDA"
 
 
-def test_intake_hides_regime_banner_after_signoff(tmp_path: Path) -> None:
+def test_intake_shows_regime_banner_before_signoff(tmp_path: Path) -> None:
     conn = connect(tmp_path / "test.db")
 
     bundle = build_intake(
-        conn, date(2026, 6, 10), tmp_path / "out", rules_signed_off=True
+        conn, date(2026, 6, 10), tmp_path / "out", rules_signed_off=False
     ).read_text(encoding="utf-8")
 
-    assert "RULES NOT YET SIGNED OFF" not in bundle
+    assert "RULES NOT YET SIGNED OFF" in bundle
 
 
 @pytest.mark.parametrize(
@@ -119,6 +119,57 @@ def test_submit_trigger_consumption_matrix(
         "SELECT status FROM trigger_events WHERE trigger_id = ?", (trigger,)
     ).fetchone()[0]
     assert status == ("consumed" if consumed else "pending")
+
+
+def test_intake_extracts_headlines_from_a_real_rendered_digest(tmp_path: Path) -> None:
+    from app.x.accounts import Account, upsert_account
+    from app.x.pipeline import render_digest
+    from app.x.posts import XPost, insert_new_posts
+
+    conn = connect(tmp_path / "test.db")
+    now = datetime.now(UTC)
+    upsert_account(conn, Account(handle="analyst", user_id="1"))
+    insert_new_posts(
+        conn,
+        [
+            XPost(
+                post_id="1",
+                handle="analyst",
+                posted_at=now,
+                text="CoWoS capacity\noversubscribed through 2027",
+                url="https://x.com/analyst/status/1",
+                fetched_at=now,
+            )
+        ],
+    )
+    conn.execute(
+        """
+        INSERT INTO x_runs (run_id, slot, started_at, finished_at, status)
+        VALUES ('2026-06-10-morning', 'morning', ?, ?, 'routed')
+        """,
+        (now.isoformat(), now.isoformat()),
+    )
+    conn.execute(
+        """
+        INSERT INTO x_route_decisions
+            (post_id, run_id, route, rank, reason, predictor, decided_at)
+        VALUES ('1', '2026-06-10-morning', 'digest', 'headline', 'supply signal', 'judge', ?)
+        """,
+        (now.isoformat(),),
+    )
+    conn.commit()
+    digest_dir = tmp_path / "digests"
+    digest_dir.mkdir()
+    render_digest(conn, date(2026, 6, 10), digest_dir / "2026-06-10.md")
+
+    bundle_path = build_intake(conn, date(2026, 6, 10), tmp_path / "out", digest_dir)
+
+    bundle = bundle_path.read_text(encoding="utf-8")
+    assert (
+        "CoWoS capacity oversubscribed through 2027 | supply signal | "
+        "https://x.com/analyst/status/1"
+    ) in bundle
+    assert "No ACTIONABLE headline items." not in bundle
 
 
 def test_submit_rejects_self_reported_regime_mismatch(tmp_path: Path) -> None:

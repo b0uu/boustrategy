@@ -14,7 +14,11 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 # 2,000 reads on top of the 5,690 already used this month, so cap 7690.
 # Raise back toward the 11,000 steady-state as the balance is topped up
 # (cap = reads used this month so far + reads the current balance buys).
-MAX_MONTHLY_POST_READS = 7690
+# 2026-07-31: the monitored trial replaced that temporary balance cap with a
+# $60 recurring operating cap for the current 13-account roster. The X
+# Developer Console spending limit remains the final hard protection.
+MAX_MONTHLY_POST_READS = 12_000
+POST_READ_WARNING_THRESHOLD = 9_000
 
 
 class MediaItem(BaseModel):
@@ -77,6 +81,19 @@ def record_post_reads(conn: sqlite3.Connection, count: int, month: str | None = 
         """
         INSERT INTO x_post_reads (month, post_reads) VALUES (?, ?)
         ON CONFLICT(month) DO UPDATE SET post_reads = post_reads + excluded.post_reads
+        """,
+        (month, count),
+    )
+    conn.commit()
+
+
+def set_post_reads(conn: sqlite3.Connection, count: int, month: str | None = None) -> None:
+    if month is None:
+        month = datetime.now(UTC).strftime("%Y-%m")
+    conn.execute(
+        """
+        INSERT INTO x_post_reads (month, post_reads) VALUES (?, ?)
+        ON CONFLICT(month) DO UPDATE SET post_reads = excluded.post_reads
         """,
         (month, count),
     )

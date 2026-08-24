@@ -7,14 +7,23 @@ from zoneinfo import ZoneInfo
 
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
-from app.x.client import FetchResult, fetch_posts_by_ids, fetch_user_posts, resolve_user_ids
+from app.x.client import (
+    FetchResult,
+    UsageResult,
+    fetch_post_usage,
+    fetch_posts_by_ids,
+    fetch_user_posts,
+    resolve_user_ids,
+)
 from app.x.pipeline import cycle, render_digest, render_weekly, route_predictions, store_note
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
+    POST_READ_WARNING_THRESHOLD,
     insert_new_posts,
     mark_reviewed,
     reads_remaining,
     record_post_reads,
+    set_post_reads,
     unreviewed_posts,
     update_post_enrichment,
 )
@@ -52,6 +61,26 @@ def _cmd_status(conn: sqlite3.Connection) -> None:
         f"significant={significant} skipped={skipped}"
     )
     print(f"reads this month: used={used} remaining={remaining}")
+    if used >= POST_READ_WARNING_THRESHOLD:
+        print(f"budget warning: {used} Post reads used; monthly cap is {MAX_MONTHLY_POST_READS}")
+
+
+def _cmd_usage_sync(
+    conn: sqlite3.Connection,
+    fetch_usage: Callable[[], UsageResult] = fetch_post_usage,
+) -> None:
+    usage = fetch_usage()
+    set_post_reads(conn, usage.post_reads)
+    remaining = reads_remaining(conn)
+    print(
+        f"usage sync: used={usage.post_reads} remaining={remaining} "
+        f"x_project_cap={usage.project_cap} reset_day={usage.cap_reset_day}"
+    )
+    if usage.post_reads >= POST_READ_WARNING_THRESHOLD:
+        print(
+            f"budget warning: {usage.post_reads} Post reads used; "
+            f"monthly cap is {MAX_MONTHLY_POST_READS}"
+        )
 
 
 def _cmd_fetch(
@@ -189,7 +218,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.x.run")
     parser.add_argument("--db", default=DEFAULT_DB_PATH)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for command in ("seed", "fetch", "review", "status", "rehydrate"):
+    for command in ("seed", "fetch", "review", "status", "usage-sync", "rehydrate"):
         subparsers.add_parser(command)
 
     cycle_parser = subparsers.add_parser("cycle")
@@ -231,6 +260,7 @@ def main() -> None:
         "fetch": _cmd_fetch,
         "review": _cmd_review,
         "status": _cmd_status,
+        "usage-sync": _cmd_usage_sync,
         "rehydrate": _cmd_rehydrate,
     }
     if args.command in handlers:

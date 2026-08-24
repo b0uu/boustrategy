@@ -17,7 +17,7 @@ def _digest_headlines(path: Path) -> list[str]:
     actionable = False
     headlines: list[str] = []
     for line in lines:
-        if line.strip().casefold() == "## actionable":
+        if line.strip().casefold().startswith("## actionable"):
             actionable = True
             continue
         if actionable and line.startswith("## "):
@@ -33,7 +33,7 @@ def build_intake(
     out_dir: str | Path,
     digest_dir: str | Path = "data/digests",
     *,
-    rules_signed_off: bool = False,
+    rules_signed_off: bool = True,
 ) -> Path:
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)

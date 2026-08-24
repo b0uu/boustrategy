@@ -29,6 +29,12 @@ class FetchResult(NamedTuple):
     billed_reads: int
 
 
+class UsageResult(NamedTuple):
+    post_reads: int
+    project_cap: int
+    cap_reset_day: int
+
+
 def _auth_headers() -> dict[str, str]:
     token = os.environ.get("X_BEARER_TOKEN")
     if not token:
@@ -50,6 +56,25 @@ def resolve_user_ids(handles: list[str]) -> dict[str, str]:
         for user in response.json().get("data", []):
             resolved[user["username"].lower()] = user["id"]
     return resolved
+
+
+def fetch_post_usage() -> UsageResult:
+    response = httpx.get(
+        f"{BASE_URL}/usage/tweets",
+        params={
+            "days": "31",
+            "usage.fields": "project_usage,project_cap,cap_reset_day",
+        },
+        headers=_auth_headers(),
+        timeout=_REQUEST_TIMEOUT,
+    )
+    response.raise_for_status()
+    data = response.json()["data"]
+    return UsageResult(
+        post_reads=data["project_usage"],
+        project_cap=data["project_cap"],
+        cap_reset_day=data["cap_reset_day"],
+    )
 
 
 def _preferred_text(tweet: dict[str, Any]) -> str:

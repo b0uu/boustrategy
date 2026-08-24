@@ -2,7 +2,8 @@
 
 Run these steps in order for the schedule slot that launched this session.
 
-1. Run `python -m app.x.run cycle --slot <slot>`. If it prints a calendar
+1. Run `python -m app.x.run usage-sync`, then run
+   `python -m app.x.run cycle --slot <slot>`. If the cycle prints a calendar
    no-op, stop; the session is done.
 2. Open the run export directory, read every `batch_*.jsonl`, judge every
    record using `docs/x_pipeline/RUBRIC.md`, and write `predictions.jsonl`
