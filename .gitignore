@@ -11,4 +11,5 @@ data/newsletters/inbox/
 data/newsletters/archive/
 data/
 .env
+ops/digester.local.psd1
 .claude/settings.local.json

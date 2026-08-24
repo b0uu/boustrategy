@@ -13,6 +13,7 @@ param(
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
 $ClaudeExe = "C:\Users\Administrator\AppData\Roaming\npm\claude.cmd"
 $SettingsFile = Join-Path $RepoRoot "ops\headless-digester-settings.json"
+$LocalConfigFile = Join-Path $RepoRoot "ops\digester.local.psd1"
 # Encodes model + rubric version so x_route_decisions predictors stay
 # analyzable across upgrades (plan 019's maintenance note).
 $PredictorName = "claude-fable5-rubric1"
@@ -21,6 +22,30 @@ $LogDir = Join-Path $RepoRoot "data\logs\digester"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $Timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $LogFile = Join-Path $LogDir "$Slot-$Timestamp.log"
+
+$DiscordWebhookUrl = ""
+if (Test-Path -LiteralPath $LocalConfigFile) {
+    $LocalConfig = Import-PowerShellDataFile -LiteralPath $LocalConfigFile
+    $DiscordWebhookUrl = [string]$LocalConfig.DiscordWebhookUrl
+}
+
+function Send-DiscordNotification {
+    param([Parameter(Mandatory = $true)][string]$Message)
+
+    if ([string]::IsNullOrWhiteSpace($DiscordWebhookUrl)) {
+        return
+    }
+    try {
+        $Payload = @{ content = $Message } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri $DiscordWebhookUrl -Method Post `
+            -ContentType "application/json" -Body $Payload | Out-Null
+    }
+    catch {
+        $NotificationError = "Discord notification failed: $($_.Exception.Message)"
+        Write-Warning $NotificationError
+        $NotificationError | Out-File -FilePath $LogFile -Append -Encoding utf8
+    }
+}
 
 $Runbook = if ($Slot -eq "weekly") { "docs/x_pipeline/WEEKLY.md" } else { "docs/x_pipeline/DIGESTER.md" }
 
@@ -37,11 +62,33 @@ Do not ask the user any questions, do not wait for confirmation, and do not atte
 Set-Location $RepoRoot
 "=== $Timestamp slot=$Slot ===" | Out-File -FilePath $LogFile -Encoding utf8
 
-$Prompt | & $ClaudeExe -p --settings $SettingsFile 2>&1 | Tee-Object -FilePath $LogFile -Append
+$SessionOutput = @(
+    $Prompt | & $ClaudeExe -p --settings $SettingsFile 2>&1
+)
 $ExitCode = $LASTEXITCODE
+$SessionOutput | Out-File -FilePath $LogFile -Append -Encoding utf8
+$VerifyOutput = @()
 if ($ExitCode -eq 0) {
-    & python -m app.x.run verify --slot $Slot 2>&1 | Tee-Object -FilePath $LogFile -Append
+    $VerifyOutput = @(
+        & python -m app.x.run verify --slot $Slot 2>&1
+    )
     $ExitCode = $LASTEXITCODE
+    $VerifyOutput | Out-File -FilePath $LogFile -Append -Encoding utf8
 }
 "--- exit code: $ExitCode ---" | Out-File -FilePath $LogFile -Append -Encoding utf8
+
+$CombinedOutput = (@($SessionOutput) + @($VerifyOutput)) -join "`n"
+$IsCalendarNoOp = $CombinedOutput -match "calendar no-op"
+$HasBudgetWarning = $CombinedOutput -match "budget warning"
+$LogName = Split-Path -Leaf $LogFile
+if ($ExitCode -ne 0) {
+    Send-DiscordNotification "BouStrategy digester FAILED: slot=$Slot exit=$ExitCode log=$LogName"
+}
+elseif (-not $IsCalendarNoOp) {
+    $NotificationMessage = "BouStrategy digester completed: slot=$Slot log=$LogName"
+    if ($HasBudgetWarning) {
+        $NotificationMessage += " WARNING: X read budget threshold reached."
+    }
+    Send-DiscordNotification $NotificationMessage
+}
 exit $ExitCode

@@ -1,5 +1,8 @@
 # Reasoning worker runbook
 
+For a plain-language operator walkthrough, see
+[`docs/reasoning/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md).
+
 Human checkpoint 5 was cleared on 2026-07-19. Run one paper reasoning session
 in this order; keep the launch supervised until consecutive sessions prove the
 operational loop is reliable:
