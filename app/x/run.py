@@ -1,12 +1,13 @@
 import argparse
 import sqlite3
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
+from app.x.calendar import slot_should_run
 from app.x.client import (
     FetchResult,
     UsageResult,
@@ -32,6 +33,7 @@ from app.x.signals import CapturedSignal, ClaimType, Horizon, ScrutinyVerdict, S
 DEFAULT_DB_PATH = "data/boustrategy.db"
 MANUAL_README_PATH = "docs/x_manual/README.md"
 _BUDGET_FLOOR = 100
+_RECOVERY_WINDOW = timedelta(days=4)
 
 
 def _cmd_seed(conn: sqlite3.Connection) -> None:
@@ -70,6 +72,11 @@ def _cmd_usage_sync(
     fetch_usage: Callable[[], UsageResult] = fetch_post_usage,
 ) -> None:
     usage = fetch_usage()
+    if usage.cap_reset_day != 1:
+        raise RuntimeError(
+            "X usage resets outside the calendar-month boundary used by x_post_reads; "
+            f"reset_day={usage.cap_reset_day}"
+        )
     set_post_reads(conn, usage.post_reads)
     remaining = reads_remaining(conn)
     print(
@@ -86,7 +93,8 @@ def _cmd_usage_sync(
 def _cmd_fetch(
     conn: sqlite3.Connection,
     resolve_ids: Callable[[list[str]], dict[str, str]] = resolve_user_ids,
-    fetch_posts: Callable[[str, str, str | None], FetchResult] = fetch_user_posts,
+    fetch_posts: Callable[[str, str, str | None, datetime | None], FetchResult] = fetch_user_posts,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> None:
     accounts = list_active_accounts(conn)
 
@@ -111,13 +119,24 @@ def _cmd_fetch(
         # post_id is TEXT with varying length; CAST forces numeric MAX so a short
         # old ID (e.g. '99999999999') never lexicographically beats a 19-digit one.
         since_row = conn.execute(
-            "SELECT MAX(CAST(post_id AS INTEGER)) FROM x_posts WHERE handle = ?",
+            """
+            SELECT MAX(CAST(post_id AS INTEGER)), MAX(posted_at)
+            FROM x_posts WHERE handle = ?
+            """,
             (account.handle,),
         ).fetchone()
         max_post_id = since_row[0] if since_row is not None else None
-        since_id = str(max_post_id) if max_post_id is not None else None
+        newest_posted_at = (
+            datetime.fromisoformat(since_row[1].replace("Z", "+00:00"))
+            if since_row is not None and since_row[1] is not None
+            else None
+        )
+        recovery_start = now() - _RECOVERY_WINDOW
+        use_since_id = newest_posted_at is not None and newest_posted_at >= recovery_start
+        since_id = str(max_post_id) if max_post_id is not None and use_since_id else None
+        start_time = None if use_since_id else recovery_start
 
-        result = fetch_posts(account.user_id, account.handle, since_id)
+        result = fetch_posts(account.user_id, account.handle, since_id, start_time)
         new_count = insert_new_posts(conn, result.posts)
         record_post_reads(conn, result.billed_reads)
         print(f"{account.handle}: {new_count} new posts, {reads_remaining(conn)} reads remaining")
@@ -214,6 +233,18 @@ def _cmd_review(conn: sqlite3.Connection) -> None:
         save_signal(conn, signal)
 
 
+def _cmd_verify(conn: sqlite3.Connection, slot: str, run_date: date) -> None:
+    if slot_should_run(run_date, slot) is None:
+        print(f"{run_date.isoformat()} {slot}: verified calendar no-op")
+        return
+    run_id = f"{run_date.isoformat()}-{slot}"
+    row = conn.execute("SELECT status FROM x_runs WHERE run_id = ?", (run_id,)).fetchone()
+    if row is None or row[0] not in ("routed", "digested"):
+        status = "missing" if row is None else row[0]
+        raise RuntimeError(f"{run_id} didn't complete; status={status}")
+    print(f"{run_id}: verified status={row[0]}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.x.run")
     parser.add_argument("--db", default=DEFAULT_DB_PATH)
@@ -248,6 +279,12 @@ def main() -> None:
     weekly_parser = subparsers.add_parser("weekly-render")
     weekly_parser.add_argument("--date", dest="weekly_date", required=True)
     weekly_parser.add_argument("--out")
+
+    verify_parser = subparsers.add_parser("verify")
+    verify_parser.add_argument(
+        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+    )
+    verify_parser.add_argument("--date", dest="run_date")
 
     for command_parser in subparsers.choices.values():
         command_parser.add_argument("--db", default=argparse.SUPPRESS)
@@ -290,6 +327,13 @@ def main() -> None:
         out = args.out or f"data/digests/weekly-{weekly_date.isoformat()}.md"
         render_weekly(conn, weekly_date, out)
         print(f"rendered {out}")
+    elif args.command == "verify":
+        run_date = (
+            date.fromisoformat(args.run_date)
+            if args.run_date
+            else datetime.now(ZoneInfo("America/New_York")).date()
+        )
+        _cmd_verify(conn, args.slot, run_date)
 
 
 if __name__ == "__main__":

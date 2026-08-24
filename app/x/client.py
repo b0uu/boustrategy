@@ -166,10 +166,19 @@ def _parse_tweets_response(body: dict[str, Any], handle: str, fetched_at: dateti
     return FetchResult(posts=posts, billed_reads=billed_reads)
 
 
-def fetch_user_posts(user_id: str, handle: str, since_id: str | None = None) -> FetchResult:
+def fetch_user_posts(
+    user_id: str,
+    handle: str,
+    since_id: str | None = None,
+    start_time: datetime | None = None,
+) -> FetchResult:
+    if since_id is not None and start_time is not None:
+        raise ValueError("since_id and start_time are mutually exclusive")
     params: dict[str, str] = {"max_results": "100", **_TWEET_PARAMS}
     if since_id is not None:
         params["since_id"] = since_id
+    if start_time is not None:
+        params["start_time"] = start_time.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
     response = httpx.get(
         f"{BASE_URL}/users/{user_id}/tweets",

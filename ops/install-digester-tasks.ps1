@@ -24,6 +24,7 @@ function New-DigesterTask {
         -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -Slot $Slot" `
         -WorkingDirectory $RepoRoot
     $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
+        -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew
     Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger `
         -Settings $Settings -Description "boustrategy X pipeline: $Slot slot (plan 019)" -Force | Out-Null

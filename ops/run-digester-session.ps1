@@ -37,7 +37,11 @@ Do not ask the user any questions, do not wait for confirmation, and do not atte
 Set-Location $RepoRoot
 "=== $Timestamp slot=$Slot ===" | Out-File -FilePath $LogFile -Encoding utf8
 
-& $ClaudeExe -p $Prompt --settings $SettingsFile 2>&1 | Tee-Object -FilePath $LogFile -Append
+$Prompt | & $ClaudeExe -p --settings $SettingsFile 2>&1 | Tee-Object -FilePath $LogFile -Append
 $ExitCode = $LASTEXITCODE
+if ($ExitCode -eq 0) {
+    & python -m app.x.run verify --slot $Slot 2>&1 | Tee-Object -FilePath $LogFile -Append
+    $ExitCode = $LASTEXITCODE
+}
 "--- exit code: $ExitCode ---" | Out-File -FilePath $LogFile -Append -Encoding utf8
 exit $ExitCode

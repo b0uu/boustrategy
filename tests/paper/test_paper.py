@@ -114,7 +114,7 @@ def test_buy_average_cost_sell_cap_and_close_delete(tmp_path: Path) -> None:
     shares, avg_cost = conn.execute(
         "SELECT shares, avg_cost FROM paper_positions WHERE ticker = 'NVDA'"
     ).fetchone()
-    assert shares > 100
+    assert shares > 5
     assert 100 < avg_cost < 200
 
     _intent(conn, "sell", "SELL", 0.0, date(2026, 7, 21))
@@ -146,7 +146,7 @@ def test_fill_equity_uses_fill_date_closes_for_other_holdings(tmp_path: Path) ->
     nvda_shares = conn.execute(
         "SELECT shares FROM paper_positions WHERE ticker = 'NVDA'"
     ).fetchone()[0]
-    assert nvda_shares == pytest.approx(110.0)
+    assert nvda_shares == pytest.approx(5.5)
 
 
 def test_portfolio_context_counts_intents_and_excludes_ticker(tmp_path: Path) -> None:

@@ -316,3 +316,29 @@ def test_fetch_post_usage_returns_authoritative_project_usage(monkeypatch):
         "days": "31",
         "usage.fields": "project_usage,project_cap,cap_reset_day",
     }
+
+
+def test_fetch_user_posts_sends_recent_start_time(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict[str, object]:
+            return {"data": []}
+
+    def fake_get(url, params=None, headers=None, timeout=None):
+        captured["params"] = params
+        return FakeResponse()
+
+    monkeypatch.setenv("X_BEARER_TOKEN", "test-token")
+    monkeypatch.setattr("app.x.client.httpx.get", fake_get)
+
+    from app.x.client import fetch_user_posts
+
+    fetch_user_posts("1", "analyst", start_time=datetime(2026, 8, 20, 12, tzinfo=UTC))
+
+    params = captured["params"]
+    assert isinstance(params, dict)
+    assert params["start_time"] == "2026-08-20T12:00:00Z"

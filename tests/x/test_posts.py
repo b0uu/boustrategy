@@ -56,7 +56,9 @@ def test_spend_guard_stops_fetch_before_fake_fetcher_is_called():
     def fake_resolve(handles: list[str]) -> dict[str, str]:
         return {}
 
-    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         nonlocal called
         called = True
         return FetchResult(posts=[], billed_reads=0)
@@ -82,13 +84,42 @@ def test_fetch_computes_since_id_numerically_not_lexicographically():
     def fake_resolve(handles: list[str]) -> dict[str, str]:
         return {}
 
-    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         received_since_ids.append(since_id)
         return FetchResult(posts=[], billed_reads=0)
 
-    _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
+    _cmd_fetch(
+        conn,
+        resolve_ids=fake_resolve,
+        fetch_posts=fake_fetch,
+        now=lambda: datetime(2026, 7, 2, tzinfo=UTC),
+    )
 
     assert received_since_ids == ["1900000000000000000"]
+
+
+def test_fetch_uses_recent_window_instead_of_stale_since_id():
+    conn = connect(":memory:")
+    upsert_account(conn, Account(handle="core1", user_id="uid1", tier="core"))
+    insert_new_posts(conn, [make_post("1900000000000000000", handle="core1")])
+    received: list[tuple[str | None, datetime | None]] = []
+
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
+        received.append((since_id, start_time))
+        return FetchResult(posts=[], billed_reads=0)
+
+    _cmd_fetch(
+        conn,
+        resolve_ids=lambda _: {},
+        fetch_posts=fake_fetch,
+        now=lambda: datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert received == [(None, datetime(2026, 8, 20, tzinfo=UTC))]
 
 
 def test_mark_reviewed_enforces_unreviewed_to_captured_or_skipped_only():
@@ -241,7 +272,9 @@ def test_fetch_records_billed_reads_including_included_tweets():
     def fake_resolve(handles: list[str]) -> dict[str, str]:
         return {}
 
-    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         return FetchResult(posts=[make_post("1"), make_post("2")], billed_reads=3)
 
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
@@ -269,8 +302,18 @@ def test_usage_sync_reconciles_reads_and_reports_x_cap(capsys):
 
     assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 450
     assert capsys.readouterr().out == (
-        "usage sync: used=450 remaining=11550 x_project_cap=2000000 reset_day=1\n"
+        "usage sync: used=450 remaining=4550 x_project_cap=2000000 reset_day=1\n"
     )
+
+
+def test_usage_sync_rejects_non_calendar_billing_cycle():
+    conn = connect(":memory:")
+
+    def fake_fetch_usage() -> UsageResult:
+        return UsageResult(post_reads=450, project_cap=2_000_000, cap_reset_day=15)
+
+    with pytest.raises(RuntimeError, match="reset_day=15"):
+        _cmd_usage_sync(conn, fetch_usage=fake_fetch_usage)
 
 
 def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
@@ -298,7 +341,9 @@ def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
     def fake_resolve(handles: list[str]) -> dict[str, str]:
         return {}
 
-    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         return FetchResult(posts=[reply_post], billed_reads=2)
 
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
@@ -344,7 +389,9 @@ def test_end_to_end_fetch_stores_media_and_review_ui_shows_it(tmp_path):
     def fake_resolve(handles: list[str]) -> dict[str, str]:
         return {}
 
-    def fake_fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fake_fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         return FetchResult(posts=[photo_post], billed_reads=1)
 
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)

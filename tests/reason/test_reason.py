@@ -77,7 +77,7 @@ def test_intake_renders_every_section_and_does_not_mutate_database(tmp_path: Pat
         assert section in bundle
     assert "RULES NOT YET SIGNED OFF" not in bundle
     assert "Headline 2026-06-10" in bundle
-    assert json.loads((tmp_path / "out" / "portfolio.json").read_text())["equity"] == 101_120
+    assert json.loads((tmp_path / "out" / "portfolio.json").read_text())["equity"] == 6_120
     assert json.loads((tmp_path / "out" / "triggers.json").read_text())[0]["subject"] == "NVDA"
 
 

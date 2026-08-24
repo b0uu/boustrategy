@@ -11,7 +11,7 @@ from app.x.accounts import Account, upsert_account
 from app.x.client import FetchResult
 from app.x.pipeline import cycle, render_digest, render_weekly, route_predictions, store_note
 from app.x.posts import MediaItem, XPost, insert_new_posts, record_post_reads
-from app.x.run import _cmd_fetch
+from app.x.run import _cmd_fetch, _cmd_verify
 
 
 def _post(
@@ -86,6 +86,25 @@ def test_weekly_cycle_creates_completed_anchor_and_repeats_as_no_op(tmp_path: Pa
     assert conn.execute("SELECT status FROM x_runs").fetchone()[0] == "routed"
 
 
+def test_verify_rejects_missing_scheduled_run(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+
+    with pytest.raises(RuntimeError, match="status=missing"):
+        _cmd_verify(conn, "morning", date(2026, 7, 20))
+
+
+def test_verify_accepts_complete_run_and_calendar_no_op(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    _run(conn, "2026-07-20-morning", "digested")
+
+    _cmd_verify(conn, "morning", date(2026, 7, 20))
+    _cmd_verify(conn, "morning", date(2026, 7, 18))
+
+    assert "verified status=digested" in capsys.readouterr().out
+
+
 def test_cycle_crashes_for_stuck_run(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     _run(conn, "2026-07-20-morning", "failed")
@@ -112,7 +131,9 @@ def test_fetch_uses_all_active_accounts(tmp_path: Path) -> None:
     upsert_account(conn, Account(handle="scan", user_id="2", tier="scan"))
     handles: list[str] = []
 
-    def fetch(user_id: str, handle: str, since_id: str | None) -> FetchResult:
+    def fetch(
+        user_id: str, handle: str, since_id: str | None, start_time: datetime | None
+    ) -> FetchResult:
         handles.append(handle)
         return FetchResult([], 0)
 

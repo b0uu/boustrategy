@@ -4,21 +4,11 @@ from datetime import UTC, datetime
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-# Tracks the maintainer's real X API balance (the authoritative constraint),
-# not a budget guess. 2026-07-15: set to 4900 against the then-$5 balance.
-# 2026-07-17: maintainer topped up (~$5 assumed) to finish the trial week;
-# +1000 reads. 2026-07-18: production steady-state target decided as
-# ~11,000 reads/month (~$55, top of the stated $35-55 range) — that
-# decision stands, but this constant follows the REAL funded balance.
-# 2026-07-19: maintainer loaded $10 for the initial testing window =
-# 2,000 reads on top of the 5,690 already used this month, so cap 7690.
-# Raise back toward the 11,000 steady-state as the balance is topped up
-# (cap = reads used this month so far + reads the current balance buys).
-# 2026-07-31: the monitored trial replaced that temporary balance cap with a
-# $60 recurring operating cap for the current 13-account roster. The X
-# Developer Console spending limit remains the final hard protection.
-MAX_MONTHLY_POST_READS = 12_000
-POST_READ_WARNING_THRESHOLD = 9_000
+# At $0.005 per Post read, this is a $25 monthly ceiling before separately
+# billed resource types. The X Developer Console spending limit remains the
+# final hard protection.
+MAX_MONTHLY_POST_READS = 5_000
+POST_READ_WARNING_THRESHOLD = 4_000
 
 
 class MediaItem(BaseModel):

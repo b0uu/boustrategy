@@ -1,7 +1,8 @@
 # Reasoning worker runbook
 
-This procedure remains blocked until human checkpoint 5 is signed off in
-`plans/README.md`. After approval, run one reasoning session in this order:
+Human checkpoint 5 was cleared on 2026-07-19. Run one paper reasoning session
+in this order; keep the launch supervised until consecutive sessions prove the
+operational loop is reliable:
 
 1. Settle yesterday's paper intents: `python -m app.paper.run settle`.
 2. Refresh prices and evaluate triggers:

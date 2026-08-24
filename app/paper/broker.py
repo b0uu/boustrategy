@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from app.schemas.order_intent import OrderIntent
 from app.storage.records import get_decision_record
 
-STARTING_CASH = 100_000.0
+STARTING_CASH = 5_000.0
 
 
 def cash_balance(conn: sqlite3.Connection, on_date: date | None = None) -> float:
