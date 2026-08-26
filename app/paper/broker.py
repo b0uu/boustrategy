@@ -82,7 +82,7 @@ def _apply_fill(
             )
 
 
-def settle(conn: sqlite3.Connection) -> tuple[int, int]:
+def settle(conn: sqlite3.Connection, through_date: date | None = None) -> tuple[int, int]:
     rows = conn.execute(
         """
         SELECT o.intent_json FROM order_intents o
@@ -94,13 +94,16 @@ def settle(conn: sqlite3.Connection) -> tuple[int, int]:
     awaiting = 0
     for (intent_json,) in rows:
         intent = OrderIntent.model_validate_json(intent_json)
-        row = conn.execute(
-            """
+        query = """
             SELECT bar_date, open FROM daily_prices
-            WHERE ticker = ? AND bar_date > ? ORDER BY bar_date LIMIT 1
-            """,
-            (intent.ticker, intent.created_at.date().isoformat()),
-        ).fetchone()
+            WHERE ticker = ? AND bar_date > ?
+        """
+        parameters = [intent.ticker, intent.created_at.date().isoformat()]
+        if through_date is not None:
+            query += " AND bar_date <= ?"
+            parameters.append(through_date.isoformat())
+        query += " ORDER BY bar_date LIMIT 1"
+        row = conn.execute(query, parameters).fetchone()
         if row is None:
             awaiting += 1
         else:

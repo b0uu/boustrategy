@@ -28,13 +28,11 @@ def test_runbook_cli_and_exact_prohibitions() -> None:
     text = Path("docs/reasoning/RUNBOOK.md").read_text(encoding="utf-8")
 
     for command in (
-        "python -m app.paper.run settle",
-        "python -m app.triggers.run evaluate [--date YYYY-MM-DD]",
-        "python -m app.regime.run score [--date YYYY-MM-DD]",
-        "python -m app.reason.run intake [--date YYYY-MM-DD] --out <directory>",
+        "python -m app.reason.run prepare [--date YYYY-MM-DD] --out <directory>",
         "python -m app.reason.run submit --in <file> [--date YYYY-MM-DD]",
     ):
         assert command in text
+    assert "<directory>/preparation.json" in text
     assert (
         "never edit digests/labels/roster/maintainer docs; never write to the db except via "
         "`submit`; never continue into digester work (separate seam, separate session)."

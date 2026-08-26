@@ -7,7 +7,9 @@ import pytest
 
 from app.policy.decision_policy import PortfolioContext
 from app.reason.intake import build_intake
-from app.reason.run import main, submit_decision
+from app.reason.run import main, prepare_session, submit_decision
+from app.regime.rules import Component, RegimeScore
+from app.schemas.decision_record import RegimeState
 from app.state.pipeline import DecisionStatus, ProcessOutcome
 from app.storage.database import connect
 from app.triggers.store import insert_trigger
@@ -89,6 +91,143 @@ def test_intake_shows_regime_banner_before_signoff(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8")
 
     assert "RULES NOT YET SIGNED OFF" in bundle
+
+
+def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    for post_id in ("current", "resolved", "future"):
+        conn.execute(
+            """
+            INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at)
+            VALUES (?, 'analyst', '2026-06-10', ?, ?, '2026-06-10')
+            """,
+            (post_id, post_id, f"https://example.com/{post_id}"),
+        )
+    conn.executemany(
+        "INSERT INTO x_article_queue (post_id, queued_at, status) VALUES (?, ?, ?)",
+        [
+            ("current", "2026-06-10T10:00:00Z", "pending"),
+            ("resolved", "2026-06-10T10:00:00Z", "summarized"),
+            ("future", "2026-06-11T10:00:00Z", "pending"),
+        ],
+    )
+    conn.executemany(
+        """
+        INSERT INTO trigger_events
+            (trigger_id, trigger_type, subject, fired_at, details_json, status)
+        VALUES (?, 'manual', ?, ?, '{}', ?)
+        """,
+        [
+            ("current", "CURRENT", "2026-06-10", "pending"),
+            ("consumed", "CONSUMED", "2026-06-10", "consumed"),
+            ("future", "FUTURE", "2026-06-11", "pending"),
+        ],
+    )
+    conn.commit()
+
+    build_intake(conn, date(2026, 6, 10), tmp_path / "out")
+
+    articles = (tmp_path / "out" / "bundle.md").read_text(encoding="utf-8")
+    triggers = json.loads((tmp_path / "out" / "triggers.json").read_text(encoding="utf-8"))
+    assert "https://example.com/current" in articles
+    assert "https://example.com/resolved" not in articles
+    assert "https://example.com/future" not in articles
+    assert [item["trigger_id"] for item in triggers] == ["current"]
+
+
+def test_prepare_requires_completed_same_day_digest_before_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn = connect(tmp_path / "test.db")
+    refreshed = False
+
+    def fake_refresh(*args: object, **kwargs: object) -> int:
+        nonlocal refreshed
+        refreshed = True
+        return 0
+
+    monkeypatch.setattr("app.reason.run.refresh_ticker", fake_refresh)
+
+    with pytest.raises(FileNotFoundError, match="missing same-day digest"):
+        prepare_session(
+            conn,
+            date(2026, 6, 10),
+            tmp_path / "out",
+            digest_dir=tmp_path / "digests",
+            watchlist_path=tmp_path / "watchlist.md",
+        )
+
+    assert refreshed is False
+
+
+def test_prepare_refreshes_pending_intents_and_writes_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn = connect(tmp_path / "test.db")
+    target = date(2026, 6, 10)
+    conn.execute(
+        """
+        INSERT INTO x_runs (run_id, slot, started_at, finished_at, status)
+        VALUES ('2026-06-10-morning', 'morning', '2026-06-10', '2026-06-10', 'digested')
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO order_intents
+            (order_intent_id, decision_id, created_at, ticker, side, intent_json)
+        VALUES ('oi_pending', 'dec_pending', '2026-04-01T12:00:00Z', 'AMD', 'BUY', '{}')
+        """
+    )
+    conn.commit()
+    digest_dir = tmp_path / "digests"
+    digest_dir.mkdir()
+    (digest_dir / "2026-06-10.md").write_text("# digest\n", encoding="utf-8")
+    watchlist = tmp_path / "watchlist.md"
+    watchlist.write_text("- NVDA \N{EM DASH} approved\n", encoding="utf-8")
+    refreshed: dict[str, tuple[date, date]] = {}
+
+    def fake_refresh(conn: object, ticker: str, start: date, end: date) -> int:
+        refreshed[ticker] = (start, end)
+        return 2
+
+    def fake_build(
+        conn: object,
+        on_date: date,
+        out_dir: str | Path,
+        digest_dir: str | Path,
+    ) -> Path:
+        path = Path(out_dir) / "bundle.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# bundle\n", encoding="utf-8")
+        return path
+
+    score = RegimeScore(RegimeState.GREEN, 4, {"test": Component(1.0, 4)})
+    monkeypatch.setattr("app.reason.run.refresh_ticker", fake_refresh)
+    monkeypatch.setattr("app.reason.run.settle", lambda conn, through_date: (1, 0))
+    monkeypatch.setattr("app.reason.run.refresh_earnings", lambda conn, ticker, today: 1)
+    monkeypatch.setattr("app.reason.run.sync_fomc", lambda conn, through: 8)
+    monkeypatch.setattr(
+        "app.reason.run.evaluate_triggers", lambda conn, tickers, on_date: {"price_move": 1}
+    )
+    monkeypatch.setattr(
+        "app.reason.run.score_date", lambda conn, on_date: (RegimeState.GREEN, score)
+    )
+    monkeypatch.setattr("app.reason.run.build_intake", fake_build)
+
+    result = prepare_session(
+        conn,
+        target,
+        tmp_path / "out",
+        digest_dir=digest_dir,
+        watchlist_path=watchlist,
+    )
+
+    assert set(refreshed) == {"AMD", "NVDA", "QQQ", "SPY"}
+    assert refreshed["AMD"][0] == date(2026, 3, 25)
+    assert result.fills_created == 1
+    assert result.completed_digest_runs == ["2026-06-10-morning"]
+    receipt = json.loads((tmp_path / "out" / "preparation.json").read_text(encoding="utf-8"))
+    assert receipt["bundle_path"].endswith("bundle.md")
 
 
 @pytest.mark.parametrize(

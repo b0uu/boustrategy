@@ -93,6 +93,15 @@ def test_settle_awaits_missing_bar(tmp_path: Path) -> None:
     assert settle(conn) == (0, 1)
 
 
+def test_settle_does_not_use_bars_after_requested_date(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    _intent(conn, "buy", "BUY", 0.10, date(2026, 7, 20))
+    upsert_daily_prices(conn, [_bar("NVDA", date(2026, 7, 21), 100)])
+
+    assert settle(conn, through_date=date(2026, 7, 20)) == (0, 1)
+    assert settle(conn, through_date=date(2026, 7, 21)) == (1, 0)
+
+
 def test_settle_rejects_stale_sign_mismatch(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     _intent(conn, "sell", "SELL", 0.10, date(2026, 7, 20))

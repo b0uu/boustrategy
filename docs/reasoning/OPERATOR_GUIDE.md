@@ -7,52 +7,68 @@ tasks are intentionally disabled. No part of this process reaches a live broker.
 
 ## What happens in one session
 
-1. **Settle prior paper intents.** `app.paper.run settle` looks for approved order intents that
-   haven't been filled. If the next daily opening-price bar is available, it records a simulated
-   fill and updates paper cash and positions. If the price is missing, the intent remains safely
-   awaiting data.
-2. **Refresh prices and evaluate triggers.** The trigger command refreshes daily prices for the
-   watchlist and current holdings, then records unusual price, volume, calendar, and digest events
-   that deserve consideration. A trigger asks the model to look. It doesn't imply a trade.
-3. **Publish the market regime.** The regime scorer refreshes SPY and QQQ history and records the
+1. **Verify the information seam.** Preparation requires a rendered same-day digest backed by at
+   least one completed SQLite digester run. A missing or unfinished run stops before price or
+   portfolio state changes.
+2. **Refresh prices and settle prior paper intents.** Preparation refreshes daily prices for the
+   watchlist, current holdings, and unfilled intent tickers. It then fills eligible intents only
+   through the selected session date. An intent without an eligible opening-price bar remains
+   safely awaiting data.
+3. **Evaluate triggers.** The preparation command records unusual price, volume, calendar, and
+   digest events that deserve consideration. A trigger asks the model to look. It doesn't imply a
+   trade.
+4. **Publish the market regime.** The regime scorer refreshes SPY and QQQ history and records the
    deterministic GREEN, YELLOW, or RED state that policy will later enforce.
-4. **Build a cold intake.** The intake command writes a static bundle containing the published
+5. **Build a cold intake.** The preparation command writes a static bundle containing the published
    regime, pending triggers, recent actionable digest items, article queue, calendar, and the
    $5,000 paper portfolio. "Cold" means the reasoning model starts from this recorded context
    instead of relying on memory from an earlier chat.
-5. **Run the reasoning pass.** A fresh agent reads the bundle and the current mandate, policy,
+6. **Run the reasoning pass.** A fresh agent reads the bundle and the current mandate, policy,
    source rules, and prompts. It reviews existing positions and researches serious candidates.
    Most sessions may end with no action.
-6. **Create records only for real conclusions.** An actionable conclusion is written as an exact
+7. **Create records only for real conclusions.** An actionable conclusion is written as an exact
    `InvestmentDecisionRecord` JSON object. A no-action session doesn't create a fake HOLD or PASS
    record merely to produce output.
-7. **Submit through the gate.** The submit command validates the JSON, applies deterministic
+8. **Submit through the gate.** The submit command validates the JSON, applies deterministic
    policy, and creates a paper order intent only when both layers approve it. Direct database
    edits aren't an alternative.
-8. **Write the session log.** The reasoning-session Markdown records what was considered,
+9. **Write the session log.** The reasoning-session Markdown records what was considered,
    declined, submitted, or rejected. This is part of the evaluation dataset, especially when the
    correct result was no action.
 
 ## How to run the next session
 
-From PowerShell in the repository root, choose the market date you want the session to represent:
+First run a fresh, supervised digester session for the intended date and slot. Give that session:
 
-```powershell
-$RunDate = "2026-08-25"
-python -m app.paper.run settle
-python -m app.triggers.run evaluate --date $RunDate
-python -m app.regime.run score --date $RunDate
-python -m app.reason.run intake --date $RunDate --out "data/reason_runs/$RunDate"
+```text
+Follow docs/x_pipeline/DIGESTER.md for 2026-08-26 using the close slot. This is a supervised
+manual run. Stop after the digest is rendered and verified. Don't continue into investment
+reasoning.
 ```
 
-Check that the final command prints the path to `bundle.md`. Open it and make sure its date,
-portfolio, regime, triggers, and digest headlines look plausible before continuing.
+Change the date and slot as needed. This session may spend X Post-read credits within the hard
+budget guard, so inspect its fetch and routing summary before starting another slot.
+
+After the digester completes, return to PowerShell in the repository root and prepare the paper
+reasoning session:
+
+```powershell
+$RunDate = "2026-08-26"
+python -m app.reason.run prepare --date $RunDate --out "data/reason_runs/$RunDate"
+```
+
+The preparation command refuses to run unless SQLite records a completed same-day digester run
+and the rendered digest exists. It refreshes required prices, settles eligible prior intents only
+through `$RunDate`, evaluates triggers, publishes the regime, and builds the intake. Open both
+`preparation.json` and `bundle.md`. Check the date, completed digester runs, price refreshes, fills,
+awaiting intents, portfolio, regime, triggers, and digest headlines before continuing.
 
 Then start a **fresh Codex or Claude session in the repository** and give it this instruction:
 
 ```text
-Follow docs/reasoning/RUNBOOK.md for 2026-08-25 using
-data/reason_runs/2026-08-25/bundle.md. This is paper only. Complete the reasoning-session log even
+Follow docs/reasoning/RUNBOOK.md for 2026-08-26 using
+data/reason_runs/2026-08-26/bundle.md and its preparation.json receipt. This is paper only.
+Complete the reasoning-session log even
 if the correct result is no action. Show me every decision record and submission result.
 ```
 

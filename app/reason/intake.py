@@ -57,8 +57,11 @@ def build_intake(
         for row in conn.execute(
             """
             SELECT trigger_id, trigger_type, subject, fired_at, details_json
-            FROM trigger_events WHERE status = 'pending' ORDER BY fired_at, trigger_id
-            """
+            FROM trigger_events
+            WHERE status = 'pending' AND substr(fired_at, 1, 10) <= ?
+            ORDER BY fired_at, trigger_id
+            """,
+            (on_date.isoformat(),),
         )
     ]
     articles = [
@@ -67,8 +70,10 @@ def build_intake(
             """
             SELECT q.post_id, q.queued_at, p.url, p.text
             FROM x_article_queue q JOIN x_posts p ON p.post_id = q.post_id
-            WHERE q.status = 'pending' ORDER BY q.queued_at, q.post_id
-            """
+            WHERE q.status = 'pending' AND substr(q.queued_at, 1, 10) <= ?
+            ORDER BY q.queued_at, q.post_id
+            """,
+            (on_date.isoformat(),),
         )
     ]
     positions = []

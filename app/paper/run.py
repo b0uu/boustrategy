@@ -10,10 +10,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.paper.run")
     parser.add_argument("command", choices=("settle", "positions", "equity"))
     parser.add_argument("--db", default="data/boustrategy.db")
+    parser.add_argument("--date")
     args = parser.parse_args()
     conn = connect(args.db)
     if args.command == "settle":
-        fills, awaiting = settle(conn)
+        through_date = date.fromisoformat(args.date) if args.date else None
+        fills, awaiting = settle(conn, through_date)
         print(f"fills={fills} awaiting={awaiting} skips=0")
         return
     today = date.today()
