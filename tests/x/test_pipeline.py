@@ -105,9 +105,18 @@ def test_verify_accepts_complete_run_and_calendar_no_op(
     assert "verified status=digested" in capsys.readouterr().out
 
 
-def test_cycle_crashes_for_stuck_run(tmp_path: Path) -> None:
+def test_cycle_retries_failed_run(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     _run(conn, "2026-07-20-morning", "failed")
+
+    cycle(conn, "morning", date(2026, 7, 20), tmp_path / "out", lambda _: None)
+
+    assert conn.execute("SELECT status FROM x_runs").fetchone()[0] == "exported"
+
+
+def test_cycle_crashes_for_nonretryable_stuck_run(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    _run(conn, "2026-07-20-morning", "started")
 
     with pytest.raises(RuntimeError, match="stuck"):
         cycle(conn, "morning", date(2026, 7, 20), tmp_path / "out", lambda _: None)
@@ -123,6 +132,30 @@ def test_cycle_records_fetch_failure(tmp_path: Path) -> None:
         cycle(conn, "morning", date(2026, 7, 20), tmp_path / "out", fail)
 
     assert conn.execute("SELECT status FROM x_runs").fetchone()[0] == "failed"
+
+
+def test_cycle_retry_preserves_partial_fetch_usage(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+
+    def partial_failure(target: sqlite3.Connection) -> None:
+        insert_new_posts(target, [_post("1", "first attempt")])
+        record_post_reads(target, 2)
+        raise ConnectionError("partial fetch failure")
+
+    with pytest.raises(ConnectionError, match="partial fetch failure"):
+        cycle(conn, "morning", date(2026, 7, 20), tmp_path / "out", partial_failure)
+
+    def successful_retry(target: sqlite3.Connection) -> None:
+        insert_new_posts(target, [_post("2", "retry")])
+        record_post_reads(target, 1)
+
+    cycle(conn, "morning", date(2026, 7, 20), tmp_path / "out", successful_retry)
+
+    assert conn.execute("SELECT posts_fetched, reads_used, status FROM x_runs").fetchone() == (
+        2,
+        3,
+        "exported",
+    )
 
 
 def test_fetch_uses_all_active_accounts(tmp_path: Path) -> None:

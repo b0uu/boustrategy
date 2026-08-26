@@ -72,11 +72,6 @@ def _cmd_usage_sync(
     fetch_usage: Callable[[], UsageResult] = fetch_post_usage,
 ) -> None:
     usage = fetch_usage()
-    if usage.cap_reset_day != 1:
-        raise RuntimeError(
-            "X usage resets outside the calendar-month boundary used by x_post_reads; "
-            f"reset_day={usage.cap_reset_day}"
-        )
     set_post_reads(conn, usage.post_reads)
     remaining = reads_remaining(conn)
     print(

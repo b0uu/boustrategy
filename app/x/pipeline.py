@@ -73,18 +73,28 @@ def cycle(
         return
 
     run_id = f"{run_date.isoformat()}-{slot}"
-    existing = conn.execute("SELECT status FROM x_runs WHERE run_id = ?", (run_id,)).fetchone()
+    existing = conn.execute(
+        "SELECT status, started_at, reads_used FROM x_runs WHERE run_id = ?", (run_id,)
+    ).fetchone()
+    prior_reads = 0
     if existing is not None:
         if existing[0] in ("routed", "digested"):
             print(f"{run_id}: already ran")
             return
-        raise RuntimeError(f"{run_id} is stuck with status {existing[0]}")
-
-    started_at = _now().isoformat()
-    conn.execute(
-        "INSERT INTO x_runs (run_id, slot, started_at) VALUES (?, ?, ?)",
-        (run_id, slot, started_at),
-    )
+        if existing[0] != "failed":
+            raise RuntimeError(f"{run_id} is stuck with status {existing[0]}")
+        started_at = existing[1]
+        prior_reads = existing[2]
+        conn.execute(
+            "UPDATE x_runs SET status = 'started', finished_at = NULL WHERE run_id = ?",
+            (run_id,),
+        )
+    else:
+        started_at = _now().isoformat()
+        conn.execute(
+            "INSERT INTO x_runs (run_id, slot, started_at) VALUES (?, ?, ?)",
+            (run_id, slot, started_at),
+        )
     conn.commit()
     if slot == "weekly":
         conn.execute(
@@ -95,22 +105,31 @@ def cycle(
         print(f"{run_id}: weekly ledger anchor created")
         return
 
-    before_ids = {row[0] for row in conn.execute("SELECT post_id FROM x_posts")}
     reads_before = reads_remaining(conn)
     try:
         fetch(conn)
     except Exception:
+        reads_after = reads_remaining(conn)
+        fetched = conn.execute(
+            "SELECT COUNT(*) FROM x_posts WHERE fetched_at >= ?", (started_at,)
+        ).fetchone()[0]
         conn.execute(
-            "UPDATE x_runs SET status = 'failed', finished_at = ? WHERE run_id = ?",
-            (_now().isoformat(), run_id),
+            """
+            UPDATE x_runs SET posts_fetched = ?, reads_used = ?, status = 'failed', finished_at = ?
+            WHERE run_id = ?
+            """,
+            (fetched, prior_reads + reads_before - reads_after, _now().isoformat(), run_id),
         )
         conn.commit()
         raise
     reads_after = reads_remaining(conn)
     new_rows = conn.execute(
-        "SELECT post_id, text, media_json FROM x_posts WHERE review_status = 'unreviewed'"
+        """
+        SELECT post_id, text, media_json FROM x_posts
+        WHERE review_status = 'unreviewed' AND fetched_at >= ?
+        """,
+        (started_at,),
     ).fetchall()
-    new_rows = [row for row in new_rows if row[0] not in before_ids]
     decided_at = _now().isoformat()
     for post_id, text, media_json in new_rows:
         if _URL_PATTERN.search(text) and not json.loads(media_json):
@@ -144,7 +163,13 @@ def cycle(
         UPDATE x_runs SET posts_fetched = ?, posts_exported = ?, reads_used = ?,
             status = 'exported', finished_at = ? WHERE run_id = ?
         """,
-        (len(new_rows), exported, reads_before - reads_after, _now().isoformat(), run_id),
+        (
+            len(new_rows),
+            exported,
+            prior_reads + reads_before - reads_after,
+            _now().isoformat(),
+            run_id,
+        ),
     )
     conn.commit()
     print(

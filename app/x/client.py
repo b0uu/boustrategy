@@ -71,9 +71,9 @@ def fetch_post_usage() -> UsageResult:
     response.raise_for_status()
     data = response.json()["data"]
     return UsageResult(
-        post_reads=data["project_usage"],
-        project_cap=data["project_cap"],
-        cap_reset_day=data["cap_reset_day"],
+        post_reads=int(data["project_usage"]),
+        project_cap=int(data["project_cap"]),
+        cap_reset_day=int(data["cap_reset_day"]),
     )
 
 
@@ -178,7 +178,9 @@ def fetch_user_posts(
     if since_id is not None:
         params["since_id"] = since_id
     if start_time is not None:
-        params["start_time"] = start_time.astimezone(UTC).isoformat().replace("+00:00", "Z")
+        params["start_time"] = (
+            start_time.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        )
 
     response = httpx.get(
         f"{BASE_URL}/users/{user_id}/tweets",

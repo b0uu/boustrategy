@@ -290,9 +290,9 @@ def test_fetch_post_usage_returns_authoritative_project_usage(monkeypatch):
         def json(self) -> dict[str, object]:
             return {
                 "data": {
-                    "project_usage": 4321,
-                    "project_cap": 2_000_000,
-                    "cap_reset_day": 1,
+                    "project_usage": "4321",
+                    "project_cap": "2000000",
+                    "cap_reset_day": "1",
                 }
             }
 
@@ -337,7 +337,7 @@ def test_fetch_user_posts_sends_recent_start_time(monkeypatch):
 
     from app.x.client import fetch_user_posts
 
-    fetch_user_posts("1", "analyst", start_time=datetime(2026, 8, 20, 12, tzinfo=UTC))
+    fetch_user_posts("1", "analyst", start_time=datetime(2026, 8, 20, 12, 0, 0, 956670, tzinfo=UTC))
 
     params = captured["params"]
     assert isinstance(params, dict)

@@ -306,14 +306,16 @@ def test_usage_sync_reconciles_reads_and_reports_x_cap(capsys):
     )
 
 
-def test_usage_sync_rejects_non_calendar_billing_cycle():
+def test_usage_sync_accepts_provider_billing_cycle(capsys):
     conn = connect(":memory:")
 
     def fake_fetch_usage() -> UsageResult:
         return UsageResult(post_reads=450, project_cap=2_000_000, cap_reset_day=15)
 
-    with pytest.raises(RuntimeError, match="reset_day=15"):
-        _cmd_usage_sync(conn, fetch_usage=fake_fetch_usage)
+    _cmd_usage_sync(conn, fetch_usage=fake_fetch_usage)
+
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 450
+    assert "reset_day=15" in capsys.readouterr().out
 
 
 def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
