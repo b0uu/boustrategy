@@ -111,6 +111,10 @@ def test_operator_page_explains_manual_boundary_and_blocks_unready_prepare(
     assert "Nothing runs or spends X credits" in response.text
     assert "<button type='submit' disabled>Prepare paper session</button>" in response.text
     assert "data-copy='reasoning-prompt' disabled" in response.text
+    assert "This is the close paper reasoning pass" in response.text
+    assert "Treat missing outside-X confirmation as a research task" in response.text
+    assert "Don&#x27;t resubmit an existing decision record" in response.text
+    assert "never a future timestamp" in response.text
 
 
 def test_operator_prepare_rejects_missing_request_token(tmp_path: Path) -> None:

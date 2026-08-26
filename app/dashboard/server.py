@@ -191,9 +191,17 @@ def _operator_body(
     )
     reasoning_prompt = (
         f"Follow docs/reasoning/RUNBOOK.md for {day} using data/reason_runs/{day}/bundle.md "
-        "and its preparation.json receipt. This is paper only. Complete the reasoning-session "
-        "log even if the correct result is no action. Show me every decision record and "
-        "submission result."
+        f"and its preparation.json receipt. This is the {slot} paper reasoning pass. First "
+        "review existing positions, pending order intents, prior same-day decisions, and the "
+        "remaining daily quota. Don't resubmit an existing decision record or treat a pending "
+        "intent as a filled position. Then select the 2-3 strongest eligible U.S.-listed "
+        "candidates and actively research independent primary or reputable sources plus current "
+        "price context before applying the complete thesis chain. Treat missing outside-X "
+        "confirmation as a research task, not an automatic reason to reject a candidate. Give "
+        "each new record the actual current timestamp, never a future timestamp, and submit it "
+        "exactly once. Append a distinct timestamped section for this pass to the "
+        "reasoning-session log even if none survives the research and the correct result is no "
+        "action. Don't force a trade. Show me every new decision record and submission result."
     )
     runs = status["runs"]
     run_summary = (

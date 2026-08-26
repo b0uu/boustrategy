@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from app.policy.decision_policy import PortfolioContext
@@ -96,6 +98,43 @@ def test_rerun_is_idempotent() -> None:
     assert record_count == 1
     assert intent_count == 1
     assert status_count == 4
+
+
+def test_rerun_returns_durable_approval_when_portfolio_context_has_changed() -> None:
+    conn = connect(":memory:")
+    data = valid_decision_record_data()
+    first = process_decision(conn, data)
+    full_quota = PortfolioContext(
+        holdings_count=0,
+        buy_add_trades_today=2,
+        sell_trim_trades_today=0,
+    )
+
+    replay = process_decision(conn, data, portfolio=full_quota)
+
+    assert replay == first
+    assert conn.execute("SELECT COUNT(*) FROM status_events").fetchone()[0] == 4
+    assert conn.execute("SELECT COUNT(*) FROM order_intents").fetchone()[0] == 1
+
+
+def test_future_created_at_fails_before_record_is_saved() -> None:
+    conn = connect(":memory:")
+    data = valid_decision_record_data()
+    data["created_at"] = datetime(2026, 6, 10, 12, 1, tzinfo=UTC)
+
+    outcome = process_decision(
+        conn,
+        data,
+        received_at=datetime(2026, 6, 10, 12, 0, tzinfo=UTC),
+    )
+
+    assert outcome.final_status == DecisionStatus.SCHEMA_FAILED
+    assert get_decision_record(conn, "dec_001") is None
+    status, detail = conn.execute(
+        "SELECT status, detail FROM status_events WHERE subject_id = 'dec_001'"
+    ).fetchone()
+    assert status == DecisionStatus.SCHEMA_FAILED.value
+    assert detail == "created_at_cannot_be_in_future"
 
 
 def test_illegal_transition_raises() -> None:

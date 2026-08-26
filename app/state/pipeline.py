@@ -6,9 +6,10 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.orders.create_order_intent import create_order_intent
-from app.policy.decision_policy import PortfolioContext, evaluate_decision_policy
+from app.policy.decision_policy import PolicyResult, PortfolioContext, evaluate_decision_policy
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord, RegimeState
 from app.storage.records import (
+    get_decision_record,
     get_order_intent,
     save_decision_record,
     save_order_intent,
@@ -102,6 +103,8 @@ def process_decision(
     record_data: dict[str, Any],
     portfolio: PortfolioContext | None = None,
     true_regime_state: RegimeState | None = None,
+    *,
+    received_at: datetime | None = None,
 ) -> ProcessOutcome:
     try:
         record = InvestmentDecisionRecord.model_validate(record_data)
@@ -113,6 +116,69 @@ def process_decision(
         if decision_id is not None:
             append_status(conn, decision_id, DecisionStatus.SCHEMA_FAILED, detail=str(error)[:500])
         return ProcessOutcome(decision_id=decision_id, final_status=DecisionStatus.SCHEMA_FAILED)
+
+    existing_record = get_decision_record(conn, record.decision_id)
+    current_status = latest_status(conn, record.decision_id)
+    if existing_record is not None:
+        if existing_record != record:
+            raise ValueError(
+                f"decision record {record.decision_id} already exists with different content"
+            )
+        if current_status == DecisionStatus.ORDER_INTENT_CREATED:
+            intent = get_order_intent(conn, f"oi_{record.decision_id}")
+            if intent is None:
+                raise ValueError(
+                    f"decision {record.decision_id} reached order_intent_created without an intent"
+                )
+            return ProcessOutcome(
+                decision_id=record.decision_id,
+                final_status=current_status,
+                order_intent_id=intent.order_intent_id,
+            )
+        if current_status == DecisionStatus.POLICY_REJECTED:
+            row = conn.execute(
+                """
+                SELECT detail FROM status_events
+                WHERE subject_type = 'decision' AND subject_id = ? AND status = ?
+                ORDER BY event_id DESC LIMIT 1
+                """,
+                (record.decision_id, DecisionStatus.POLICY_REJECTED.value),
+            ).fetchone()
+            reasons = [reason.strip() for reason in row[0].split(",") if reason.strip()]
+            return ProcessOutcome(
+                decision_id=record.decision_id,
+                final_status=current_status,
+                policy_reasons=reasons,
+            )
+        if current_status == DecisionStatus.POLICY_APPROVED:
+            if record.decision not in _ACTIONABLE_DECISIONS:
+                return ProcessOutcome(
+                    decision_id=record.decision_id,
+                    final_status=current_status,
+                )
+            intent = get_order_intent(conn, f"oi_{record.decision_id}")
+            if intent is None:
+                intent = create_order_intent(record, PolicyResult(approved=True))
+                save_order_intent(conn, intent)
+            append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED)
+            return ProcessOutcome(
+                decision_id=record.decision_id,
+                final_status=DecisionStatus.ORDER_INTENT_CREATED,
+                order_intent_id=intent.order_intent_id,
+            )
+
+    processing_time = received_at or datetime.now(UTC)
+    if record.created_at > processing_time:
+        append_status(
+            conn,
+            record.decision_id,
+            DecisionStatus.SCHEMA_FAILED,
+            detail="created_at_cannot_be_in_future",
+        )
+        return ProcessOutcome(
+            decision_id=record.decision_id,
+            final_status=DecisionStatus.SCHEMA_FAILED,
+        )
 
     save_decision_record(conn, record)
     append_status(conn, record.decision_id, DecisionStatus.DECISION_RECORD_CREATED)
