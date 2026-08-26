@@ -1,5 +1,23 @@
 # Scheduled digester operations
 
+## Current status: intentionally disabled
+
+As of August 26, 2026, all five `boustrategy-digester-*` tasks are disabled. BouStrategy is in a
+manual operating phase while ingestion, reasoning, paper execution, and evaluation are refined.
+This prevents unattended API spending and makes each run easy to inspect.
+
+The planned promotion order is:
+
+1. Run and review the complete paper process manually.
+2. Build a dashboard that exposes inputs, decisions, policy results, positions, costs, and errors.
+3. Re-enable unattended ingestion and reasoning in paper mode.
+4. Consider live execution only after unattended paper operation has produced enough evidence for
+   a separate human activation decision.
+
+The task definitions haven't been deleted. The instructions below are retained for the later
+automation phase and shouldn't be run during manual development unless the operating decision is
+explicitly changed.
+
 The task installer creates or replaces five Windows Task Scheduler entries. Each entry launches
 `run-digester-session.ps1`, which starts a restricted Claude session, follows the X pipeline
 runbook, writes a local log, and verifies that the expected database run actually completed.

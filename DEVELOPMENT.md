@@ -97,6 +97,22 @@ call those returns strategy performance. It is an event study and a data-quality
 forward, direction, decision time, evidence available at that time, and the resulting record will
 be sealed together. Those forward capsules can support real process and outcome evaluation.
 
+## Manual first, then visible, then autonomous
+
+The current version is operated manually. That is a development constraint, not a permanent
+architecture choice. Manual runs make it possible to inspect what the system saw, where judgment
+entered, how much data cost, why policy accepted or rejected a record, and whether paper state
+changed correctly before those steps disappear behind a schedule.
+
+The next product boundary is a dashboard built on the same append-only records. It should expose
+data freshness, API spend, triggers, reasoning sessions, source evidence, policy outcomes, order
+intents, fills, positions, performance, and failures. It shouldn't become a second source of
+portfolio truth or a shortcut around the policy gate.
+
+Only after the manual process is repeatable and the dashboard makes failures visible will
+scheduled ingestion and reasoning return, first in paper mode. Unattended live execution is a
+separate promotion. It shouldn't begin on the same day as the first unattended reasoning run.
+
 ## Paper first, then proof
 
 The paper account starts at $5,000. That amount keeps position sizing tangible without confusing
@@ -125,7 +141,7 @@ owns repeatable ingestion, validation, policy enforcement, ledgers, replay, and 
 judgment operates between those layers, where research and adversarial reasoning are useful but
 where a persuasive sentence still can't override a hard constraint.
 
-The next useful evidence won't be a dramatic trade. It will be several consecutive weeks in which
-the ingestion schedule completes, reasoning sessions leave auditable records, the $5,000 paper
-portfolio behaves exactly as policy allows, and failures are visible before they become missing
-history.
+The next useful evidence won't be a dramatic trade. It will be a sequence of supervised sessions
+in which ingestion completes, reasoning leaves auditable records, the $5,000 paper portfolio
+behaves exactly as policy allows, and failures are caught while the surrounding context is still
+available. The dashboard and unattended paper phase can follow once that process is repeatable.

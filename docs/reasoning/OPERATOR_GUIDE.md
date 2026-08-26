@@ -1,9 +1,9 @@
 # Operating a paper reasoning session
 
 `RUNBOOK.md` isn't an automated trading script. It is the contract for one fresh, supervised
-reasoning session. The scheduled digester collects and ranks information. The reasoning session
-starts separately, reviews that information alongside the portfolio and policy, and may produce a
-paper order intent. It never reaches a live broker.
+reasoning session. During the current manual phase, the operator starts ingestion and reasoning
+deliberately, reviews each boundary, and may produce a paper order intent. The Windows digester
+tasks are intentionally disabled. No part of this process reaches a live broker.
 
 ## What happens in one session
 
