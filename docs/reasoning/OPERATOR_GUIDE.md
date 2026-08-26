@@ -38,56 +38,40 @@ tasks are intentionally disabled. No part of this process reaches a live broker.
 
 ## How to run the next session
 
-First run a fresh, supervised digester session for the intended date and slot. Give that session:
+Double-click `start-boustrategy.cmd` in the repository root. A small server window stays open and
+the **Operate** page opens in your browser. Keep that window open while using the interface. Closing
+it stops the local dashboard. The page is available only on this machine at
+`http://127.0.0.1:8378/operate`.
 
-```text
-Follow docs/x_pipeline/DIGESTER.md for 2026-08-26 using the close slot. This is a supervised
-manual run. Stop after the digest is rendered and verified. Don't continue into investment
-reasoning.
-```
+On the Operate page:
 
-Change the date and slot as needed. This session may spend X Post-read credits within the hard
-budget guard, so inspect its fetch and routing summary before starting another slot.
+1. Select the intended date and X slot, then click **Load**.
+2. Click **Copy digester prompt** and paste it into a fresh Codex or Claude session in this
+   repository. The dashboard doesn't run this step itself, so you see the proposed work before any
+   X Post-read credits can be spent.
+3. When the agent finishes the digest, reload the same date. Check that the digest file and database
+   run are ready.
+4. Click **Prepare paper session**. This refreshes prices and calendar data, settles eligible paper
+   intents, evaluates triggers, publishes the regime, and builds the static intake. It doesn't read
+   X or contact a broker.
+5. Check the preparation receipt in the readiness panel. Then click **Copy reasoning prompt** and
+   paste it into a new agent session. The button stays unavailable until preparation succeeds.
+6. After reasoning finishes, use the **Decisions** and **Portfolio** pages to inspect records,
+   policy outcomes, fills, cash, and positions. An intent normally fills only when a later session
+   has the next market-open price bar.
 
-After the digester completes, return to PowerShell in the repository root and prepare the paper
-reasoning session:
+The interface is deliberately supervised. It copies the two agent prompts instead of silently
+starting model runs, and it can't send orders to a live brokerage.
 
-```powershell
-$RunDate = "2026-08-26"
-python -m app.reason.run prepare --date $RunDate --out "data/reason_runs/$RunDate"
-```
+## If the launcher doesn't open
 
-The preparation command refuses to run unless SQLite records a completed same-day digester run
-and the rendered digest exists. It refreshes required prices, settles eligible prior intents only
-through `$RunDate`, evaluates triggers, publishes the regime, and builds the intake. Open both
-`preparation.json` and `bundle.md`. Check the date, completed digester runs, price refreshes, fills,
-awaiting intents, portfolio, regime, triggers, and digest headlines before continuing.
+Open PowerShell in the repository root and run `python -m app.dashboard.server`, then visit
+`http://127.0.0.1:8378/operate`. If Python reports a missing package, install the project's
+development dependencies once with `python -m pip install -e ".[dev]"`.
 
-Then start a **fresh Codex or Claude session in the repository** and give it this instruction:
-
-```text
-Follow docs/reasoning/RUNBOOK.md for 2026-08-26 using
-data/reason_runs/2026-08-26/bundle.md and its preparation.json receipt. This is paper only.
-Complete the reasoning-session log even
-if the correct result is no action. Show me every decision record and submission result.
-```
-
-Supervision at this stage means watching what the agent reads and checking its claimed sources,
-not manually approving a trade around the policy engine. If it authors a decision JSON, it should
-save it under the gitignored `data/reason_runs/<date>/` directory and submit it with the runbook's
-command. The resulting status will say whether schema and policy accepted it and whether an order
-intent was created.
-
-After the session, inspect:
-
-```powershell
-Get-Content "data/reasoning_sessions/$RunDate.md"
-python -m app.paper.run positions
-python -m app.paper.run equity
-```
-
-An order intent normally fills only when a later session has the next market-open bar. No command
-in this procedure can send an order to a live brokerage.
+`RUNBOOK.md` remains the agent-facing execution contract. You don't need to work through its
+commands yourself during a normal session. The reasoning agent follows it after you paste the
+prompt from the Operate page.
 
 ## What you should check as the human operator
 

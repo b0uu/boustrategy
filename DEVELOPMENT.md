@@ -104,10 +104,16 @@ architecture choice. Manual runs make it possible to inspect what the system saw
 entered, how much data cost, why policy accepted or rejected a record, and whether paper state
 changed correctly before those steps disappear behind a schedule.
 
-The next product boundary is a dashboard built on the same append-only records. It should expose
-data freshness, API spend, triggers, reasoning sessions, source evidence, policy outcomes, order
-intents, fills, positions, performance, and failures. It shouldn't become a second source of
-portfolio truth or a shortcut around the policy gate.
+The first local dashboard now reads from those same append-only records. Its operator page turns
+the manual paper cycle into three visible steps: copy a digester prompt, prepare the session, then
+copy a reasoning prompt. It doesn't start model runs in the background. That pause keeps X spend
+and model activity visible while the process is still being tested. Preparation is the only state
+changing dashboard action, and it still requires a completed same-day digest before it can refresh
+market context or settle paper intents.
+
+The dashboard still needs deeper session history, source evidence, performance, and failure views
+before it can supervise unattended operation. It shouldn't become a second source of portfolio
+truth or a shortcut around the policy gate.
 
 Only after the manual process is repeatable and the dashboard makes failures visible will
 scheduled ingestion and reasoning return, first in paper mode. Unattended live execution is a
@@ -144,4 +150,5 @@ where a persuasive sentence still can't override a hard constraint.
 The next useful evidence won't be a dramatic trade. It will be a sequence of supervised sessions
 in which ingestion completes, reasoning leaves auditable records, the $5,000 paper portfolio
 behaves exactly as policy allows, and failures are caught while the surrounding context is still
-available. The dashboard and unattended paper phase can follow once that process is repeatable.
+available. Deeper dashboard visibility and the unattended paper phase can follow once that process
+is repeatable.

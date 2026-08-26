@@ -28,3 +28,10 @@ To see more details and my comprehensive vision + structure, see `boustrategy_sp
 
 For a public-facing account of the architecture, labeling work, failures, and path to paper and
 live trading, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## Local operator interface
+
+On Windows, double-click `start-boustrategy.cmd` to open the supervised paper workflow in your
+browser. The interface guides digesting, session preparation, and reasoning while leaving the X
+and agent steps under human control. See [the operator guide](docs/reasoning/OPERATOR_GUIDE.md) for
+the short walkthrough.

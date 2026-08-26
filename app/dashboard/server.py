@@ -1,20 +1,33 @@
 import argparse
+import secrets
+import sqlite3
+from datetime import date, datetime
 from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
+from urllib.parse import parse_qs, urlencode
+from zoneinfo import ZoneInfo
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.dashboard import queries
+from app.reason.run import PreparationResult, prepare_session
 from app.storage.database import connect
 
 # Status colors are reserved for state and always ship with a text label,
 # never color alone (dataviz doctrine). Everything unknown renders neutral.
-_STATUS_GOOD = {"green", "order_intent_created", "policy_approved", "consumed", "summarized"}
+_STATUS_GOOD = {
+    "green",
+    "order_intent_created",
+    "policy_approved",
+    "consumed",
+    "summarized",
+    "ready",
+}
 _STATUS_WARN = {"yellow", "pending", "started", "exported", "routed"}
-_STATUS_BAD = {"red", "policy_rejected", "schema_failed", "failed", "dismissed"}
+_STATUS_BAD = {"red", "policy_rejected", "schema_failed", "failed", "dismissed", "missing"}
 
 _STYLE = """
 :root{
@@ -70,10 +83,39 @@ figure{margin:.4rem 0 1.2rem;background:var(--card);border:1px solid var(--line)
 figure svg{width:100%;height:auto;display:block}
 figcaption{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);margin-bottom:.5rem}
+.operator-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);
+  gap:1rem;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:1.1rem 1.2rem;margin-bottom:1rem;box-shadow:0 14px 35px rgba(28,31,27,.035)}
+.panel h2{margin:.1rem 0 .8rem}.panel p{color:var(--ink-2);margin:.45rem 0}
+.step{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.75rem}
+.step-number{width:2rem;height:2rem;border:1px solid var(--ink);border-radius:50%;
+  display:grid;place-items:center;font:700 .8rem Georgia,serif}
+.controls{display:flex;gap:.7rem;align-items:end;flex-wrap:wrap;margin:.8rem 0}
+label{display:grid;gap:.3rem;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:650}
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);
+  border-radius:6px;padding:.55rem .65rem;min-height:2.35rem}
+button,.button{appearance:none;border:1px solid var(--ink);background:var(--ink);color:white;
+  border-radius:6px;padding:.58rem .9rem;font:650 .84rem/1 inherit;cursor:pointer;
+  text-decoration:none}
+button:hover,.button:hover{background:#343431}.button.secondary{background:transparent;color:var(--ink)}
+.button.secondary:hover{background:#f2f2ed}.button:disabled,button:disabled{opacity:.42;cursor:not-allowed}
+.prompt{max-height:13rem;overflow:auto;background:#f7f7f3;border-color:#deded7;font-size:.78rem}
+.notice,.error{border-radius:7px;padding:.7rem .85rem;margin:.75rem 0;font-size:.88rem}
+.notice{background:#edf7ed;color:#125f1b;border:1px solid #cce5cd}
+.error{background:#fff0ef;color:#8d2525;border:1px solid #efcfcc}
+.status-list{display:grid;gap:.55rem}.status-row{display:flex;justify-content:space-between;
+  gap:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line);font-size:.86rem}
+.status-row:last-child{border-bottom:0;padding-bottom:0}
+.status-row span:first-child{color:var(--ink-2)}
+.quiet{font-size:.78rem;color:var(--ink-3)}
+@media(max-width:760px){.operator-grid{grid-template-columns:1fr}nav .inner{gap:.75rem}}
 """
 
 _NAV = (
     ("Overview", "/"),
+    ("Operate", "/operate"),
     ("Portfolio", "/portfolio"),
     ("Decisions", "/decisions"),
     ("Digests", "/digests"),
@@ -81,6 +123,21 @@ _NAV = (
     ("Regime", "/regime"),
     ("Triggers", "/triggers"),
 )
+
+_SLOTS = {"morning", "midday", "close"}
+_NEW_YORK = ZoneInfo("America/New_York")
+
+
+class PreparationRunner(Protocol):
+    def __call__(
+        self,
+        conn: sqlite3.Connection,
+        on_date: date,
+        out_dir: str | Path,
+        *,
+        digest_dir: str | Path = "data/digests",
+        watchlist_path: str | Path = "docs/watchlist.md",
+    ) -> PreparationResult: ...
 
 
 def render_x_snippet(text: str, public: bool = False) -> str:
@@ -96,9 +153,15 @@ def _page(title: str, body: str, active: str = "") -> str:
     )
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         f"<title>{escape(title)} — BouStrategy</title><style>{_STYLE}</style></head><body>"
         f"<nav><div class='inner'><span class='brand'>BouStrategy</span>{links}</div></nav>"
-        f"<main><h1>{escape(title)}</h1>{body}</main></body></html>"
+        f"<main><h1>{escape(title)}</h1>{body}</main>"
+        "<script>document.querySelectorAll('[data-copy]').forEach((button)=>{"
+        "button.addEventListener('click',async()=>{const node=document.getElementById("
+        "button.dataset.copy);await navigator.clipboard.writeText(node.innerText);"
+        "const old=button.innerText;button.innerText='Copied';setTimeout(()=>button.innerText=old,"
+        "1200);});});</script></body></html>"
     )
 
 
@@ -107,6 +170,109 @@ def _badge(value: str) -> str:
     css = "good" if lowered in _STATUS_GOOD else "warn" if lowered in _STATUS_WARN else ""
     css = "bad" if lowered in _STATUS_BAD else css
     return f"<span class='badge {css}'><span class='dot'></span>{escape(value)}</span>"
+
+
+def _copy_button(target: str, label: str, enabled: bool = True) -> str:
+    disabled = "" if enabled else " disabled"
+    return (
+        f"<button type='button' class='button secondary' data-copy='{target}'{disabled}>"
+        f"{escape(label)}</button>"
+    )
+
+
+def _operator_body(
+    status: dict[str, Any], csrf_token: str, slot: str, notice: str = "", error: str = ""
+) -> str:
+    day = str(status["date"])
+    digester_prompt = (
+        f"Follow docs/x_pipeline/DIGESTER.md for {day} using the {slot} slot. This is a "
+        "supervised manual run. Stop after the digest is rendered and verified. Don't continue "
+        "into investment reasoning."
+    )
+    reasoning_prompt = (
+        f"Follow docs/reasoning/RUNBOOK.md for {day} using data/reason_runs/{day}/bundle.md "
+        "and its preparation.json receipt. This is paper only. Complete the reasoning-session "
+        "log even if the correct result is no action. Show me every decision record and "
+        "submission result."
+    )
+    runs = status["runs"]
+    run_summary = (
+        ", ".join(f"{run['slot']}: {run['status']}" for run in runs) if runs else "none recorded"
+    )
+    receipt = status["receipt"] or {}
+    receipt_summary = (
+        f"{receipt.get('fills_created', 0)} fills, "
+        f"{receipt.get('intents_awaiting_price', 0)} awaiting, "
+        f"regime {receipt.get('regime', 'unknown')}"
+        if receipt
+        else "not prepared"
+    )
+    notice_html = f"<div class='notice'>{escape(notice)}</div>" if notice else ""
+    error_html = f"<div class='error'>{escape(error)}</div>" if error else ""
+    prepare_disabled = "" if status["digest_ready"] else " disabled"
+    prepare_help = (
+        "Ready. This may take a minute while market data refreshes."
+        if status["digest_ready"]
+        else "Complete and render the same-day digest first."
+    )
+    slot_options = "".join(
+        f"<option value='{item}'{' selected' if item == slot else ''}>{item}</option>"
+        for item in sorted(_SLOTS)
+    )
+    digest_state = "ready" if status["digest_exists"] else "missing"
+    preparation_state = "ready" if status["prepared"] else "pending"
+    return "".join(
+        [
+            "<div class='operator-grid'><section>",
+            "<div class='panel'><div class='step'><div class='step-number'>1</div><div>",
+            "<h2>Digest the feed</h2>",
+            "<p>Copy this into a fresh agent session. Nothing runs or spends X credits until "
+            "you start that separate session.</p>",
+            f"<pre class='prompt' id='digester-prompt'>{escape(digester_prompt)}</pre>",
+            _copy_button("digester-prompt", "Copy digester prompt"),
+            "</div></div></div>",
+            "<div class='panel'><div class='step'><div class='step-number'>2</div><div>",
+            "<h2>Prepare the paper session</h2>",
+            "<p>Refresh market and calendar data, settle eligible paper intents, evaluate "
+            "triggers, score the regime, and create the intake receipt. This doesn't read X or "
+            "contact a broker.</p>",
+            notice_html,
+            error_html,
+            "<form method='post' action='/operate/prepare'>",
+            f"<input type='hidden' name='csrf_token' value='{escape(csrf_token)}'>",
+            f"<input type='hidden' name='date' value='{escape(day)}'>",
+            f"<input type='hidden' name='slot' value='{escape(slot)}'>",
+            f"<button type='submit'{prepare_disabled}>Prepare paper session</button>",
+            "</form>",
+            f"<p class='quiet'>{escape(prepare_help)}</p>",
+            "</div></div></div>",
+            "<div class='panel'><div class='step'><div class='step-number'>3</div><div>",
+            "<h2>Run investment reasoning</h2>",
+            "<p>Use a fresh agent only after preparation succeeds.</p>",
+            f"<pre class='prompt' id='reasoning-prompt'>{escape(reasoning_prompt)}</pre>",
+            _copy_button("reasoning-prompt", "Copy reasoning prompt", status["prepared"]),
+            "</div></div></div></section><aside>",
+            "<div class='panel'><h2>Session controls</h2>",
+            "<form method='get' action='/operate'><div class='controls'>",
+            f"<label>Date<input type='date' name='date' value='{escape(day)}'></label>",
+            f"<label>Slot<select name='slot'>{slot_options}</select></label>",
+            "<button type='submit' class='button secondary'>Load</button>",
+            "</div></form></div>",
+            "<div class='panel'><h2>Readiness</h2><div class='status-list'>",
+            "<div class='status-row'><span>Digest file</span>",
+            _badge(digest_state),
+            "</div><div class='status-row'><span>Database runs</span>",
+            f"<strong>{escape(run_summary)}</strong></div>",
+            "<div class='status-row'><span>Preparation</span>",
+            _badge(preparation_state),
+            "</div><div class='status-row'><span>Receipt</span>",
+            f"<strong>{escape(receipt_summary)}</strong></div></div></div>",
+            "<div class='panel'><h2>Safety boundary</h2>",
+            "<p class='quiet'>Paper only. Scheduled tasks remain disabled. The dashboard has no "
+            "live-broker connection and can't enable one.</p></div>",
+            "</aside></div>",
+        ]
+    )
 
 
 _BADGE_COLUMNS = {"status", "regime", "raw_regime", "final_status", "rank", "parse_status"}
@@ -265,16 +431,90 @@ def _overview_tiles(payload: dict[str, Any]) -> str:
     return f"<div class='tiles'>{''.join(tiles)}</div>"
 
 
-def create_app(db_path: str | Path) -> FastAPI:
+def create_app(
+    db_path: str | Path, preparation_runner: PreparationRunner = prepare_session
+) -> FastAPI:
     app = FastAPI(title="BouStrategy dashboard")
     path = Path(db_path)
     digest_dir = path.parent / "digests"
+    reason_dir = path.parent / "reason_runs"
+    csrf_token = secrets.token_urlsafe(24)
 
     @app.get("/", response_class=HTMLResponse)
     def overview() -> str:
         conn = connect(path)
         payload = queries.overview(conn, digest_dir)
         return _page("Overview", _overview_tiles(payload), active="/")
+
+    @app.get("/operate", response_class=HTMLResponse)
+    def operate(
+        run_date: str | None = Query(default=None, alias="date"),
+        slot: str = "close",
+        notice: str = "",
+    ) -> str:
+        today = datetime.now(_NEW_YORK).date()
+        try:
+            selected_date = today if run_date is None else date.fromisoformat(run_date)
+        except ValueError:
+            selected_date = today
+        selected_slot = slot if slot in _SLOTS else "close"
+        conn = connect(path)
+        status = queries.operator_status(conn, digest_dir, reason_dir, selected_date)
+        return _page(
+            "Manual paper cycle",
+            _operator_body(status, csrf_token, selected_slot, notice=notice),
+            active="/operate",
+        )
+
+    @app.post("/operate/prepare", response_class=HTMLResponse)
+    async def prepare(request: Request) -> Response:
+        form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+        submitted_token = form.get("csrf_token", [""])[0]
+        if not secrets.compare_digest(submitted_token, csrf_token):
+            raise HTTPException(403, "invalid request token")
+
+        run_date = form.get("date", [""])[0]
+        slot = form.get("slot", ["close"])[0]
+        selected_slot = slot if slot in _SLOTS else "close"
+        try:
+            selected_date = date.fromisoformat(run_date)
+        except ValueError as error:
+            raise HTTPException(400, "invalid session date") from error
+        if selected_date > datetime.now(_NEW_YORK).date():
+            raise HTTPException(400, "session date can't be in the future")
+
+        conn = connect(path)
+        try:
+            preparation_runner(
+                conn,
+                selected_date,
+                reason_dir / run_date,
+                digest_dir=digest_dir,
+            )
+        except Exception as error:
+            status = queries.operator_status(conn, digest_dir, reason_dir, selected_date)
+            return HTMLResponse(
+                _page(
+                    "Manual paper cycle",
+                    _operator_body(
+                        status,
+                        csrf_token,
+                        selected_slot,
+                        error=f"Preparation failed: {type(error).__name__}: {error}",
+                    ),
+                    active="/operate",
+                ),
+                status_code=400,
+            )
+
+        query = urlencode(
+            {
+                "date": run_date,
+                "slot": selected_slot,
+                "notice": "Preparation completed.",
+            }
+        )
+        return RedirectResponse(f"/operate?{query}", status_code=303)
 
     @app.get("/portfolio", response_class=HTMLResponse)
     def portfolio() -> str:

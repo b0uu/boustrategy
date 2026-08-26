@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -217,3 +217,43 @@ def triggers(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
         "trigger_events",
         "SELECT * FROM trigger_events ORDER BY status, fired_at DESC",
     )
+
+
+def operator_status(
+    conn: sqlite3.Connection, digest_dir: Path, reason_dir: Path, on_date: date
+) -> dict[str, Any]:
+    day = on_date.isoformat()
+    digest_path = digest_dir / f"{day}.md"
+    output_dir = reason_dir / day
+    receipt_path = output_dir / "preparation.json"
+    bundle_path = output_dir / "bundle.md"
+    cursor = conn.execute(
+        """
+        SELECT run_id, slot, posts_fetched, posts_exported, reads_used, status
+        FROM x_runs WHERE substr(run_id, 1, 10) = ? ORDER BY started_at, run_id
+        """,
+        (day,),
+    )
+    names = [item[0] for item in cursor.description]
+    runs = [dict(zip(names, row, strict=True)) for row in cursor.fetchall()]
+    receipt = None
+    receipt_error = ""
+    if receipt_path.is_file():
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            receipt_error = str(error)
+    return {
+        "date": day,
+        "digest_exists": digest_path.is_file(),
+        "digest_path": digest_path.as_posix(),
+        "runs": runs,
+        "digest_ready": bool(runs)
+        and digest_path.is_file()
+        and all(run["status"] == "digested" for run in runs),
+        "prepared": receipt is not None and bundle_path.is_file(),
+        "receipt": receipt,
+        "receipt_error": receipt_error,
+        "receipt_path": receipt_path.as_posix(),
+        "bundle_path": bundle_path.as_posix(),
+    }
