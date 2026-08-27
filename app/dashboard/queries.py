@@ -292,6 +292,121 @@ def execution_packets(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
     )
 
 
+def live_operator_status(
+    conn: sqlite3.Connection,
+    profiles: list[dict[str, object]],
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    current_time = now or datetime.now(UTC)
+    latest_shared = conn.execute(
+        """
+        SELECT session_date, slot, shared_bundle_sha256, run_json
+        FROM reasoning_runs ORDER BY started_at DESC, reasoning_run_id DESC LIMIT 1
+        """
+    ).fetchone()
+    shared = None
+    if latest_shared is not None:
+        run_json = json.loads(latest_shared[3])
+        shared = {
+            "session_date": latest_shared[0],
+            "slot": latest_shared[1],
+            "shared_bundle_path": run_json["shared_bundle_path"],
+            "shared_bundle_sha256": latest_shared[2],
+        }
+
+    profile_rows = []
+    for profile in profiles:
+        profile_id = str(profile["execution_profile_id"])
+        snapshot_row = conn.execute(
+            """
+            SELECT snapshot_json FROM live_portfolio_snapshots
+            WHERE execution_profile_id = ? ORDER BY captured_at DESC LIMIT 1
+            """,
+            (profile_id,),
+        ).fetchone()
+        snapshot = None
+        if snapshot_row is not None:
+            snapshot_json = json.loads(snapshot_row[0])
+            snapshot = {
+                "portfolio_snapshot_id": snapshot_json["portfolio_snapshot_id"],
+                "captured_at": snapshot_json["captured_at"],
+                "account_equity": snapshot_json["account_equity"],
+                "buying_power": snapshot_json["buying_power"],
+                "positions": [
+                    {
+                        "ticker": position["ticker"],
+                        "market_value": position["market_value"],
+                        "primary_theme_id": position["primary_theme_id"],
+                    }
+                    for position in snapshot_json["positions"]
+                ],
+            }
+
+        run_row = (
+            conn.execute(
+                """
+                SELECT run_json FROM reasoning_runs
+                WHERE execution_profile_id = ? AND session_date = ? AND slot = ?
+                ORDER BY started_at DESC, reasoning_run_id DESC LIMIT 1
+                """,
+                (profile_id, shared["session_date"], shared["slot"]),
+            ).fetchone()
+            if shared
+            else None
+        )
+        run = None
+        if run_row is not None:
+            run_json = json.loads(run_row[0])
+            run = {
+                "reasoning_run_id": run_json["reasoning_run_id"],
+                "portfolio_snapshot_id": run_json["portfolio_snapshot_id"],
+                "result": run_json["result"],
+                "public_summary": run_json["public_summary"],
+                "decision_count": len(run_json["decision_ids"]),
+            }
+
+        packet_rows = conn.execute(
+            """
+            SELECT p.execution_packet_id, p.expires_at,
+                   EXISTS (
+                       SELECT 1 FROM broker_execution_records r
+                       WHERE r.order_intent_id = p.order_intent_id
+                   )
+            FROM live_execution_packets p WHERE p.execution_profile_id = ?
+            ORDER BY p.created_at DESC
+            """,
+            (profile_id,),
+        ).fetchall()
+        pending_packets = [
+            packet
+            for packet in packet_rows
+            if not packet[2] and datetime.fromisoformat(packet[1]) > current_time
+        ]
+        event_row = conn.execute(
+            """
+            SELECT status, detail FROM broker_execution_events
+            WHERE execution_profile_id = ? ORDER BY occurred_at DESC, rowid DESC LIMIT 1
+            """,
+            (profile_id,),
+        ).fetchone()
+        profile_rows.append(
+            {
+                "execution_profile_id": profile_id,
+                "agent_provider": profile["agent_provider"],
+                "enabled": profile["enabled"],
+                "account_bound": profile["account_bound"],
+                "snapshot": snapshot,
+                "run": run,
+                "pending_packet_count": len(pending_packets),
+                "execution_packet_id": pending_packets[0][0] if pending_packets else None,
+                "execution_status": event_row[0] if event_row else None,
+                "execution_error": event_row[1] if event_row else "",
+            }
+        )
+    return {"shared": shared, "profiles": profile_rows}
+
+
 def operator_status(
     conn: sqlite3.Connection, digest_dir: Path, reason_dir: Path, on_date: date
 ) -> dict[str, Any]:

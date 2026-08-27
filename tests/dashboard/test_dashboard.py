@@ -15,6 +15,7 @@ from app.storage.database import connect
 ROUTES = (
     "/",
     "/operate",
+    "/operate/live",
     "/portfolio",
     "/decisions",
     "/executions",

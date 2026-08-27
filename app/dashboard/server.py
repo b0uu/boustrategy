@@ -1,7 +1,7 @@
 import argparse
 import secrets
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from html import escape
 from pathlib import Path
 from typing import Any, Protocol
@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.broker.config import load_live_profiles, public_profile_status
 from app.dashboard import queries
-from app.reason.run import PreparationResult, prepare_session
+from app.reason.run import LIVE_SNAPSHOT_MAX_AGE, PreparationResult, prepare_session
 from app.storage.database import connect
 
 # Status colors are reserved for state and always ship with a text label,
@@ -94,6 +94,7 @@ figcaption{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;
   color:var(--ink-3);margin-bottom:.5rem}
 .operator-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr);
   gap:1rem;align-items:start}
+.live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;
   padding:1.1rem 1.2rem;margin-bottom:1rem;box-shadow:0 14px 35px rgba(28,31,27,.035)}
 .panel h2{margin:.1rem 0 .8rem}.panel p{color:var(--ink-2);margin:.45rem 0}
@@ -119,12 +120,13 @@ button:hover,.button:hover{background:#343431}.button.secondary{background:trans
 .status-row:last-child{border-bottom:0;padding-bottom:0}
 .status-row span:first-child{color:var(--ink-2)}
 .quiet{font-size:.78rem;color:var(--ink-3)}
-@media(max-width:760px){.operator-grid{grid-template-columns:1fr}nav .inner{gap:.75rem}}
+@media(max-width:760px){.operator-grid,.live-grid{grid-template-columns:1fr}nav .inner{gap:.75rem}}
 """
 
 _NAV = (
     ("Overview", "/"),
-    ("Operate", "/operate"),
+    ("Paper operator", "/operate"),
+    ("Live trial", "/operate/live"),
     ("Portfolio", "/portfolio"),
     ("Decisions", "/decisions"),
     ("Executions", "/executions"),
@@ -187,6 +189,131 @@ def _copy_button(target: str, label: str, enabled: bool = True) -> str:
     return (
         f"<button type='button' class='button secondary' data-copy='{target}'{disabled}>"
         f"{escape(label)}</button>"
+    )
+
+
+def _live_reasoning_prompt(profile: dict[str, Any], shared: dict[str, Any]) -> str:
+    run = profile["run"]
+    snapshot = profile["snapshot"]
+    return (
+        f"Follow docs/reasoning/RUNBOOK.md for reasoning run {run['reasoning_run_id']} and "
+        f"execution profile {profile['execution_profile_id']}. Read shared bundle "
+        f"{shared['shared_bundle_path']} with SHA-256 {shared['shared_bundle_sha256']} and only "
+        f"portfolio snapshot {snapshot['portfolio_snapshot_id']}. Market and research inputs "
+        "match the other agent, but account state is intentionally isolated. Don't read or act "
+        "on the other profile. Submit every decision through the live run boundary, then complete "
+        "the run with a public summary, including when the result is no action."
+    )
+
+
+def _live_execution_prompt(profile: dict[str, Any]) -> str:
+    return (
+        f"Follow docs/execution/EXECUTOR.md for exactly one packet "
+        f"{profile['execution_packet_id']} assigned to execution profile "
+        f"{profile['execution_profile_id']}. Verify and reconcile only that current packet. "
+        "Don't research, resize, substitute accounts, or continue to another packet. Stop after "
+        "one reconciled packet."
+    )
+
+
+def _live_operator_body(payload: dict[str, Any], *, now: datetime) -> str:
+    shared = payload["shared"]
+    if shared is None:
+        shared_panel = (
+            "<div class='panel'><h2>Shared intake</h2><div class='error'>"
+            "No prepared live reasoning runs yet. Save each profile snapshot, then prepare the "
+            "shared bundle with the live reasoning CLI.</div></div>"
+        )
+    else:
+        shared_panel = (
+            "<div class='panel'><h2>Shared intake</h2>"
+            f"<p>{escape(shared['session_date'])} / {escape(shared['slot'])}</p>"
+            f"<p><code>{escape(shared['shared_bundle_path'])}</code></p>"
+            f"<p class='quiet'>SHA-256 {escape(shared['shared_bundle_sha256'])}</p></div>"
+        )
+
+    cards = []
+    comparison = []
+    for profile in payload["profiles"]:
+        snapshot = profile["snapshot"]
+        run = profile["run"]
+        snapshot_fresh = False
+        snapshot_age = "none"
+        if snapshot is not None:
+            age = now - datetime.fromisoformat(snapshot["captured_at"])
+            snapshot_fresh = timedelta(0) <= age <= LIVE_SNAPSHOT_MAX_AGE
+            snapshot_age = f"{max(0, int(age.total_seconds()))}s"
+        reasoning_ready = bool(
+            shared
+            and run
+            and run["result"] == "PREPARED"
+            and snapshot
+            and snapshot_fresh
+            and run["portfolio_snapshot_id"] == snapshot["portfolio_snapshot_id"]
+            and profile["enabled"]
+            and profile["account_bound"]
+        )
+        execution_ready = bool(
+            profile["enabled"] and profile["account_bound"] and profile["execution_packet_id"]
+        )
+        reasoning_prompt = (
+            _live_reasoning_prompt(profile, shared) if reasoning_ready else "Reasoning isn't ready."
+        )
+        execution_prompt = (
+            _live_execution_prompt(profile) if execution_ready else "Execution isn't ready."
+        )
+        profile_id = escape(profile["execution_profile_id"])
+        summary = escape(run["public_summary"]) if run else "none yet"
+        positions = len(snapshot["positions"]) if snapshot else 0
+        equity = f"${snapshot['account_equity']:.2f}" if snapshot else "none"
+        buying_power = f"${snapshot['buying_power']:.2f}" if snapshot else "none"
+        run_status = run["result"] if run else "missing"
+        profile_readiness = (
+            "ready" if profile["enabled"] and profile["account_bound"] else "missing"
+        )
+        profile_state = (
+            "account bound and enabled"
+            if profile_readiness == "ready"
+            else "profile disabled or account not bound"
+        )
+        cards.append(
+            "<section class='panel'>"
+            f"<h2>{escape(str(profile['agent_provider']))} / {profile_id}</h2>"
+            f"<p>{_badge(profile_readiness)} {profile_state}</p>"
+            f"<p>Snapshot age: {escape(snapshot_age)} · Equity: {equity} · Buying power: "
+            f"{buying_power} · Positions: {positions}</p>"
+            f"<p>Run: {_badge(run_status)} · Decisions: {run['decision_count'] if run else 0}</p>"
+            f"<p>Summary: {summary}</p>"
+            f"<p>Pending packets: {profile['pending_packet_count']} · Broker: "
+            f"{escape(profile['execution_status'] or 'none')}</p>"
+            + (
+                f"<div class='error'>{escape(profile['execution_error'])}</div>"
+                if profile["execution_error"]
+                else ""
+            )
+            + f"<pre class='prompt' id='reasoning-{profile_id}'>{escape(reasoning_prompt)}</pre>"
+            + _copy_button(f"reasoning-{profile_id}", "Copy reasoning prompt", reasoning_ready)
+            + f"<pre class='prompt' id='execution-{profile_id}'>{escape(execution_prompt)}</pre>"
+            + _copy_button(f"execution-{profile_id}", "Copy execution prompt", execution_ready)
+            + "</section>"
+        )
+        comparison.append(
+            {
+                "profile": profile["execution_profile_id"],
+                "equity": snapshot["account_equity"] if snapshot else None,
+                "positions": positions,
+                "run": run_status,
+                "decisions": run["decision_count"] if run else 0,
+                "pending_packets": profile["pending_packet_count"],
+            }
+        )
+    return (
+        "<div class='notice'>Private localhost operator panel. It copies exact prompts and never "
+        "launches an agent or places an order.</div>"
+        + shared_panel
+        + f"<div class='live-grid'>{''.join(cards)}</div>"
+        + "<h2>Profile comparison</h2>"
+        + _table(comparison)
     )
 
 
@@ -495,6 +622,20 @@ def create_app(
             "Manual paper cycle",
             _operator_body(status, csrf_token, selected_slot, notice=notice),
             active="/operate",
+        )
+
+    @app.get("/operate/live", response_class=HTMLResponse)
+    def operate_live() -> str:
+        conn = connect(path)
+        profiles = (
+            public_profile_status(load_live_profiles(live_config)) if live_config.is_file() else []
+        )
+        now = datetime.now(UTC)
+        payload = queries.live_operator_status(conn, profiles, now=now)
+        return _page(
+            "Dual-agent live trial",
+            _live_operator_body(payload, now=now),
+            active="/operate/live",
         )
 
     @app.post("/operate/prepare", response_class=HTMLResponse)

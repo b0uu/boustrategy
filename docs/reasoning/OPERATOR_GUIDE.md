@@ -1,4 +1,4 @@
-# Operating a paper reasoning session
+# Operating paper and live-trial reasoning sessions
 
 `RUNBOOK.md` isn't an automated trading script. It is the contract for one fresh, supervised
 reasoning session. During the current manual phase, the operator starts ingestion and reasoning
@@ -62,6 +62,21 @@ On the Operate page:
 
 The interface is deliberately supervised. It copies the two agent prompts instead of silently
 starting model runs. The Operate page remains paper-only and can't send orders to a live brokerage.
+
+## Private dashboard modes
+
+The localhost dashboard is a private personal operator panel and test surface. It may show private
+operational data and must remain bound to `127.0.0.1`.
+
+- **Paper operator** keeps the existing paper preparation and reasoning workflow.
+- **Live trial** shows one shared market and research intake with separate Codex and Claude profile
+  cards. The agents receive the same research input but never share account snapshots, holdings,
+  quotas, decisions, intents, packets, or broker lifecycle state.
+- **Executions** remains the append-only broker ledger and execution-only handoff.
+
+The dashboard copies exact prompts for manually started agent sessions. It doesn't launch agents,
+schedule work, call Robinhood, or place an order. Scheduling is still deferred. The eventual
+public dashboard is a separate public-safe product and isn't part of this private implementation.
 
 ## Live-trial boundary under development
 
