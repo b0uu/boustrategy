@@ -80,11 +80,20 @@ def overview(conn: sqlite3.Connection, digest_dir: Path) -> dict[str, Any]:
                 """
             ).fetchall()
         )
+    if table_exists(conn, "order_intents") and table_exists(conn, "broker_execution_records"):
+        result["live_intents_awaiting_execution"] = conn.execute(
+            """
+            SELECT COUNT(*) FROM order_intents o
+            LEFT JOIN broker_execution_records b ON b.order_intent_id = o.order_intent_id
+            WHERE o.execution_mode = 'LIVE' AND b.broker_execution_record_id IS NULL
+            """
+        ).fetchone()[0]
     return result
 
 
 def portfolio(conn: sqlite3.Connection) -> dict[str, Any]:
     positions = None
+    intents = None
     if table_exists(conn, "paper_positions") and table_exists(conn, "daily_prices"):
         positions = rows(
             conn,
@@ -107,8 +116,30 @@ def portfolio(conn: sqlite3.Connection) -> dict[str, Any]:
                 item["unrealized_pl"] = item["shares"] * (
                     (item["latest_close"] or 0) - item["avg_cost"]
                 )
+    if all(
+        table_exists(conn, table)
+        for table in ("order_intents", "paper_fills", "broker_execution_records")
+    ):
+        intents = rows(
+            conn,
+            "order_intents",
+            """
+            SELECT o.order_intent_id, o.created_at, o.ticker, o.side, o.execution_mode,
+                   CASE
+                     WHEN p.fill_id IS NOT NULL THEN 'paper_filled'
+                     WHEN b.broker_execution_record_id IS NOT NULL THEN b.status
+                     WHEN o.execution_mode = 'LIVE' THEN 'awaiting_execution'
+                     ELSE 'awaiting_price'
+                   END AS status
+            FROM order_intents o
+            LEFT JOIN paper_fills p ON p.order_intent_id = o.order_intent_id
+            LEFT JOIN broker_execution_records b ON b.order_intent_id = o.order_intent_id
+            ORDER BY o.created_at DESC
+            """,
+        )
     return {
         "positions": positions,
+        "intents": intents,
         "fills": rows(conn, "paper_fills", "SELECT * FROM paper_fills ORDER BY fill_date DESC"),
         "equity_series": equity_series(conn),
     }
@@ -216,6 +247,30 @@ def triggers(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
         conn,
         "trigger_events",
         "SELECT * FROM trigger_events ORDER BY status, fired_at DESC",
+    )
+
+
+def executions(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    return rows(
+        conn,
+        "broker_execution_records",
+        """
+        SELECT broker_execution_record_id, order_intent_id, submitted_at, ticker, side,
+               status, broker_order_id
+        FROM broker_execution_records ORDER BY submitted_at DESC
+        """,
+    )
+
+
+def execution_events(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    return rows(
+        conn,
+        "broker_execution_events",
+        """
+        SELECT broker_event_id, broker_execution_record_id, order_intent_id, status,
+               occurred_at, detail
+        FROM broker_execution_events ORDER BY occurred_at DESC, rowid DESC
+        """,
     )
 
 

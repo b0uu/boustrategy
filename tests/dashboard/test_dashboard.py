@@ -17,6 +17,7 @@ ROUTES = (
     "/operate",
     "/portfolio",
     "/decisions",
+    "/executions",
     "/digests",
     "/x",
     "/regime",
@@ -206,3 +207,25 @@ def test_overview_tiles_link_to_detail_pages(tmp_path: Path) -> None:
 
     assert "href='/portfolio'" in response.text
     assert "href='/regime'" in response.text
+    assert "href='/executions'" in response.text
+
+
+def test_portfolio_shows_paper_intent_and_executions_remain_disabled(tmp_path: Path) -> None:
+    db_path = tmp_path / "synthetic.db"
+    conn = connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO order_intents
+            (order_intent_id, decision_id, created_at, ticker, side, execution_mode, intent_json)
+        VALUES ('oi_1', 'dec_1', '2026-08-26T12:00:00Z', 'NVDA', 'BUY', 'PAPER', '{}')
+        """
+    )
+    conn.commit()
+    client = TestClient(create_app(db_path))
+
+    portfolio = client.get("/portfolio")
+    executions = client.get("/executions")
+
+    assert "awaiting_price" in portfolio.text
+    assert "PAPER" in portfolio.text
+    assert "Live placement is disabled" in executions.text

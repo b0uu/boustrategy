@@ -2,7 +2,7 @@ import pytest
 
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
-from app.schemas.order_intent import OrderIntentStatus, OrderSide, OrderType
+from app.schemas.order_intent import ExecutionMode, OrderIntentStatus, OrderSide, OrderType
 from tests.fixtures.decision_records import decision_record_with, valid_decision_record
 
 approved = PolicyResult(approved=True)
@@ -66,3 +66,13 @@ def test_created_at_is_timezone_aware():
     intent = create_order_intent(record, approved)
 
     assert intent.created_at.tzinfo is not None
+
+
+def test_execution_mode_defaults_to_paper_and_can_be_live():
+    record = valid_decision_record()
+
+    paper = create_order_intent(record, approved)
+    live = create_order_intent(record, approved, execution_mode=ExecutionMode.LIVE)
+
+    assert paper.execution_mode == ExecutionMode.PAPER
+    assert live.execution_mode == ExecutionMode.LIVE

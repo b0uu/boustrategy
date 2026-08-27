@@ -17,6 +17,11 @@ class OrderIntentStatus(StrEnum):
     CREATED = "CREATED"
 
 
+class ExecutionMode(StrEnum):
+    PAPER = "PAPER"
+    LIVE = "LIVE"
+
+
 class OrderIntent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -28,3 +33,4 @@ class OrderIntent(BaseModel):
     order_type: OrderType = OrderType.LIMIT
     target_weight: float = Field(ge=0.0, le=1.0)
     status: OrderIntentStatus = OrderIntentStatus.CREATED
+    execution_mode: ExecutionMode = ExecutionMode.PAPER

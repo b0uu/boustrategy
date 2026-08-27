@@ -26,7 +26,15 @@ _STATUS_GOOD = {
     "summarized",
     "ready",
 }
-_STATUS_WARN = {"yellow", "pending", "started", "exported", "routed"}
+_STATUS_WARN = {
+    "yellow",
+    "pending",
+    "started",
+    "exported",
+    "routed",
+    "awaiting_execution",
+    "awaiting_price",
+}
 _STATUS_BAD = {"red", "policy_rejected", "schema_failed", "failed", "dismissed", "missing"}
 
 _STYLE = """
@@ -118,6 +126,7 @@ _NAV = (
     ("Operate", "/operate"),
     ("Portfolio", "/portfolio"),
     ("Decisions", "/decisions"),
+    ("Executions", "/executions"),
     ("Digests", "/digests"),
     ("X", "/x"),
     ("Regime", "/regime"),
@@ -436,6 +445,16 @@ def _overview_tiles(payload: dict[str, Any]) -> str:
     else:
         tiles.append(_tile("/decisions", "Decisions", "0", "none yet"))
 
+    if "live_intents_awaiting_execution" in payload:
+        tiles.append(
+            _tile(
+                "/executions",
+                "Live intents awaiting execution",
+                f"{payload['live_intents_awaiting_execution']:,}",
+                "live placement disabled",
+            )
+        )
+
     return f"<div class='tiles'>{''.join(tiles)}</div>"
 
 
@@ -533,6 +552,8 @@ def create_app(
             _sparkline(payload["equity_series"])
             + "<h2>Positions</h2>"
             + _table(payload["positions"])
+            + "<h2>Order intents</h2>"
+            + _table(payload["intents"])
             + "<h2>Fills</h2>"
             + _table(payload["fills"]),
             active="/portfolio",
@@ -542,6 +563,19 @@ def create_app(
     def decisions() -> str:
         conn = connect(path)
         return _page("Decisions", _table(queries.decisions(conn)), active="/decisions")
+
+    @app.get("/executions", response_class=HTMLResponse)
+    def executions() -> str:
+        conn = connect(path)
+        body = (
+            "<div class='notice'>Live placement is disabled. This page is an append-only "
+            "broker execution ledger, not an order-entry surface.</div>"
+            "<h2>Execution records</h2>"
+            + _table(queries.executions(conn))
+            + "<h2>Lifecycle events</h2>"
+            + _table(queries.execution_events(conn))
+        )
+        return _page("Broker executions", body, active="/executions")
 
     @app.get("/digests", response_class=HTMLResponse)
     def digests(file: str | None = None) -> str:

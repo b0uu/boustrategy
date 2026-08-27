@@ -4,7 +4,7 @@ from pydantic import AwareDatetime
 
 from app.policy.decision_policy import PolicyResult
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
-from app.schemas.order_intent import OrderIntent, OrderSide
+from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide
 
 _INTENT_SIDES = {
     Decision.BUY: OrderSide.BUY,
@@ -18,6 +18,7 @@ def create_order_intent(
     record: InvestmentDecisionRecord,
     policy_result: PolicyResult,
     created_at: AwareDatetime | None = None,
+    execution_mode: ExecutionMode = ExecutionMode.PAPER,
 ) -> OrderIntent:
     if not policy_result.approved:
         raise ValueError("cannot create an order intent from a rejected decision")
@@ -35,4 +36,5 @@ def create_order_intent(
         ticker=record.ticker,
         side=side,
         target_weight=record.final_target_weight,
+        execution_mode=execution_mode,
     )

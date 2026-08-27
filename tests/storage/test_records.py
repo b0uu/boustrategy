@@ -1,11 +1,17 @@
+from datetime import UTC, datetime
+
 import pytest
 
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
+from app.schemas.broker_execution import BrokerExecutionRecord
+from app.schemas.order_intent import ExecutionMode
 from app.storage.database import connect
 from app.storage.records import (
+    get_broker_execution_record,
     get_decision_record,
     get_order_intent,
+    save_broker_execution_record,
     save_decision_record,
     save_order_intent,
 )
@@ -80,3 +86,81 @@ def test_database_file_created_on_connect(tmp_path):
     conn.close()
 
     assert db_path.exists()
+
+
+def test_broker_execution_requires_live_intent_and_round_trips() -> None:
+    conn = connect(":memory:")
+    intent = create_order_intent(
+        valid_decision_record(),
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+    )
+    save_order_intent(conn, intent)
+    record = BrokerExecutionRecord(
+        broker_execution_record_id="be_001",
+        order_intent_id=intent.order_intent_id,
+        ticker=intent.ticker,
+        side=intent.side,
+        order_type=intent.order_type,
+        notional_or_quantity="$15.00 notional",
+        limit_price=200.0,
+        submitted_at=datetime(2026, 8, 26, 14, 0, tzinfo=UTC),
+        status="SUBMITTED",
+        broker_order_id="rh_001",
+        execution_price=0.0,
+    )
+
+    first = save_broker_execution_record(conn, record)
+    second = save_broker_execution_record(conn, record)
+
+    assert first is True
+    assert second is False
+    assert get_broker_execution_record(conn, "be_001") == record
+
+
+def test_broker_execution_rejects_paper_intent() -> None:
+    conn = connect(":memory:")
+    intent = create_order_intent(valid_decision_record(), PolicyResult(approved=True))
+    save_order_intent(conn, intent)
+    record = BrokerExecutionRecord(
+        broker_execution_record_id="be_001",
+        order_intent_id=intent.order_intent_id,
+        ticker=intent.ticker,
+        side=intent.side,
+        order_type=intent.order_type,
+        notional_or_quantity="$15.00 notional",
+        limit_price=200.0,
+        submitted_at=datetime(2026, 8, 26, 14, 0, tzinfo=UTC),
+        status="SUBMITTED",
+        broker_order_id="rh_001",
+        execution_price=0.0,
+    )
+
+    with pytest.raises(ValueError, match="is not live"):
+        save_broker_execution_record(conn, record)
+
+
+def test_broker_execution_record_must_begin_submitted() -> None:
+    conn = connect(":memory:")
+    intent = create_order_intent(
+        valid_decision_record(),
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+    )
+    save_order_intent(conn, intent)
+    record = BrokerExecutionRecord(
+        broker_execution_record_id="be_001",
+        order_intent_id=intent.order_intent_id,
+        ticker=intent.ticker,
+        side=intent.side,
+        order_type=intent.order_type,
+        notional_or_quantity="$15.00 notional",
+        limit_price=200.0,
+        submitted_at=datetime(2026, 8, 26, 14, 0, tzinfo=UTC),
+        status="FILLED",
+        broker_order_id="rh_001",
+        execution_price=200.0,
+    )
+
+    with pytest.raises(ValueError, match="must begin at SUBMITTED"):
+        save_broker_execution_record(conn, record)

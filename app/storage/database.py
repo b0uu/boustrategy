@@ -15,7 +15,27 @@ CREATE TABLE IF NOT EXISTS order_intents (
     created_at TEXT NOT NULL,
     ticker TEXT NOT NULL,
     side TEXT NOT NULL,
+    execution_mode TEXT NOT NULL DEFAULT 'PAPER',
     intent_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS broker_execution_records (
+    broker_execution_record_id TEXT PRIMARY KEY,
+    order_intent_id TEXT NOT NULL UNIQUE,
+    submitted_at TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    side TEXT NOT NULL,
+    status TEXT NOT NULL,
+    broker_order_id TEXT NOT NULL UNIQUE,
+    record_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS broker_execution_events (
+    broker_event_id TEXT PRIMARY KEY,
+    broker_execution_record_id TEXT NOT NULL,
+    order_intent_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    event_json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS daily_prices (
     ticker TEXT NOT NULL,
@@ -221,6 +241,11 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
             "reply_context": "TEXT NOT NULL DEFAULT ''",
             "media_json": "TEXT NOT NULL DEFAULT '[]'",
         },
+    )
+    _ensure_columns(
+        conn,
+        "order_intents",
+        {"execution_mode": "TEXT NOT NULL DEFAULT 'PAPER'"},
     )
     conn.commit()
     return conn

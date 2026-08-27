@@ -1,7 +1,8 @@
 import sqlite3
 
+from app.schemas.broker_execution import BrokerExecutionRecord, BrokerExecutionStatus
 from app.schemas.decision_record import InvestmentDecisionRecord
-from app.schemas.order_intent import OrderIntent
+from app.schemas.order_intent import ExecutionMode, OrderIntent
 
 
 def save_decision_record(
@@ -57,7 +58,7 @@ def save_order_intent(conn: sqlite3.Connection, intent: OrderIntent) -> bool:
         (intent.order_intent_id,),
     ).fetchone()
     if existing is not None:
-        if existing[0] == intent_json:
+        if OrderIntent.model_validate_json(existing[0]) == intent:
             return False
         raise ValueError(
             f"order intent {intent.order_intent_id} already exists with different content"
@@ -67,8 +68,9 @@ def save_order_intent(conn: sqlite3.Connection, intent: OrderIntent) -> bool:
         conn.execute(
             """
             INSERT INTO order_intents
-                (order_intent_id, decision_id, created_at, ticker, side, intent_json)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (order_intent_id, decision_id, created_at, ticker, side, execution_mode,
+                 intent_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 intent.order_intent_id,
@@ -76,6 +78,7 @@ def save_order_intent(conn: sqlite3.Connection, intent: OrderIntent) -> bool:
                 intent.created_at.isoformat(),
                 intent.ticker,
                 intent.side.value,
+                intent.execution_mode.value,
                 intent_json,
             ),
         )
@@ -98,3 +101,74 @@ def get_order_intent(
     if row is None:
         return None
     return OrderIntent.model_validate_json(row[0])
+
+
+def save_broker_execution_record(
+    conn: sqlite3.Connection,
+    record: BrokerExecutionRecord,
+) -> bool:
+    intent = get_order_intent(conn, record.order_intent_id)
+    if intent is None:
+        raise ValueError(f"missing order intent {record.order_intent_id}")
+    if intent.execution_mode != ExecutionMode.LIVE:
+        raise ValueError(f"order intent {record.order_intent_id} is not live")
+    if intent.ticker != record.ticker or intent.side != record.side:
+        raise ValueError("broker execution does not match its order intent")
+    if record.status != BrokerExecutionStatus.SUBMITTED:
+        raise ValueError("a broker execution record must begin at SUBMITTED")
+
+    record_json = record.model_dump_json()
+    existing = conn.execute(
+        """
+        SELECT record_json FROM broker_execution_records
+        WHERE broker_execution_record_id = ?
+        """,
+        (record.broker_execution_record_id,),
+    ).fetchone()
+    if existing is not None:
+        if BrokerExecutionRecord.model_validate_json(existing[0]) == record:
+            return False
+        raise ValueError(
+            f"broker execution {record.broker_execution_record_id} already exists "
+            "with different content"
+        )
+
+    try:
+        conn.execute(
+            """
+            INSERT INTO broker_execution_records
+                (broker_execution_record_id, order_intent_id, submitted_at, ticker, side,
+                 status, broker_order_id, record_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                record.broker_execution_record_id,
+                record.order_intent_id,
+                record.submitted_at.isoformat(),
+                record.ticker,
+                record.side.value,
+                record.status.value,
+                record.broker_order_id,
+                record_json,
+            ),
+        )
+    except sqlite3.IntegrityError as error:
+        raise ValueError("order intent or broker order already has an execution record") from error
+    conn.commit()
+    return True
+
+
+def get_broker_execution_record(
+    conn: sqlite3.Connection,
+    broker_execution_record_id: str,
+) -> BrokerExecutionRecord | None:
+    row = conn.execute(
+        """
+        SELECT record_json FROM broker_execution_records
+        WHERE broker_execution_record_id = ?
+        """,
+        (broker_execution_record_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return BrokerExecutionRecord.model_validate_json(row[0])
