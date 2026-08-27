@@ -34,6 +34,7 @@ def build_intake(
     digest_dir: str | Path = "data/digests",
     *,
     rules_signed_off: bool = True,
+    live: bool = False,
 ) -> Path:
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -77,32 +78,35 @@ def build_intake(
         )
     ]
     positions = []
-    positions_value = 0.0
-    for ticker, shares, avg_cost, theme in conn.execute(
-        "SELECT ticker, shares, avg_cost, primary_theme_id FROM paper_positions ORDER BY ticker"
-    ):
-        close = _latest_close(conn, ticker, on_date)
-        market_value = float(shares) * close
-        positions_value += market_value
-        positions.append(
-            {
-                "ticker": ticker,
-                "shares": shares,
-                "avg_cost": avg_cost,
-                "latest_close": close,
-                "market_value": market_value,
-                "primary_theme_id": theme,
-            }
-        )
-    cash = cash_balance(conn, on_date)
-    quota = portfolio_context(conn, on_date)
-    portfolio = {
-        "as_of": on_date.isoformat(),
-        "positions": positions,
-        "cash": cash,
-        "equity": cash + positions_value,
-        "quota_state": quota.model_dump(),
-    }
+    portfolio: dict[str, object] = {}
+    quota = None
+    if not live:
+        positions_value = 0.0
+        for ticker, shares, avg_cost, theme in conn.execute(
+            "SELECT ticker, shares, avg_cost, primary_theme_id FROM paper_positions ORDER BY ticker"
+        ):
+            close = _latest_close(conn, ticker, on_date)
+            market_value = float(shares) * close
+            positions_value += market_value
+            positions.append(
+                {
+                    "ticker": ticker,
+                    "shares": shares,
+                    "avg_cost": avg_cost,
+                    "latest_close": close,
+                    "market_value": market_value,
+                    "primary_theme_id": theme,
+                }
+            )
+        cash = cash_balance(conn, on_date)
+        quota = portfolio_context(conn, on_date)
+        portfolio = {
+            "as_of": on_date.isoformat(),
+            "positions": positions,
+            "cash": cash,
+            "equity": cash + positions_value,
+            "quota_state": quota.model_dump(),
+        }
     calendar = upcoming_events(conn, on_date, 7)
 
     digest_root = Path(digest_dir)
@@ -121,9 +125,10 @@ def build_intake(
         else []
     )
 
-    (output / "portfolio.json").write_text(
-        json.dumps(portfolio, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    if not live:
+        (output / "portfolio.json").write_text(
+            json.dumps(portfolio, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     (output / "triggers.json").write_text(
         json.dumps(triggers, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -166,18 +171,20 @@ def build_intake(
     )
     if not articles:
         lines.append("None.")
-    lines.extend(["", "## Paper portfolio", ""])
-    lines.extend(
-        f"- {item['ticker']}: {item['shares']} shares, value {item['market_value']:.2f}, "
-        f"theme {item['primary_theme_id'] or 'none'}"
-        for item in positions
-    )
-    if not positions:
-        lines.append("- No positions.")
-    lines.extend([f"- Cash: {cash:.2f}", f"- Equity: {portfolio['equity']:.2f}"])
-    lines.extend(["", "## Today's intake quota state", ""])
-    for key, value in quota.model_dump().items():
-        lines.append(f"- {key}: `{json.dumps(value, sort_keys=True)}`")
+    if not live:
+        lines.extend(["", "## Paper portfolio", ""])
+        lines.extend(
+            f"- {item['ticker']}: {item['shares']} shares, value {item['market_value']:.2f}, "
+            f"theme {item['primary_theme_id'] or 'none'}"
+            for item in positions
+        )
+        if not positions:
+            lines.append("- No positions.")
+        lines.extend([f"- Cash: {cash:.2f}", f"- Equity: {portfolio['equity']:.2f}"])
+        lines.extend(["", "## Today's intake quota state", ""])
+        assert quota is not None
+        for key, value in quota.model_dump().items():
+            lines.append(f"- {key}: `{json.dumps(value, sort_keys=True)}`")
     lines.extend(["", "## Upcoming calendar (7 days)", ""])
     lines.extend(
         f"- {event_date}: {event_type} {ticker or 'FOMC'} — {label}"
@@ -198,6 +205,6 @@ def build_intake(
             "- `docs/prompts/daily_management.md`",
         ]
     )
-    bundle_path = output / "bundle.md"
+    bundle_path = output / ("shared_bundle.md" if live else "bundle.md")
     bundle_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
     return bundle_path

@@ -27,3 +27,26 @@ the resulting directory and does not rerun preparation.
    `data/reasoning_sessions/<date>.md`. The no-action record is evaluation gold.
 
 never edit digests/labels/roster/maintainer docs; never write to the db except via `submit`; never continue into digester work (separate seam, separate session).
+
+## Live dual-agent trial
+
+Live mode begins only after the operator has saved a broker-sourced
+`LivePortfolioSnapshot` for each enabled profile and prepared one shared bundle plus one
+`ReasoningRun` per profile. Each fresh reasoning session receives its exact reasoning run ID,
+execution profile ID, shared bundle path and SHA-256, and its own snapshot ID.
+
+1. Read `shared_bundle.md`, only the snapshot named by your run, and every required runtime
+   document listed in the bundle. The shared market and research input is identical for both
+   profiles. Account state is intentionally isolated.
+2. Never read, compare, or act on the other profile's snapshot, holdings, quotas, decisions,
+   intents, packets, broker lifecycle, or account. The paper portfolio is out of scope and must be
+   ignored in live mode.
+3. Namespace every decision ID with `<reasoning_run_id>_` and submit every record through
+   `python -m app.reason.run submit --execution-profile <profile> --reasoning-run <run-id>
+   --in <file> [--date YYYY-MM-DD]`. Never write a live decision, intent, or link directly.
+4. Complete the run through `python -m app.reason.run complete-live --in <run-file>`. Use one
+   terminal result: `NO_ACTION`, `DECISIONS_AUTHORED`, or `FAILED`. Always include a concise public
+   summary. No action still requires durable completion and a public summary.
+
+The reasoning session stops after terminal completion. It doesn't build execution packets, call
+Robinhood, review orders, or place trades.

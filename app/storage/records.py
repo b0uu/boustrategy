@@ -2,13 +2,165 @@ import sqlite3
 
 from app.schemas.broker_execution import BrokerExecutionRecord, BrokerExecutionStatus
 from app.schemas.decision_record import InvestmentDecisionRecord
-from app.schemas.live_execution import LiveExecutionPacket
+from app.schemas.live_execution import (
+    ExecutionProfile,
+    LiveExecutionPacket,
+    LivePortfolioSnapshot,
+)
 from app.schemas.order_intent import ExecutionMode, OrderIntent
+from app.schemas.reasoning_run import ReasoningRun, ReasoningRunResult
+
+
+def save_live_portfolio_snapshot(
+    conn: sqlite3.Connection,
+    snapshot: LivePortfolioSnapshot,
+    profile: ExecutionProfile,
+) -> bool:
+    if not profile.enabled:
+        raise ValueError("execution profile is disabled")
+    if snapshot.execution_profile_id != profile.execution_profile_id:
+        raise ValueError("snapshot profile does not match execution profile")
+    if snapshot.broker_account_fingerprint != profile.broker_account_fingerprint:
+        raise ValueError("snapshot account does not match execution profile")
+    snapshot_json = snapshot.model_dump_json()
+    existing = conn.execute(
+        "SELECT snapshot_json FROM live_portfolio_snapshots WHERE portfolio_snapshot_id = ?",
+        (snapshot.portfolio_snapshot_id,),
+    ).fetchone()
+    if existing is not None:
+        if LivePortfolioSnapshot.model_validate_json(existing[0]) == snapshot:
+            return False
+        raise ValueError("portfolio snapshot already exists with different content")
+    conn.execute(
+        """
+        INSERT INTO live_portfolio_snapshots
+            (portfolio_snapshot_id, execution_profile_id, captured_at, account_equity,
+             snapshot_json)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            snapshot.portfolio_snapshot_id,
+            snapshot.execution_profile_id,
+            snapshot.captured_at.isoformat(),
+            snapshot.account_equity,
+            snapshot_json,
+        ),
+    )
+    conn.commit()
+    return True
+
+
+def get_live_portfolio_snapshot(
+    conn: sqlite3.Connection, portfolio_snapshot_id: str
+) -> LivePortfolioSnapshot | None:
+    row = conn.execute(
+        "SELECT snapshot_json FROM live_portfolio_snapshots WHERE portfolio_snapshot_id = ?",
+        (portfolio_snapshot_id,),
+    ).fetchone()
+    return LivePortfolioSnapshot.model_validate_json(row[0]) if row else None
+
+
+def save_reasoning_run(conn: sqlite3.Connection, run: ReasoningRun) -> bool:
+    run_json = run.model_dump_json()
+    existing = conn.execute(
+        "SELECT run_json FROM reasoning_runs WHERE reasoning_run_id = ?",
+        (run.reasoning_run_id,),
+    ).fetchone()
+    if existing is not None:
+        if ReasoningRun.model_validate_json(existing[0]) == run:
+            return False
+        raise ValueError("reasoning run already exists with different content")
+    try:
+        conn.execute(
+            """
+            INSERT INTO reasoning_runs
+                (reasoning_run_id, session_date, slot, execution_profile_id, model_label,
+                 shared_bundle_sha256, portfolio_snapshot_id, result, started_at,
+                 completed_at, run_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                run.reasoning_run_id,
+                run.session_date.isoformat(),
+                run.slot,
+                run.execution_profile_id,
+                run.model_label,
+                run.shared_bundle_sha256,
+                run.portfolio_snapshot_id,
+                run.result.value,
+                run.started_at.isoformat(),
+                None,
+                run_json,
+            ),
+        )
+    except sqlite3.IntegrityError as error:
+        raise ValueError(
+            "reasoning run conflicts with an existing date, slot, or profile"
+        ) from error
+    conn.commit()
+    return True
+
+
+def get_reasoning_run(conn: sqlite3.Connection, reasoning_run_id: str) -> ReasoningRun | None:
+    row = conn.execute(
+        "SELECT run_json FROM reasoning_runs WHERE reasoning_run_id = ?",
+        (reasoning_run_id,),
+    ).fetchone()
+    return ReasoningRun.model_validate_json(row[0]) if row else None
+
+
+def complete_reasoning_run(conn: sqlite3.Connection, completed_run: ReasoningRun) -> ReasoningRun:
+    existing = get_reasoning_run(conn, completed_run.reasoning_run_id)
+    if existing is None:
+        raise ValueError("missing reasoning run")
+    if existing == completed_run:
+        return existing
+    if existing.result != ReasoningRunResult.PREPARED:
+        raise ValueError("reasoning run is already complete")
+    immutable_fields = (
+        "session_date",
+        "slot",
+        "execution_profile_id",
+        "model_label",
+        "shared_bundle_path",
+        "shared_bundle_sha256",
+        "portfolio_snapshot_id",
+        "started_at",
+    )
+    if any(getattr(existing, field) != getattr(completed_run, field) for field in immutable_fields):
+        raise ValueError("completed reasoning run changes immutable content")
+    if completed_run.result == ReasoningRunResult.PREPARED:
+        raise ValueError("completion requires a terminal result")
+    linked_decision_ids = {
+        row[0]
+        for row in conn.execute(
+            "SELECT decision_id FROM reasoning_run_decisions WHERE reasoning_run_id = ?",
+            (completed_run.reasoning_run_id,),
+        )
+    }
+    if set(completed_run.decision_ids) != linked_decision_ids:
+        raise ValueError("completed reasoning run decision_ids do not match linked decisions")
+    conn.execute(
+        """
+        UPDATE reasoning_runs SET result = ?, completed_at = ?, run_json = ?
+        WHERE reasoning_run_id = ? AND result = 'PREPARED'
+        """,
+        (
+            completed_run.result.value,
+            completed_run.completed_at.isoformat() if completed_run.completed_at else None,
+            completed_run.model_dump_json(),
+            completed_run.reasoning_run_id,
+        ),
+    )
+    conn.commit()
+    return completed_run
 
 
 def save_decision_record(
     conn: sqlite3.Connection,
     record: InvestmentDecisionRecord,
+    *,
+    commit: bool = True,
 ) -> bool:
     record_json = record.model_dump_json()
     existing = conn.execute(
@@ -35,7 +187,8 @@ def save_decision_record(
             record_json,
         ),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     return True
 
 
@@ -52,7 +205,9 @@ def get_decision_record(
     return InvestmentDecisionRecord.model_validate_json(row[0])
 
 
-def save_order_intent(conn: sqlite3.Connection, intent: OrderIntent) -> bool:
+def save_order_intent(
+    conn: sqlite3.Connection, intent: OrderIntent, *, commit: bool = True
+) -> bool:
     intent_json = intent.model_dump_json()
     existing = conn.execute(
         "SELECT intent_json FROM order_intents WHERE order_intent_id = ?",
@@ -88,7 +243,8 @@ def save_order_intent(conn: sqlite3.Connection, intent: OrderIntent) -> bool:
         raise ValueError(
             f"decision {intent.decision_id} already has a different order intent"
         ) from error
-    conn.commit()
+    if commit:
+        conn.commit()
     return True
 
 

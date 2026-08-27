@@ -55,6 +55,32 @@ CREATE TABLE IF NOT EXISTS broker_execution_events (
     detail TEXT NOT NULL DEFAULT '',
     event_json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS live_portfolio_snapshots (
+    portfolio_snapshot_id TEXT PRIMARY KEY,
+    execution_profile_id TEXT NOT NULL,
+    captured_at TEXT NOT NULL,
+    account_equity REAL NOT NULL,
+    snapshot_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reasoning_runs (
+    reasoning_run_id TEXT PRIMARY KEY,
+    session_date TEXT NOT NULL,
+    slot TEXT NOT NULL,
+    execution_profile_id TEXT NOT NULL,
+    model_label TEXT NOT NULL,
+    shared_bundle_sha256 TEXT NOT NULL,
+    portfolio_snapshot_id TEXT NOT NULL,
+    result TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    run_json TEXT NOT NULL,
+    UNIQUE(session_date, slot, execution_profile_id)
+);
+CREATE TABLE IF NOT EXISTS reasoning_run_decisions (
+    reasoning_run_id TEXT NOT NULL,
+    decision_id TEXT NOT NULL UNIQUE,
+    PRIMARY KEY (reasoning_run_id, decision_id)
+);
 CREATE TABLE IF NOT EXISTS daily_prices (
     ticker TEXT NOT NULL,
     bar_date TEXT NOT NULL,

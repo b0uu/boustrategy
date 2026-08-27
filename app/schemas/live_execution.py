@@ -1,7 +1,8 @@
 from enum import StrEnum
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.decision_record import TICKER_PATTERN
 from app.schemas.order_intent import OrderSide, OrderType
 
 
@@ -50,6 +51,40 @@ class LiveProfilesConfig(BaseModel):
             raise ValueError("account_alias values must be unique")
         if len(fingerprints) != len(set(fingerprints)):
             raise ValueError("broker_account_fingerprint values must be unique")
+        return self
+
+
+class LivePosition(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    ticker: str = Field(min_length=1, max_length=12)
+    market_value: float = Field(ge=0.0)
+    primary_theme_id: str = ""
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_ticker(cls, value: str) -> str:
+        if not TICKER_PATTERN.fullmatch(value):
+            raise ValueError("ticker must be uppercase and use supported characters")
+        return value
+
+
+class LivePortfolioSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    portfolio_snapshot_id: str = Field(min_length=1)
+    execution_profile_id: str = Field(min_length=1)
+    broker_account_fingerprint: str = Field(pattern=r"^[a-f0-9]{16}$")
+    captured_at: AwareDatetime
+    account_equity: float = Field(gt=0.0)
+    buying_power: float = Field(ge=0.0)
+    positions: list[LivePosition] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_unique_positions(self) -> "LivePortfolioSnapshot":
+        tickers = [position.ticker for position in self.positions]
+        if len(tickers) != len(set(tickers)):
+            raise ValueError("position tickers must be unique")
         return self
 
 

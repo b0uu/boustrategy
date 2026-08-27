@@ -7,12 +7,14 @@ import pytest
 
 from app.policy.decision_policy import PortfolioContext
 from app.reason.intake import build_intake
-from app.reason.run import main, prepare_session, submit_decision
+from app.reason.run import main, prepare_live_runs, prepare_session, submit_decision
 from app.regime.rules import Component, RegimeScore
 from app.schemas.decision_record import RegimeState
+from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
 from app.state.pipeline import DecisionStatus, ProcessOutcome
 from app.storage.database import connect
+from app.storage.records import save_live_portfolio_snapshot
 from app.triggers.store import insert_trigger
 from tests.fixtures.decision_records import valid_decision_record_data
 
@@ -92,6 +94,52 @@ def test_intake_shows_regime_banner_before_signoff(tmp_path: Path) -> None:
     ).read_text(encoding="utf-8")
 
     assert "RULES NOT YET SIGNED OFF" in bundle
+
+
+def test_live_runs_share_exact_intake_and_keep_separate_snapshots(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    profiles = []
+    run_inputs = []
+    for profile_id, provider in (("codex", "CODEX"), ("claude", "CLAUDE")):
+        profile = ExecutionProfile(
+            execution_profile_id=profile_id,
+            agent_provider=provider,
+            account_alias=f"{profile_id}-agentic",
+            broker_account_fingerprint=("0" if profile_id == "codex" else "1") * 16,
+            enabled=True,
+            max_order_notional=20,
+            max_quote_age_seconds=15,
+            max_spread_bps=50,
+        )
+        snapshot = LivePortfolioSnapshot(
+            portfolio_snapshot_id=f"snap_{profile_id}",
+            execution_profile_id=profile_id,
+            broker_account_fingerprint=profile.broker_account_fingerprint,
+            captured_at=datetime(2026, 8, 27, 20, tzinfo=UTC),
+            account_equity=100,
+            buying_power=100,
+        )
+        save_live_portfolio_snapshot(conn, snapshot, profile)
+        profiles.append(profile)
+        run_inputs.append((profile_id, provider.title(), snapshot.portfolio_snapshot_id))
+
+    runs = prepare_live_runs(
+        conn,
+        date(2026, 8, 27),
+        "close",
+        tmp_path / "out",
+        run_inputs,
+        digest_dir=tmp_path / "digests",
+        started_at=datetime(2026, 8, 27, 20, 1, tzinfo=UTC),
+    )
+
+    assert runs[0].shared_bundle_path == runs[1].shared_bundle_path
+    assert runs[0].shared_bundle_sha256 == runs[1].shared_bundle_sha256
+    assert runs[0].portfolio_snapshot_id != runs[1].portfolio_snapshot_id
+    bundle = Path(runs[0].shared_bundle_path).read_text(encoding="utf-8")
+    assert "Paper portfolio" not in bundle
+    assert "intake quota state" not in bundle
+    assert not (tmp_path / "out" / "portfolio.json").exists()
 
 
 def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> None:

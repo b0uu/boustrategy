@@ -68,6 +68,8 @@ def append_status(
     subject_id: str,
     status: DecisionStatus,
     detail: str = "",
+    *,
+    commit: bool = True,
 ) -> bool:
     rows = conn.execute(
         """
@@ -95,7 +97,8 @@ def append_status(
         """,
         (subject_id, status.value, datetime.now(UTC).isoformat(), detail),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     return True
 
 
@@ -108,6 +111,7 @@ def process_decision(
     received_at: datetime | None = None,
     execution_mode: ExecutionMode = ExecutionMode.PAPER,
     execution_profile_id: str = "",
+    commit: bool = True,
 ) -> ProcessOutcome:
     try:
         record = InvestmentDecisionRecord.model_validate(record_data)
@@ -117,7 +121,13 @@ def process_decision(
             raw_decision_id if isinstance(raw_decision_id, str) and raw_decision_id else None
         )
         if decision_id is not None:
-            append_status(conn, decision_id, DecisionStatus.SCHEMA_FAILED, detail=str(error)[:500])
+            append_status(
+                conn,
+                decision_id,
+                DecisionStatus.SCHEMA_FAILED,
+                detail=str(error)[:500],
+                commit=commit,
+            )
         return ProcessOutcome(decision_id=decision_id, final_status=DecisionStatus.SCHEMA_FAILED)
 
     existing_record = get_decision_record(conn, record.decision_id)
@@ -167,8 +177,10 @@ def process_decision(
                     execution_mode=execution_mode,
                     execution_profile_id=execution_profile_id,
                 )
-                save_order_intent(conn, intent)
-            append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED)
+                save_order_intent(conn, intent, commit=commit)
+            append_status(
+                conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED, commit=commit
+            )
             return ProcessOutcome(
                 decision_id=record.decision_id,
                 final_status=DecisionStatus.ORDER_INTENT_CREATED,
@@ -182,15 +194,16 @@ def process_decision(
             record.decision_id,
             DecisionStatus.SCHEMA_FAILED,
             detail="created_at_cannot_be_in_future",
+            commit=commit,
         )
         return ProcessOutcome(
             decision_id=record.decision_id,
             final_status=DecisionStatus.SCHEMA_FAILED,
         )
 
-    save_decision_record(conn, record)
-    append_status(conn, record.decision_id, DecisionStatus.DECISION_RECORD_CREATED)
-    append_status(conn, record.decision_id, DecisionStatus.SCHEMA_VALIDATED)
+    save_decision_record(conn, record, commit=commit)
+    append_status(conn, record.decision_id, DecisionStatus.DECISION_RECORD_CREATED, commit=commit)
+    append_status(conn, record.decision_id, DecisionStatus.SCHEMA_VALIDATED, commit=commit)
 
     policy_result = evaluate_decision_policy(record, portfolio, true_regime_state)
     if not policy_result.approved:
@@ -199,6 +212,7 @@ def process_decision(
             record.decision_id,
             DecisionStatus.POLICY_REJECTED,
             detail=", ".join(policy_result.reasons),
+            commit=commit,
         )
         return ProcessOutcome(
             decision_id=record.decision_id,
@@ -206,7 +220,7 @@ def process_decision(
             policy_reasons=policy_result.reasons,
         )
 
-    append_status(conn, record.decision_id, DecisionStatus.POLICY_APPROVED)
+    append_status(conn, record.decision_id, DecisionStatus.POLICY_APPROVED, commit=commit)
 
     if record.decision not in _ACTIONABLE_DECISIONS:
         return ProcessOutcome(
@@ -223,9 +237,9 @@ def process_decision(
             execution_mode=execution_mode,
             execution_profile_id=execution_profile_id,
         )
-        save_order_intent(conn, intent)
+        save_order_intent(conn, intent, commit=commit)
 
-    append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED)
+    append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED, commit=commit)
 
     return ProcessOutcome(
         decision_id=record.decision_id,

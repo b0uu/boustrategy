@@ -7,13 +7,14 @@ from app.broker.config import account_fingerprint, get_live_profile, load_live_p
 from app.broker.lifecycle import append_execution_event
 from app.broker.packet import build_execution_packet
 from app.schemas.broker_execution import BrokerExecutionEvent, BrokerExecutionRecord
-from app.schemas.live_execution import BrokerPreflight
+from app.schemas.live_execution import BrokerPreflight, LivePortfolioSnapshot
 from app.storage.database import connect
 from app.storage.records import (
     get_decision_record,
     get_order_intent,
     save_broker_execution_record,
     save_execution_packet,
+    save_live_portfolio_snapshot,
 )
 
 
@@ -33,6 +34,10 @@ def main() -> None:
     packet_parser.add_argument("--profiles", default="ops/live.local.json")
     packet_parser.add_argument("--preflight", required=True)
 
+    snapshot_parser = subparsers.add_parser("snapshot")
+    snapshot_parser.add_argument("--in", dest="input_path", required=True)
+    snapshot_parser.add_argument("--profiles", default="ops/live.local.json")
+
     subparsers.add_parser("fingerprint-account")
 
     args = parser.parse_args()
@@ -41,7 +46,23 @@ def main() -> None:
         print(account_fingerprint(identifier))
         return
     conn = connect(args.db)
-    if args.command == "record":
+    if args.command == "snapshot":
+        snapshot = LivePortfolioSnapshot.model_validate_json(
+            Path(args.input_path).read_text(encoding="utf-8")
+        )
+        config = load_live_profiles(args.profiles)
+        profile = get_live_profile(config, snapshot.execution_profile_id)
+        created = save_live_portfolio_snapshot(conn, snapshot, profile)
+        print(
+            json.dumps(
+                {
+                    "created": created,
+                    "portfolio_snapshot_id": snapshot.portfolio_snapshot_id,
+                    "execution_profile_id": snapshot.execution_profile_id,
+                }
+            )
+        )
+    elif args.command == "record":
         payload = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
         record = BrokerExecutionRecord.model_validate(payload)
         created = save_broker_execution_record(conn, record)
