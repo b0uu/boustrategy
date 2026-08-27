@@ -67,7 +67,7 @@ The public showcase dashboard is explicitly deferred.
 | 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | DONE (verified 2026-07-18; merged `da97255`) |
 | 028  | Reconcile doctrine and simplify the live execution foundation | P1 | M | - | DONE (verified 2026-08-27; `43650f4`) |
 | 029  | Isolate controlled Codex/Claude reasoning and live portfolio state | P1 | L | 028 | DONE (verified 2026-08-27; `8ce2ce3`) |
-| 030  | Add the dual-agent live workflow to the private operator dashboard | P1 | M | 029 | TODO |
+| 030  | Add the dual-agent live workflow to the private operator dashboard | P1 | M | 029 | DONE (verified 2026-08-27; `7de7f19`) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
