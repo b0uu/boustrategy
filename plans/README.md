@@ -65,7 +65,7 @@ The public showcase dashboard is explicitly deferred.
 | 025  | Reasoning worker harness + prompt drafts (builds all, runs nothing — ends AT checkpoint 5) | P1 | M-L | 018-024 (hard) | DONE (verified 2026-07-18; merged `5e88d2f`; prompts carry DRAFT banner, checkpoint 5 not yet cleared) |
 | 026  | Dashboard v0: localhost read-only panel over all stores | P2 | M | 006; renders others if present | DONE (verified 2026-07-18; merged `857e33a`) |
 | 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | DONE (verified 2026-07-18; merged `da97255`) |
-| 028  | Reconcile doctrine and simplify the live execution foundation | P1 | M | - | TODO |
+| 028  | Reconcile doctrine and simplify the live execution foundation | P1 | M | - | DONE (verified 2026-08-27; `43650f4`) |
 | 029  | Isolate controlled Codex/Claude reasoning and live portfolio state | P1 | L | 028 | TODO |
 | 030  | Add the dual-agent live workflow to the private operator dashboard | P1 | M | 029 | TODO |
 
