@@ -30,12 +30,11 @@ hash delta.
 
 Recommended order: 001 → 002 → 003 → 004 → 005 → 006 → 007, with 008
 runnable at any point in parallel (it is research-only and touches no code).
-**Wave 018-027 complete** (executed 2026-07-18, local main `5e88d2f`; all
-gates green, nothing pushed). The system is fully built up to the
-checkpoint-5 wall and stops there by design: plan 025 built the
-reasoning worker and drafted its prompts but ran nothing. Standing at
-the wall now — see "Human checkpoints" below for what's still open
-before any decision-generating session may run.
+**Wave 018-027 is complete.** Paper reasoning has since run, checkpoint 5
+is cleared, and the broker-neutral live ledger exists. Plans 028-030 are
+the current sequential path: simplify the live foundation, isolate the two
+reasoning/account profiles, then expose the workflow in the private dashboard.
+The public showcase dashboard is explicitly deferred.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
@@ -66,6 +65,9 @@ before any decision-generating session may run.
 | 025  | Reasoning worker harness + prompt drafts (builds all, runs nothing — ends AT checkpoint 5) | P1 | M-L | 018-024 (hard) | DONE (verified 2026-07-18; merged `5e88d2f`; prompts carry DRAFT banner, checkpoint 5 not yet cleared) |
 | 026  | Dashboard v0: localhost read-only panel over all stores | P2 | M | 006; renders others if present | DONE (verified 2026-07-18; merged `857e33a`) |
 | 027  | Newsletter ingestion v0: drop folder, archive, annotation store | P3 | S-M | 006; soft 019 | DONE (verified 2026-07-18; merged `da97255`) |
+| 028  | Reconcile doctrine and simplify the live execution foundation | P1 | M | - | TODO |
+| 029  | Isolate controlled Codex/Claude reasoning and live portfolio state | P1 | L | 028 | TODO |
+| 030  | Add the dual-agent live workflow to the private operator dashboard | P1 | M | 029 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) |
 REJECTED (with one-line rationale)
@@ -92,10 +94,25 @@ should improvise around them:
 5. **Reasoning prompts sign-off** — thesis-chain and daily-management
    prompts can be drafted from the docs, but the maintainer approves before
    any decision-generating run.
-6. **Anything touching live money** — Robinhood account, credentials,
-   broker adapter activation (Phase 2). Never autonomous.
+6. **Live-money activation** - RESOLVED 2026-08-27. Account creation,
+   funding, credentials, account binding, and initial broker activation are
+   human-owned one-time checkpoints. After activation, individual trades do
+   not require human approval; schema validation, deterministic policy,
+   account-bound preflight, broker review, and execution logging remain
+   mandatory. Starting capital is deployment configuration, not strategy
+   doctrine, and may vary by account.
 
 ## Dependency notes
+
+- 028 must land first because it removes the incorrect hard equity ceiling
+  and stale documentation before new live state builds on those contracts.
+- 029 depends on 028 and creates the profile-specific reasoning and portfolio
+  state required to prevent Codex and Claude from sharing paper quotas or
+  holdings.
+- 030 depends on 029 because the operator interface must render real run and
+  account state rather than inventing a second source of truth.
+- A public showcase dashboard is not part of plans 028-030. It remains a
+  separate future product surface with a strict public-data allowlist.
 
 - 002 requires 001 (hard): the escalation gate reads the
   `extraordinary_opportunity` / `extraordinary_justification` fields plan
@@ -112,6 +129,21 @@ should improvise around them:
   access.
 
 ## Maintainer decisions (resolved)
+
+2026-08-27, small live pilot and dual-agent direction:
+
+- Run one Codex-based agent and one Claude-based agent against the same
+  market/research intake, mandate, policy, and timing. Each receives only its
+  own naturally diverging account state and uses a separate Robinhood account,
+  reasoning ledger, order intents, execution packets, and broker lifecycle.
+- Starting capital is flexible deployment configuration. The current accounts
+  happen to be funded with $100 each, but profit must not trip a hard equity
+  ceiling and no strategy document should prescribe a fixed starting balance.
+- No per-trade human approval after deterministic checks and broker review.
+- The localhost dashboard remains the private personal operator panel and test
+  surface. A separate impressive public dashboard will later show only
+  explicitly public-safe account performance and agent reasoning. Its design
+  and implementation are deferred until the live workflow is operating.
 
 2026-07-19, human checkpoint 5 sign-off:
 
