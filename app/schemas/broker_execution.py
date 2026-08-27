@@ -20,9 +20,13 @@ class BrokerExecutionRecord(BaseModel):
 
     broker_execution_record_id: str = Field(min_length=1)
     order_intent_id: str = Field(min_length=1)
+    execution_packet_id: str = Field(min_length=1)
+    execution_profile_id: str = Field(min_length=1)
+    account_alias: str = Field(min_length=1)
     ticker: str = Field(min_length=1, max_length=12)
     side: OrderSide
     order_type: OrderType
+    requested_notional: float = Field(gt=0.0)
     notional_or_quantity: str = Field(min_length=1)
     limit_price: float = Field(ge=0.0)
     submitted_at: AwareDatetime
@@ -51,6 +55,8 @@ class BrokerExecutionEvent(BaseModel):
     broker_event_id: str = Field(min_length=1)
     broker_execution_record_id: str = Field(min_length=1)
     order_intent_id: str = Field(min_length=1)
+    execution_packet_id: str = Field(min_length=1)
+    execution_profile_id: str = Field(min_length=1)
     status: BrokerExecutionStatus
     occurred_at: AwareDatetime
     detail: str = ""

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult, PortfolioContext, evaluate_decision_policy
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord, RegimeState
+from app.schemas.order_intent import ExecutionMode
 from app.storage.records import (
     get_decision_record,
     get_order_intent,
@@ -105,6 +106,8 @@ def process_decision(
     true_regime_state: RegimeState | None = None,
     *,
     received_at: datetime | None = None,
+    execution_mode: ExecutionMode = ExecutionMode.PAPER,
+    execution_profile_id: str = "",
 ) -> ProcessOutcome:
     try:
         record = InvestmentDecisionRecord.model_validate(record_data)
@@ -158,7 +161,12 @@ def process_decision(
                 )
             intent = get_order_intent(conn, f"oi_{record.decision_id}")
             if intent is None:
-                intent = create_order_intent(record, PolicyResult(approved=True))
+                intent = create_order_intent(
+                    record,
+                    PolicyResult(approved=True),
+                    execution_mode=execution_mode,
+                    execution_profile_id=execution_profile_id,
+                )
                 save_order_intent(conn, intent)
             append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED)
             return ProcessOutcome(
@@ -209,7 +217,12 @@ def process_decision(
     order_intent_id = f"oi_{record.decision_id}"
     intent = get_order_intent(conn, order_intent_id)
     if intent is None:
-        intent = create_order_intent(record, policy_result)
+        intent = create_order_intent(
+            record,
+            policy_result,
+            execution_mode=execution_mode,
+            execution_profile_id=execution_profile_id,
+        )
         save_order_intent(conn, intent)
 
     append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED)

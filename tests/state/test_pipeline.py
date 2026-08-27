@@ -4,6 +4,7 @@ import pytest
 
 from app.policy.decision_policy import PortfolioContext
 from app.schemas.decision_record import RegimeState
+from app.schemas.order_intent import ExecutionMode
 from app.state.pipeline import DecisionStatus, append_status, process_decision
 from app.storage.database import connect
 from app.storage.records import get_decision_record, get_order_intent
@@ -115,6 +116,23 @@ def test_rerun_returns_durable_approval_when_portfolio_context_has_changed() -> 
     assert replay == first
     assert conn.execute("SELECT COUNT(*) FROM status_events").fetchone()[0] == 4
     assert conn.execute("SELECT COUNT(*) FROM order_intents").fetchone()[0] == 1
+
+
+def test_explicit_live_profile_is_preserved_on_created_intent() -> None:
+    conn = connect(":memory:")
+
+    outcome = process_decision(
+        conn,
+        valid_decision_record_data(),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+
+    intent = get_order_intent(conn, "oi_dec_001")
+    assert outcome.final_status == DecisionStatus.ORDER_INTENT_CREATED
+    assert intent is not None
+    assert intent.execution_mode == ExecutionMode.LIVE
+    assert intent.execution_profile_id == "codex"
 
 
 def test_future_created_at_fails_before_record_is_saved() -> None:

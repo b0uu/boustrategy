@@ -255,8 +255,9 @@ def executions(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
         conn,
         "broker_execution_records",
         """
-        SELECT broker_execution_record_id, order_intent_id, submitted_at, ticker, side,
-               status, broker_order_id
+        SELECT broker_execution_record_id, order_intent_id, execution_packet_id,
+               execution_profile_id, account_alias, submitted_at, ticker, side, status,
+               broker_order_id
         FROM broker_execution_records ORDER BY submitted_at DESC
         """,
     )
@@ -267,9 +268,21 @@ def execution_events(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
         conn,
         "broker_execution_events",
         """
-        SELECT broker_event_id, broker_execution_record_id, order_intent_id, status,
-               occurred_at, detail
+        SELECT broker_event_id, broker_execution_record_id, order_intent_id,
+               execution_packet_id, execution_profile_id, status, occurred_at, detail
         FROM broker_execution_events ORDER BY occurred_at DESC, rowid DESC
+        """,
+    )
+
+
+def execution_packets(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
+    return rows(
+        conn,
+        "live_execution_packets",
+        """
+        SELECT execution_packet_id, order_intent_id, execution_profile_id, created_at,
+               expires_at, ticker, side, notional, limit_price
+        FROM live_execution_packets ORDER BY created_at DESC
         """,
     )
 

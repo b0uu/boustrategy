@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from app.broker.config import get_live_profile, load_live_profiles
 from app.events.fetch import FOMC_COVERAGE_END
 from app.events.store import parse_watchlist, refresh_earnings, sync_fomc
 from app.paper.broker import settle
@@ -14,6 +15,7 @@ from app.paper.context import portfolio_context, position_tickers
 from app.prices.cache import refresh_ticker
 from app.regime.run import latest_published_regime, score_date
 from app.schemas.decision_record import RegimeState
+from app.schemas.order_intent import ExecutionMode
 from app.state.pipeline import DecisionStatus, ProcessOutcome, process_decision
 from app.storage.database import connect
 from app.triggers.evaluate import evaluate_triggers
@@ -138,12 +140,22 @@ def submit_decision(
     record_data: dict[str, Any],
     on_date: date,
     consume_trigger_ids: list[str] | None = None,
+    *,
+    execution_mode: ExecutionMode = ExecutionMode.PAPER,
+    execution_profile_id: str = "",
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
     portfolio = portfolio_context(conn, on_date, exclude_ticker=ticker)
     true_regime_state = latest_published_regime(conn, on_date)
-    outcome = process_decision(conn, record_data, portfolio, true_regime_state)
+    outcome = process_decision(
+        conn,
+        record_data,
+        portfolio,
+        true_regime_state,
+        execution_mode=execution_mode,
+        execution_profile_id=execution_profile_id,
+    )
     if consume_trigger_ids and outcome.final_status in _CONSIDERED_STATUSES:
         mark_triggers(conn, consume_trigger_ids, "consumed")
     return outcome
@@ -168,6 +180,8 @@ def main() -> None:
     submit_parser.add_argument("--in", dest="input_path", required=True)
     submit_parser.add_argument("--date")
     submit_parser.add_argument("--consume-triggers")
+    submit_parser.add_argument("--execution-profile")
+    submit_parser.add_argument("--live-profiles", default="ops/live.local.json")
 
     args = parser.parse_args()
     conn = connect(args.db)
@@ -186,7 +200,23 @@ def main() -> None:
     else:
         record_data = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
         trigger_ids = args.consume_triggers.split(",") if args.consume_triggers else []
-        outcome = submit_decision(conn, record_data, on_date, trigger_ids)
+        execution_mode = ExecutionMode.PAPER
+        execution_profile_id = ""
+        if args.execution_profile:
+            config = load_live_profiles(args.live_profiles)
+            profile = get_live_profile(config, args.execution_profile)
+            if not profile.enabled:
+                raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
+            execution_mode = ExecutionMode.LIVE
+            execution_profile_id = profile.execution_profile_id
+        outcome = submit_decision(
+            conn,
+            record_data,
+            on_date,
+            trigger_ids,
+            execution_mode=execution_mode,
+            execution_profile_id=execution_profile_id,
+        )
         print(outcome.model_dump_json())
 
 

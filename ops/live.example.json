@@ -1,0 +1,28 @@
+{
+  "profiles": [
+    {
+      "execution_profile_id": "codex",
+      "agent_provider": "CODEX",
+      "account_alias": "codex-agentic",
+      "broker_account_fingerprint": "",
+      "enabled": false,
+      "account_equity_cap": 100.0,
+      "max_order_notional": 20.0,
+      "max_quote_age_seconds": 15,
+      "max_spread_bps": 50.0,
+      "require_human_approval": false
+    },
+    {
+      "execution_profile_id": "claude",
+      "agent_provider": "CLAUDE",
+      "account_alias": "claude-agentic",
+      "broker_account_fingerprint": "",
+      "enabled": false,
+      "account_equity_cap": 100.0,
+      "max_order_notional": 20.0,
+      "max_quote_age_seconds": 15,
+      "max_spread_bps": 50.0,
+      "require_human_approval": false
+    }
+  ]
+}

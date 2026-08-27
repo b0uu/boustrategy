@@ -10,9 +10,13 @@ def broker_execution_data() -> dict[str, object]:
     return {
         "broker_execution_record_id": "be_001",
         "order_intent_id": "oi_dec_001",
+        "execution_packet_id": "ep_codex_oi_dec_001",
+        "execution_profile_id": "codex",
+        "account_alias": "codex-agentic",
         "ticker": "NVDA",
         "side": "BUY",
         "order_type": "LIMIT",
+        "requested_notional": 15.0,
         "notional_or_quantity": "$15.00 notional",
         "limit_price": 200.0,
         "submitted_at": datetime(2026, 8, 26, 14, 0, tzinfo=UTC),

@@ -72,7 +72,20 @@ def test_execution_mode_defaults_to_paper_and_can_be_live():
     record = valid_decision_record()
 
     paper = create_order_intent(record, approved)
-    live = create_order_intent(record, approved, execution_mode=ExecutionMode.LIVE)
+    live = create_order_intent(
+        record,
+        approved,
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
 
     assert paper.execution_mode == ExecutionMode.PAPER
     assert live.execution_mode == ExecutionMode.LIVE
+    assert live.execution_profile_id == "codex"
+
+
+def test_live_execution_mode_requires_profile():
+    record = valid_decision_record()
+
+    with pytest.raises(ValueError, match="execution_profile_id"):
+        create_order_intent(record, approved, execution_mode=ExecutionMode.LIVE)

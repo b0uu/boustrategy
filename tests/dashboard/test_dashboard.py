@@ -228,4 +228,36 @@ def test_portfolio_shows_paper_intent_and_executions_remain_disabled(tmp_path: P
 
     assert "awaiting_price" in portfolio.text
     assert "PAPER" in portfolio.text
-    assert "Live placement is disabled" in executions.text
+    assert "Dashboard placement is disabled" in executions.text
+    assert "data-copy='execution-prompt' disabled" in executions.text
+
+
+def test_execution_page_shows_public_profile_limits_without_credentials(tmp_path: Path) -> None:
+    config_path = tmp_path / "live.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "profiles": [
+                    {
+                        "execution_profile_id": "codex",
+                        "agent_provider": "CODEX",
+                        "account_alias": "codex-agentic",
+                        "enabled": False,
+                        "account_equity_cap": 100.0,
+                        "max_order_notional": 20.0,
+                        "max_quote_age_seconds": 15,
+                        "max_spread_bps": 50.0,
+                        "require_human_approval": False,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    client = TestClient(create_app(tmp_path / "synthetic.db", live_config_path=config_path))
+
+    response = client.get("/executions")
+
+    assert "codex-agentic" in response.text
+    assert "100.00" in response.text
+    assert "20.00" in response.text

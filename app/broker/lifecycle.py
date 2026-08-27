@@ -2,6 +2,7 @@ import sqlite3
 from datetime import datetime
 
 from app.schemas.broker_execution import BrokerExecutionEvent, BrokerExecutionStatus
+from app.schemas.live_execution import LiveExecutionPacket
 from app.schemas.order_intent import ExecutionMode
 from app.storage.records import get_broker_execution_record, get_order_intent
 
@@ -51,6 +52,8 @@ def append_execution_event(conn: sqlite3.Connection, event: BrokerExecutionEvent
         raise ValueError(f"missing order intent {event.order_intent_id}")
     if intent.execution_mode != ExecutionMode.LIVE:
         raise ValueError(f"order intent {event.order_intent_id} is not live")
+    if intent.execution_profile_id != event.execution_profile_id:
+        raise ValueError("broker event profile does not match its order intent")
 
     existing = conn.execute(
         "SELECT event_json FROM broker_execution_events WHERE broker_event_id = ?",
@@ -80,6 +83,22 @@ def append_execution_event(conn: sqlite3.Connection, event: BrokerExecutionEvent
             f"for {event.broker_execution_record_id}"
         )
 
+    if event.status == BrokerExecutionStatus.REVIEWED:
+        packet_row = conn.execute(
+            "SELECT packet_json FROM live_execution_packets WHERE execution_packet_id = ?",
+            (event.execution_packet_id,),
+        ).fetchone()
+        if packet_row is None:
+            raise ValueError(f"missing execution packet {event.execution_packet_id}")
+        packet = LiveExecutionPacket.model_validate_json(packet_row[0])
+        if (
+            packet.order_intent_id != event.order_intent_id
+            or packet.execution_profile_id != event.execution_profile_id
+        ):
+            raise ValueError("broker event profile does not match its execution packet")
+        if event.occurred_at > packet.expires_at:
+            raise ValueError("execution packet expired before broker review")
+
     execution = get_broker_execution_record(conn, event.broker_execution_record_id)
     if event.status in {
         BrokerExecutionStatus.SUBMITTED,
@@ -91,18 +110,22 @@ def append_execution_event(conn: sqlite3.Connection, event: BrokerExecutionEvent
             raise ValueError(f"missing broker execution record {event.broker_execution_record_id}")
         if execution.order_intent_id != event.order_intent_id:
             raise ValueError("broker event does not match its execution record")
+        if execution.execution_packet_id != event.execution_packet_id:
+            raise ValueError("broker event packet does not match its execution record")
 
     conn.execute(
         """
         INSERT INTO broker_execution_events
-            (broker_event_id, broker_execution_record_id, order_intent_id, status,
-             occurred_at, detail, event_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (broker_event_id, broker_execution_record_id, order_intent_id,
+             execution_packet_id, execution_profile_id, status, occurred_at, detail, event_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             event.broker_event_id,
             event.broker_execution_record_id,
             event.order_intent_id,
+            event.execution_packet_id,
+            event.execution_profile_id,
             event.status.value,
             event.occurred_at.isoformat(),
             event.detail,

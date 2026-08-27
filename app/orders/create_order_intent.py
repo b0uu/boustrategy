@@ -19,6 +19,7 @@ def create_order_intent(
     policy_result: PolicyResult,
     created_at: AwareDatetime | None = None,
     execution_mode: ExecutionMode = ExecutionMode.PAPER,
+    execution_profile_id: str = "",
 ) -> OrderIntent:
     if not policy_result.approved:
         raise ValueError("cannot create an order intent from a rejected decision")
@@ -37,4 +38,5 @@ def create_order_intent(
         side=side,
         target_weight=record.final_target_weight,
         execution_mode=execution_mode,
+        execution_profile_id=execution_profile_id,
     )

@@ -16,11 +16,27 @@ CREATE TABLE IF NOT EXISTS order_intents (
     ticker TEXT NOT NULL,
     side TEXT NOT NULL,
     execution_mode TEXT NOT NULL DEFAULT 'PAPER',
+    execution_profile_id TEXT NOT NULL DEFAULT '',
     intent_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS live_execution_packets (
+    execution_packet_id TEXT PRIMARY KEY,
+    order_intent_id TEXT NOT NULL,
+    execution_profile_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    side TEXT NOT NULL,
+    notional REAL NOT NULL,
+    limit_price REAL NOT NULL,
+    packet_json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS broker_execution_records (
     broker_execution_record_id TEXT PRIMARY KEY,
     order_intent_id TEXT NOT NULL UNIQUE,
+    execution_packet_id TEXT NOT NULL,
+    execution_profile_id TEXT NOT NULL,
+    account_alias TEXT NOT NULL,
     submitted_at TEXT NOT NULL,
     ticker TEXT NOT NULL,
     side TEXT NOT NULL,
@@ -32,6 +48,8 @@ CREATE TABLE IF NOT EXISTS broker_execution_events (
     broker_event_id TEXT PRIMARY KEY,
     broker_execution_record_id TEXT NOT NULL,
     order_intent_id TEXT NOT NULL,
+    execution_packet_id TEXT NOT NULL,
+    execution_profile_id TEXT NOT NULL,
     status TEXT NOT NULL,
     occurred_at TEXT NOT NULL,
     detail TEXT NOT NULL DEFAULT '',
@@ -245,7 +263,27 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     _ensure_columns(
         conn,
         "order_intents",
-        {"execution_mode": "TEXT NOT NULL DEFAULT 'PAPER'"},
+        {
+            "execution_mode": "TEXT NOT NULL DEFAULT 'PAPER'",
+            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+        },
+    )
+    _ensure_columns(
+        conn,
+        "broker_execution_records",
+        {
+            "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
+            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+            "account_alias": "TEXT NOT NULL DEFAULT ''",
+        },
+    )
+    _ensure_columns(
+        conn,
+        "broker_execution_events",
+        {
+            "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
+            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+        },
     )
     conn.commit()
     return conn

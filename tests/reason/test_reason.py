@@ -10,6 +10,7 @@ from app.reason.intake import build_intake
 from app.reason.run import main, prepare_session, submit_decision
 from app.regime.rules import Component, RegimeScore
 from app.schemas.decision_record import RegimeState
+from app.schemas.order_intent import ExecutionMode
 from app.state.pipeline import DecisionStatus, ProcessOutcome
 from app.storage.database import connect
 from app.triggers.store import insert_trigger
@@ -356,9 +357,17 @@ def test_submit_passes_record_ticker_to_portfolio_context(monkeypatch: pytest.Mo
         return expected_portfolio
 
     def fake_process(
-        conn: object, record: object, portfolio: PortfolioContext, true_regime_state: object
+        conn: object,
+        record: object,
+        portfolio: PortfolioContext,
+        true_regime_state: object,
+        *,
+        execution_mode: ExecutionMode,
+        execution_profile_id: str,
     ) -> ProcessOutcome:
         captured["portfolio"] = portfolio
+        captured["execution_mode"] = execution_mode
+        captured["execution_profile_id"] = execution_profile_id
         return ProcessOutcome(decision_id=None, final_status=DecisionStatus.SCHEMA_FAILED)
 
     def fake_regime(conn: object, on_date: date) -> None:
@@ -370,7 +379,12 @@ def test_submit_passes_record_ticker_to_portfolio_context(monkeypatch: pytest.Mo
 
     submit_decision(object(), {"ticker": "nvda"}, date(2026, 6, 10))  # type: ignore[arg-type]
 
-    assert captured == {"ticker": "nvda", "portfolio": expected_portfolio}
+    assert captured == {
+        "ticker": "nvda",
+        "portfolio": expected_portfolio,
+        "execution_mode": ExecutionMode.PAPER,
+        "execution_profile_id": "",
+    }
 
 
 def test_submit_cli_prints_full_outcome(

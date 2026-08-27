@@ -12,6 +12,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from app.broker.config import load_live_profiles, public_profile_status
 from app.dashboard import queries
 from app.reason.run import PreparationResult, prepare_session
 from app.storage.database import connect
@@ -459,12 +460,15 @@ def _overview_tiles(payload: dict[str, Any]) -> str:
 
 
 def create_app(
-    db_path: str | Path, preparation_runner: PreparationRunner = prepare_session
+    db_path: str | Path,
+    preparation_runner: PreparationRunner = prepare_session,
+    live_config_path: str | Path = "ops/live.local.json",
 ) -> FastAPI:
     app = FastAPI(title="BouStrategy dashboard")
     path = Path(db_path)
     digest_dir = path.parent / "digests"
     reason_dir = path.parent / "reason_runs"
+    live_config = Path(live_config_path)
     csrf_token = secrets.token_urlsafe(24)
 
     @app.get("/", response_class=HTMLResponse)
@@ -567,10 +571,33 @@ def create_app(
     @app.get("/executions", response_class=HTMLResponse)
     def executions() -> str:
         conn = connect(path)
+        profiles = (
+            public_profile_status(load_live_profiles(live_config))
+            if live_config.is_file()
+            else None
+        )
+        packets = queries.execution_packets(conn)
+        execution_prompt = (
+            "Follow docs/execution/EXECUTOR.md for exactly one unexpired live execution packet. "
+            "This is an execution-only session: don't research, reason about investments, resize "
+            "the order, or access an intent assigned to another execution profile. Verify the "
+            "connected Robinhood account fingerprint and every preflight field, call broker "
+            "review, then place exactly once only when the packet allows it. Persist every result "
+            "through python -m app.broker.run and stop after reconciling that one packet."
+        )
+        enabled = bool(profiles and any(bool(profile["enabled"]) for profile in profiles))
+        prompt_enabled = enabled and bool(packets)
         body = (
-            "<div class='notice'>Live placement is disabled. This page is an append-only "
+            "<div class='notice'>Dashboard placement is disabled. This page is an append-only "
             "broker execution ledger, not an order-entry surface.</div>"
-            "<h2>Execution records</h2>"
+            "<h2>Execution profiles</h2>"
+            + _table(profiles)
+            + "<h2>Execution packets</h2>"
+            + _table(packets)
+            + "<h2>Execution-only prompt</h2>"
+            + f"<pre class='prompt' id='execution-prompt'>{escape(execution_prompt)}</pre>"
+            + _copy_button("execution-prompt", "Copy execution prompt", prompt_enabled)
+            + "<h2>Execution records</h2>"
             + _table(queries.executions(conn))
             + "<h2>Lifecycle events</h2>"
             + _table(queries.execution_events(conn))
