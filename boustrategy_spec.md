@@ -14,8 +14,6 @@ The strategy documents in `docs/` likely take precedence where they overlap with
 
 **Goal:** Build a public investment agent with live autonomous execution, detailed logging, and a sophisticated trading framework based on personal strategy.  
 
-**Initial account capital:** $500  
-
 **Default trading philosophy:**  Long-only, high-risk, concentrated bets, AI ecosystem under deep consideration, thematic investing 
 
 **Human role:** Iterate upon harness, prompts, schemas, source lists, themes, and framework when needed
@@ -61,7 +59,7 @@ The core challenge is building an investment harness that is able to deeply cons
 
 ### In scope
 
-- Live ~$500 dedicated Robinhood account
+- Small dedicated Robinhood account
 - Long-only U.S.-listed equities and ETFs
 - Autonomous execution through a Robinhood broker adapter
 - Utilize robinhood functions (such as fetching price)
@@ -73,6 +71,8 @@ The core challenge is building an investment harness that is able to deeply cons
 - Free, public data for research
 - Historical daily price cache from free sources
 - Public dashboard
+
+Starting capital is deployment configuration and may differ by account; it is not strategy doctrine.
 
 ### Objective
 
@@ -546,13 +546,12 @@ Decision Record
   "ticker": "string",
   "side": "BUY | SELL",
   "order_type": "MARKET | LIMIT",
-  "notional_or_quantity": "string",
+  "requested_notional": 0.0,
   "limit_price": 0.0,
   "submitted_at": "timestamp",
   "status": "SUBMITTED | FILLED | PARTIALLY_FILLED | CANCELED | FAILED",
   "broker_order_id": "string",
-  "execution_price": 0.0,
-  "raw_broker_payload_private": true
+  "execution_price": 0.0
 }
 ```
 

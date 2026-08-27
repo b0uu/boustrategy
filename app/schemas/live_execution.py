@@ -18,16 +18,13 @@ class ExecutionProfile(BaseModel):
     account_alias: str = Field(min_length=1)
     broker_account_fingerprint: str = Field(default="", pattern=r"^[a-f0-9]{0,16}$")
     enabled: bool = False
-    account_equity_cap: float = Field(gt=0.0)
     max_order_notional: float = Field(gt=0.0)
     max_quote_age_seconds: int = Field(gt=0, le=60)
     max_spread_bps: float = Field(gt=0.0)
     require_human_approval: bool = False
 
     @model_validator(mode="after")
-    def keep_order_cap_within_account_cap(self) -> "ExecutionProfile":
-        if self.max_order_notional > self.account_equity_cap:
-            raise ValueError("max_order_notional cannot exceed account_equity_cap")
+    def require_fingerprint_for_enabled_profile(self) -> "ExecutionProfile":
         if self.enabled and len(self.broker_account_fingerprint) != 16:
             raise ValueError("enabled profiles require a broker_account_fingerprint")
         return self

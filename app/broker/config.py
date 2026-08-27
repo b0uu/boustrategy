@@ -30,7 +30,6 @@ def public_profile_status(config: LiveProfilesConfig) -> list[dict[str, object]]
             "account_alias": profile.account_alias,
             "account_bound": bool(profile.broker_account_fingerprint),
             "enabled": profile.enabled,
-            "account_equity_cap": profile.account_equity_cap,
             "max_order_notional": profile.max_order_notional,
             "require_human_approval": profile.require_human_approval,
         }

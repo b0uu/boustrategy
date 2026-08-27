@@ -59,7 +59,6 @@ def _save_submitted_record(conn: sqlite3.Connection, intent: OrderIntent) -> Non
             side=intent.side,
             order_type=intent.order_type,
             requested_notional=12.0,
-            notional_or_quantity="$15.00 notional",
             limit_price=200.0,
             submitted_at=datetime(2026, 8, 26, 14, 1, tzinfo=UTC),
             status="SUBMITTED",

@@ -281,7 +281,12 @@ def execution_packets(conn: sqlite3.Connection) -> list[dict[str, Any]] | None:
         "live_execution_packets",
         """
         SELECT execution_packet_id, order_intent_id, execution_profile_id, created_at,
-               expires_at, ticker, side, notional, limit_price
+               expires_at, ticker, side, notional, limit_price,
+               EXISTS (
+                   SELECT 1 FROM broker_execution_records
+                   WHERE broker_execution_records.order_intent_id =
+                         live_execution_packets.order_intent_id
+               ) AS executed
         FROM live_execution_packets ORDER BY created_at DESC
         """,
     )

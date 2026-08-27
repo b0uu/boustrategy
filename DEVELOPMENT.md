@@ -119,18 +119,22 @@ Only after the manual process is repeatable and the dashboard makes failures vis
 scheduled ingestion and reasoning return, first in paper mode. Unattended live execution is a
 separate promotion. It shouldn't begin on the same day as the first unattended reasoning run.
 
-## Paper first, then proof
+## Paper evaluation and small live pilots
 
 The paper account starts at $5,000. That amount keeps position sizing tangible without confusing
 simulated scale with available live capital. Approved order intents fill at the next recorded
 market open, positions and cash are rebuilt from the fill ledger, and the dashboard reads from
 the same append-only stores.
 
-Paper trading isn't a waiting room for live trading. It is where the system has to demonstrate
-that it can run unattended, remain inactive when no edge exists, produce records that survive
-review, respect risk policy, recover from failures, and report performance without selecting only
-favorable examples. Slippage, fees, data reliability, and broker-specific behavior still need to
-be modeled before paper results can resemble execution results.
+Paper trading remains useful for replay, deterministic state testing, and lookahead-safe
+evaluation. It can show whether the system remains inactive when no edge exists, produces records
+that survive review, respects risk policy, recovers from failures, and reports performance without
+selecting only favorable examples. Slippage, fees, data reliability, and broker-specific behavior
+still need to be modeled before paper results can resemble execution results.
+
+A deliberately small live pilot may run before unattended paper proof is complete to expose real
+broker and operational behavior. Loss inside the maintainer-approved risk framework is accepted as
+part of that controlled test.
 
 Live trading requires a separate broker adapter and an explicit human activation checkpoint. The
 reasoning worker will still have no direct broker access. Its output must pass through the same

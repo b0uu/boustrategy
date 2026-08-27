@@ -1,7 +1,7 @@
 import argparse
 import secrets
 import sqlite3
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from html import escape
 from pathlib import Path
 from typing import Any, Protocol
@@ -585,8 +585,19 @@ def create_app(
             "review, then place exactly once only when the packet allows it. Persist every result "
             "through python -m app.broker.run and stop after reconciling that one packet."
         )
-        enabled = bool(profiles and any(bool(profile["enabled"]) for profile in profiles))
-        prompt_enabled = enabled and bool(packets)
+        enabled_profile_ids = {
+            str(profile["execution_profile_id"]) for profile in profiles or [] if profile["enabled"]
+        }
+        now = datetime.now(UTC)
+        prompt_enabled = bool(
+            packets
+            and any(
+                packet["execution_profile_id"] in enabled_profile_ids
+                and datetime.fromisoformat(packet["expires_at"]) > now
+                and not packet["executed"]
+                for packet in packets
+            )
+        )
         body = (
             "<div class='notice'>Dashboard placement is disabled. This page is an append-only "
             "broker execution ledger, not an order-entry surface.</div>"

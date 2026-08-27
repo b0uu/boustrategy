@@ -1,5 +1,4 @@
 from enum import StrEnum
-from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -27,13 +26,11 @@ class BrokerExecutionRecord(BaseModel):
     side: OrderSide
     order_type: OrderType
     requested_notional: float = Field(gt=0.0)
-    notional_or_quantity: str = Field(min_length=1)
     limit_price: float = Field(ge=0.0)
     submitted_at: AwareDatetime
     status: BrokerExecutionStatus
     broker_order_id: str = Field(min_length=1)
     execution_price: float = Field(ge=0.0)
-    raw_broker_payload_private: Literal[True] = True
 
     @model_validator(mode="after")
     def require_execution_price_for_fills(self) -> "BrokerExecutionRecord":

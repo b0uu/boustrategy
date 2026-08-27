@@ -72,10 +72,10 @@ policy-approved live intent exists for that same profile, and a fresh broker pre
 unexpired execution packet.
 
 Codex and Claude use separate profile IDs, account aliases, account fingerprints, order intents,
-packets, broker records, and lifecycle events. The example configuration caps each trial account
-at $100 of equity and each individual order at $20. It records that the user has chosen no manual
-approval between a successful broker review and exact placement, but it doesn't enable either
-profile or contain a broker credential.
+packets, broker records, and lifecycle events. The example profiles use flexible funded capital
+and a temporary $20 per-order brake. They record that the user has chosen no manual approval
+between a successful broker review and exact placement, but they don't enable either profile or
+contain a broker credential.
 
 The detailed execution contract is in `docs/execution/EXECUTOR.md`. Don't paste its prompt into an
 investment-reasoning session. The execution agent may verify and place one prepared packet, but it

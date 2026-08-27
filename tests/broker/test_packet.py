@@ -27,7 +27,6 @@ def _profile(**updates: object) -> ExecutionProfile:
         "account_alias": "codex-agentic",
         "broker_account_fingerprint": "0123456789abcdef",
         "enabled": True,
-        "account_equity_cap": 100.0,
         "max_order_notional": 20.0,
         "max_quote_age_seconds": 15,
         "max_spread_bps": 50.0,
@@ -72,7 +71,7 @@ def test_example_config_has_two_disabled_isolated_profiles() -> None:
 
     assert {profile.execution_profile_id for profile in config.profiles} == {"codex", "claude"}
     assert all(not profile.enabled for profile in config.profiles)
-    assert get_live_profile(config, "codex").account_equity_cap == 100.0
+    assert get_live_profile(config, "codex").max_order_notional == 20.0
 
 
 def test_profiles_require_unique_account_aliases() -> None:
@@ -99,12 +98,24 @@ def test_build_packet_enforces_profile_and_automatic_safety_limits() -> None:
     assert packet.require_human_approval is False
 
 
+def test_build_packet_allows_equity_growth_within_order_brake() -> None:
+    packet = build_execution_packet(
+        _live_intent(),
+        valid_decision_record(),
+        _profile(),
+        _preflight(account_equity=150.0, buying_power=150.0),
+        created_at=NOW,
+    )
+
+    assert packet.account_equity == 150.0
+    assert packet.notional == 18.0
+
+
 @pytest.mark.parametrize(
     ("profile_updates", "preflight_updates", "reason"),
     [
         ({"enabled": False}, {}, "live_profile_disabled"),
         ({}, {"execution_profile_id": "claude"}, "preflight_profile_mismatch"),
-        ({}, {"account_equity": 101.0}, "account_equity_cap_exceeded"),
         ({}, {"quote_at": NOW - timedelta(seconds=16)}, "stale_quote"),
         ({}, {"regular_market_hours": False}, "outside_regular_market_hours"),
         ({}, {"fractionable": False}, "ticker_not_fractionable"),

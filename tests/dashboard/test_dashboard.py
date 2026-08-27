@@ -1,7 +1,7 @@
 import json
 import re
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -243,7 +243,6 @@ def test_execution_page_shows_public_profile_limits_without_credentials(tmp_path
                         "agent_provider": "CODEX",
                         "account_alias": "codex-agentic",
                         "enabled": False,
-                        "account_equity_cap": 100.0,
                         "max_order_notional": 20.0,
                         "max_quote_age_seconds": 15,
                         "max_spread_bps": 50.0,
@@ -259,5 +258,98 @@ def test_execution_page_shows_public_profile_limits_without_credentials(tmp_path
     response = client.get("/executions")
 
     assert "codex-agentic" in response.text
-    assert "100.00" in response.text
     assert "20.00" in response.text
+
+
+def _write_live_config(path: Path, *, enabled: bool) -> Path:
+    path.write_text(
+        json.dumps(
+            {
+                "profiles": [
+                    {
+                        "execution_profile_id": "codex",
+                        "agent_provider": "CODEX",
+                        "account_alias": "codex-agentic",
+                        "broker_account_fingerprint": ("0123456789abcdef" if enabled else ""),
+                        "enabled": enabled,
+                        "max_order_notional": 20.0,
+                        "max_quote_age_seconds": 15,
+                        "max_spread_bps": 50.0,
+                        "require_human_approval": False,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def _insert_execution_packet(
+    db_path: Path, *, expires_at: datetime, executed: bool = False
+) -> None:
+    conn = connect(db_path)
+    conn.execute(
+        """
+        INSERT INTO live_execution_packets
+            (execution_packet_id, order_intent_id, execution_profile_id, created_at,
+             expires_at, ticker, side, notional, limit_price, packet_json)
+        VALUES ('ep_1', 'oi_1', 'codex', ?, ?, 'NVDA', 'BUY', 12.0, 200.0, '{}')
+        """,
+        ((expires_at - timedelta(seconds=10)).isoformat(), expires_at.isoformat()),
+    )
+    if executed:
+        conn.execute(
+            """
+            INSERT INTO broker_execution_records
+                (broker_execution_record_id, order_intent_id, execution_packet_id,
+                 execution_profile_id, account_alias, submitted_at, ticker, side,
+                 status, broker_order_id, record_json)
+            VALUES ('ber_1', 'oi_1', 'ep_1', 'codex', 'codex-agentic', ?, 'NVDA',
+                    'BUY', 'SUBMITTED', 'rh_1', '{}')
+            """,
+            (datetime.now(UTC).isoformat(),),
+        )
+    conn.commit()
+
+
+def test_execution_prompt_is_enabled_for_current_unexecuted_packet(tmp_path: Path) -> None:
+    db_path = tmp_path / "synthetic.db"
+    _insert_execution_packet(db_path, expires_at=datetime.now(UTC) + timedelta(minutes=1))
+    config_path = _write_live_config(tmp_path / "live.json", enabled=True)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/executions")
+
+    assert "data-copy='execution-prompt' disabled" not in response.text
+
+
+def test_execution_prompt_is_disabled_for_expired_packet(tmp_path: Path) -> None:
+    db_path = tmp_path / "synthetic.db"
+    _insert_execution_packet(db_path, expires_at=datetime.now(UTC) - timedelta(minutes=1))
+    config_path = _write_live_config(tmp_path / "live.json", enabled=True)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/executions")
+
+    assert "data-copy='execution-prompt' disabled" in response.text
+
+
+def test_execution_prompt_is_disabled_for_executed_packet(tmp_path: Path) -> None:
+    db_path = tmp_path / "synthetic.db"
+    _insert_execution_packet(
+        db_path, expires_at=datetime.now(UTC) + timedelta(minutes=1), executed=True
+    )
+    config_path = _write_live_config(tmp_path / "live.json", enabled=True)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/executions")
+
+    assert "data-copy='execution-prompt' disabled" in response.text
+
+
+def test_execution_prompt_is_disabled_for_disabled_profile(tmp_path: Path) -> None:
+    db_path = tmp_path / "synthetic.db"
+    _insert_execution_packet(db_path, expires_at=datetime.now(UTC) + timedelta(minutes=1))
+    config_path = _write_live_config(tmp_path / "live.json", enabled=False)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/executions")
+
+    assert "data-copy='execution-prompt' disabled" in response.text

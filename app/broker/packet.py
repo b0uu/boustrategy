@@ -34,8 +34,6 @@ def build_execution_packet(
         reasons.append("live_asset_type_not_allowed")
     if intent.order_type != OrderType.LIMIT:
         reasons.append("live_order_type_not_allowed")
-    if preflight.account_equity > profile.account_equity_cap:
-        reasons.append("account_equity_cap_exceeded")
     if not preflight.tradable:
         reasons.append("ticker_not_tradable")
     if not preflight.fractionable:
