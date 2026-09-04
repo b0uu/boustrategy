@@ -23,7 +23,7 @@ def _profile() -> ExecutionProfile:
         broker_account_fingerprint="0" * 16,
         enabled=True,
         max_order_notional=20,
-        max_quote_age_seconds=15,
+        max_quote_age_seconds=60,
         max_spread_bps=50,
     )
 
@@ -73,6 +73,7 @@ def test_live_submit_requires_run_and_fresh_namespaced_snapshot() -> None:
             execution_profile_id="codex",
             reasoning_run_id=RUN_ID,
             execution_profile=_profile(),
+            submission_snapshot_id="snap_codex",
             submitted_at=SUBMITTED_AT,
         )
 
@@ -85,6 +86,7 @@ def test_live_submit_requires_run_and_fresh_namespaced_snapshot() -> None:
         execution_profile_id="codex",
         reasoning_run_id=RUN_ID,
         execution_profile=_profile(),
+        submission_snapshot_id="snap_codex",
         submitted_at=SUBMITTED_AT,
     )
 
@@ -100,6 +102,24 @@ def test_live_submit_rejects_stale_snapshot_and_wrong_namespace() -> None:
     with pytest.raises(ValueError, match="stale"):
         submit_decision(
             stale,
+            _record(),
+            date(2026, 6, 10),
+            execution_mode=ExecutionMode.LIVE,
+            execution_profile_id="codex",
+            reasoning_run_id=RUN_ID,
+            execution_profile=_profile(),
+            submission_snapshot_id="snap_codex",
+            submitted_at=SUBMITTED_AT,
+        )
+
+
+def test_live_submit_requires_explicit_submission_snapshot() -> None:
+    conn = connect(":memory:")
+    _prepare_live_boundary(conn, captured_at=SUBMITTED_AT)
+
+    with pytest.raises(ValueError, match="requires a fresh portfolio snapshot"):
+        submit_decision(
+            conn,
             _record(),
             date(2026, 6, 10),
             execution_mode=ExecutionMode.LIVE,
@@ -124,6 +144,7 @@ def test_live_submit_rejects_wrong_profile_and_account() -> None:
             execution_profile_id="codex",
             reasoning_run_id=RUN_ID,
             execution_profile=wrong_profile,
+            submission_snapshot_id="snap_codex",
             submitted_at=SUBMITTED_AT,
         )
 
@@ -137,6 +158,7 @@ def test_live_submit_rejects_wrong_profile_and_account() -> None:
             execution_profile_id="codex",
             reasoning_run_id=RUN_ID,
             execution_profile=wrong_account,
+            submission_snapshot_id="snap_codex",
             submitted_at=SUBMITTED_AT,
         )
 
@@ -153,6 +175,7 @@ def test_live_submit_retry_is_idempotent() -> None:
         execution_profile_id="codex",
         reasoning_run_id=RUN_ID,
         execution_profile=_profile(),
+        submission_snapshot_id="snap_codex",
         submitted_at=SUBMITTED_AT,
     )
     second = submit_decision(
@@ -163,6 +186,7 @@ def test_live_submit_retry_is_idempotent() -> None:
         execution_profile_id="codex",
         reasoning_run_id=RUN_ID,
         execution_profile=_profile(),
+        submission_snapshot_id="snap_codex",
         submitted_at=SUBMITTED_AT,
     )
 
@@ -197,6 +221,7 @@ def test_live_submit_rolls_back_decision_writes_on_failure(
             execution_profile_id="codex",
             reasoning_run_id=RUN_ID,
             execution_profile=_profile(),
+            submission_snapshot_id="snap_codex",
             submitted_at=SUBMITTED_AT,
         )
 
@@ -216,5 +241,44 @@ def test_live_submit_rolls_back_decision_writes_on_failure(
             execution_profile_id="codex",
             reasoning_run_id=RUN_ID,
             execution_profile=_profile(),
+            submission_snapshot_id="snap_codex",
             submitted_at=SUBMITTED_AT,
         )
+
+
+def test_live_submit_preserves_initial_snapshot_and_links_fresh_submission_snapshot() -> None:
+    conn = connect(":memory:")
+    initial_at = SUBMITTED_AT - timedelta(minutes=20)
+    _prepare_live_boundary(conn, captured_at=initial_at)
+    submission_snapshot = LivePortfolioSnapshot(
+        portfolio_snapshot_id="snap_codex_submit",
+        execution_profile_id="codex",
+        broker_account_fingerprint="0" * 16,
+        captured_at=SUBMITTED_AT - timedelta(minutes=1),
+        account_equity=105,
+        buying_power=95,
+    )
+    save_live_portfolio_snapshot(conn, submission_snapshot, _profile())
+
+    outcome = submit_decision(
+        conn,
+        _record(),
+        date(2026, 6, 10),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+        reasoning_run_id=RUN_ID,
+        execution_profile=_profile(),
+        submission_snapshot_id=submission_snapshot.portfolio_snapshot_id,
+        submitted_at=SUBMITTED_AT,
+    )
+
+    linked = conn.execute(
+        """
+        SELECT reasoning_run_id, submission_snapshot_id
+        FROM reasoning_run_decisions
+        WHERE decision_id = ?
+        """,
+        (f"{RUN_ID}_dec_001",),
+    ).fetchone()
+    assert outcome.order_intent_id == f"oi_{RUN_ID}_dec_001"
+    assert linked == (RUN_ID, "snap_codex_submit")

@@ -245,7 +245,7 @@ def test_execution_page_shows_public_profile_limits_without_credentials(tmp_path
                         "account_alias": "codex-agentic",
                         "enabled": False,
                         "max_order_notional": 20.0,
-                        "max_quote_age_seconds": 15,
+                        "max_quote_age_seconds": 60,
                         "max_spread_bps": 50.0,
                         "require_human_approval": False,
                     }
@@ -274,7 +274,7 @@ def _write_live_config(path: Path, *, enabled: bool) -> Path:
                         "broker_account_fingerprint": ("0123456789abcdef" if enabled else ""),
                         "enabled": enabled,
                         "max_order_notional": 20.0,
-                        "max_quote_age_seconds": 15,
+                        "max_quote_age_seconds": 60,
                         "max_spread_bps": 50.0,
                         "require_human_approval": False,
                     }

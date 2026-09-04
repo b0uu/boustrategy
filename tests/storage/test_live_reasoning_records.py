@@ -22,7 +22,7 @@ def _profile(profile_id: str = "codex") -> ExecutionProfile:
         broker_account_fingerprint="0123456789abcdef",
         enabled=True,
         max_order_notional=20,
-        max_quote_age_seconds=15,
+        max_quote_age_seconds=60,
         max_spread_bps=50,
     )
 
@@ -94,8 +94,8 @@ def test_authored_run_completion_requires_exact_linked_decisions() -> None:
     run = _run()
     save_reasoning_run(conn, run)
     conn.execute(
-        "INSERT INTO reasoning_run_decisions VALUES (?, ?)",
-        (run.reasoning_run_id, f"{run.reasoning_run_id}_dec_001"),
+        "INSERT INTO reasoning_run_decisions VALUES (?, ?, ?)",
+        (run.reasoning_run_id, f"{run.reasoning_run_id}_dec_001", "snap_codex"),
     )
     completed = ReasoningRun.model_validate(
         {

@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS reasoning_runs (
 CREATE TABLE IF NOT EXISTS reasoning_run_decisions (
     reasoning_run_id TEXT NOT NULL,
     decision_id TEXT NOT NULL UNIQUE,
+    submission_snapshot_id TEXT NOT NULL,
     PRIMARY KEY (reasoning_run_id, decision_id)
 );
 CREATE TABLE IF NOT EXISTS daily_prices (
@@ -310,6 +311,11 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
             "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
             "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
         },
+    )
+    _ensure_columns(
+        conn,
+        "reasoning_run_decisions",
+        {"submission_snapshot_id": "TEXT NOT NULL DEFAULT ''"},
     )
     conn.commit()
     return conn

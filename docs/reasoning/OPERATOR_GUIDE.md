@@ -78,6 +78,11 @@ The dashboard copies exact prompts for manually started agent sessions. It doesn
 schedule work, call Robinhood, or place an order. Scheduling is still deferred. The eventual
 public dashboard is a separate public-safe product and isn't part of this private implementation.
 
+A live run keeps its initial account snapshot as an audit baseline, so research doesn't need to
+finish within five minutes. Immediately before submitting a decision, the assigned agent captures
+a second fresh snapshot for deterministic policy checks. Both snapshots must match the same
+execution profile and account fingerprint.
+
 ## Live-trial boundary under development
 
 The **Executions** page now exposes the broker-neutral live ledger and the prompt for a separate

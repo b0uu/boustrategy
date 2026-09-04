@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -108,7 +108,7 @@ def test_live_runs_share_exact_intake_and_keep_separate_snapshots(tmp_path: Path
             broker_account_fingerprint=("0" if profile_id == "codex" else "1") * 16,
             enabled=True,
             max_order_notional=20,
-            max_quote_age_seconds=15,
+            max_quote_age_seconds=60,
             max_spread_bps=50,
         )
         snapshot = LivePortfolioSnapshot(
@@ -140,6 +140,41 @@ def test_live_runs_share_exact_intake_and_keep_separate_snapshots(tmp_path: Path
     assert "Paper portfolio" not in bundle
     assert "intake quota state" not in bundle
     assert not (tmp_path / "out" / "portfolio.json").exists()
+
+
+def test_live_run_preparation_rejects_stale_initial_snapshot(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    profile = ExecutionProfile(
+        execution_profile_id="codex",
+        agent_provider="CODEX",
+        account_alias="codex-agentic",
+        broker_account_fingerprint="0" * 16,
+        enabled=True,
+        max_order_notional=20,
+        max_quote_age_seconds=60,
+        max_spread_bps=50,
+    )
+    start = datetime(2026, 8, 27, 20, tzinfo=UTC)
+    snapshot = LivePortfolioSnapshot(
+        portfolio_snapshot_id="snap_codex",
+        execution_profile_id="codex",
+        broker_account_fingerprint=profile.broker_account_fingerprint,
+        captured_at=start - timedelta(minutes=6),
+        account_equity=100,
+        buying_power=100,
+    )
+    save_live_portfolio_snapshot(conn, snapshot, profile)
+
+    with pytest.raises(ValueError, match="initial portfolio snapshot is stale"):
+        prepare_live_runs(
+            conn,
+            date(2026, 8, 27),
+            "close",
+            tmp_path / "out",
+            [("codex", "Codex", snapshot.portfolio_snapshot_id)],
+            digest_dir=tmp_path / "digests",
+            started_at=start,
+        )
 
 
 def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> None:

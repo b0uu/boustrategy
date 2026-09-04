@@ -166,6 +166,8 @@ def prepare_live_runs(
             raise ValueError(f"missing portfolio snapshot {portfolio_snapshot_id}")
         if snapshot.execution_profile_id != execution_profile_id:
             raise ValueError("portfolio snapshot profile mismatch")
+        if snapshot.captured_at > start or start - snapshot.captured_at > LIVE_SNAPSHOT_MAX_AGE:
+            raise ValueError("initial portfolio snapshot is stale")
         run = ReasoningRun(
             reasoning_run_id=reasoning_run_id(on_date, slot, execution_profile_id),
             session_date=on_date,
@@ -191,6 +193,7 @@ def submit_decision(
     execution_mode: ExecutionMode = ExecutionMode.PAPER,
     execution_profile_id: str = "",
     reasoning_run_id: str = "",
+    submission_snapshot_id: str = "",
     execution_profile: ExecutionProfile | None = None,
     submitted_at: datetime | None = None,
 ) -> ProcessOutcome:
@@ -210,9 +213,11 @@ def submit_decision(
             raise ValueError("reasoning run is not PREPARED")
         if run.execution_profile_id != execution_profile_id:
             raise ValueError("reasoning run profile mismatch")
-        snapshot = get_live_portfolio_snapshot(conn, run.portfolio_snapshot_id)
+        if not submission_snapshot_id:
+            raise ValueError("live submission requires a fresh portfolio snapshot")
+        snapshot = get_live_portfolio_snapshot(conn, submission_snapshot_id)
         if snapshot is None:
-            raise ValueError(f"missing portfolio snapshot {run.portfolio_snapshot_id}")
+            raise ValueError(f"missing portfolio snapshot {submission_snapshot_id}")
         if snapshot.execution_profile_id != execution_profile_id:
             raise ValueError("portfolio snapshot profile mismatch")
         if snapshot.broker_account_fingerprint != execution_profile.broker_account_fingerprint:
@@ -243,17 +248,24 @@ def submit_decision(
             if outcome.decision_id is None:
                 raise ValueError("live submission requires a valid decision_id")
             existing_link = conn.execute(
-                "SELECT reasoning_run_id FROM reasoning_run_decisions WHERE decision_id = ?",
+                """
+                SELECT reasoning_run_id, submission_snapshot_id
+                FROM reasoning_run_decisions WHERE decision_id = ?
+                """,
                 (outcome.decision_id,),
             ).fetchone()
-            if existing_link is not None and existing_link[0] != reasoning_run_id:
-                raise ValueError("decision is linked to another reasoning run")
+            if existing_link is not None and existing_link != (
+                reasoning_run_id,
+                submission_snapshot_id,
+            ):
+                raise ValueError("decision is linked to another reasoning run or snapshot")
             conn.execute(
                 """
-                INSERT OR IGNORE INTO reasoning_run_decisions (reasoning_run_id, decision_id)
-                VALUES (?, ?)
+                INSERT OR IGNORE INTO reasoning_run_decisions
+                    (reasoning_run_id, decision_id, submission_snapshot_id)
+                VALUES (?, ?, ?)
                 """,
-                (reasoning_run_id, outcome.decision_id),
+                (reasoning_run_id, outcome.decision_id, submission_snapshot_id),
             )
             conn.commit()
         except Exception:
@@ -305,6 +317,7 @@ def main() -> None:
     submit_parser.add_argument("--execution-profile")
     submit_parser.add_argument("--live-profiles", default="ops/live.local.json")
     submit_parser.add_argument("--reasoning-run")
+    submit_parser.add_argument("--portfolio-snapshot")
 
     args = parser.parse_args()
     conn = connect(args.db)
@@ -374,6 +387,7 @@ def main() -> None:
             execution_mode=execution_mode,
             execution_profile_id=execution_profile_id,
             reasoning_run_id=args.reasoning_run or "",
+            submission_snapshot_id=args.portfolio_snapshot or "",
             execution_profile=profile,
         )
         print(outcome.model_dump_json())

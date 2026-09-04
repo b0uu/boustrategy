@@ -20,7 +20,7 @@ class ExecutionProfile(BaseModel):
     broker_account_fingerprint: str = Field(default="", pattern=r"^[a-f0-9]{0,16}$")
     enabled: bool = False
     max_order_notional: float = Field(gt=0.0)
-    max_quote_age_seconds: int = Field(gt=0, le=60)
+    max_quote_age_seconds: int = Field(ge=30, le=120)
     max_spread_bps: float = Field(gt=0.0)
     require_human_approval: bool = False
 

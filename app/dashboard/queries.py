@@ -318,31 +318,6 @@ def live_operator_status(
     profile_rows = []
     for profile in profiles:
         profile_id = str(profile["execution_profile_id"])
-        snapshot_row = conn.execute(
-            """
-            SELECT snapshot_json FROM live_portfolio_snapshots
-            WHERE execution_profile_id = ? ORDER BY captured_at DESC LIMIT 1
-            """,
-            (profile_id,),
-        ).fetchone()
-        snapshot = None
-        if snapshot_row is not None:
-            snapshot_json = json.loads(snapshot_row[0])
-            snapshot = {
-                "portfolio_snapshot_id": snapshot_json["portfolio_snapshot_id"],
-                "captured_at": snapshot_json["captured_at"],
-                "account_equity": snapshot_json["account_equity"],
-                "buying_power": snapshot_json["buying_power"],
-                "positions": [
-                    {
-                        "ticker": position["ticker"],
-                        "market_value": position["market_value"],
-                        "primary_theme_id": position["primary_theme_id"],
-                    }
-                    for position in snapshot_json["positions"]
-                ],
-            }
-
         run_row = (
             conn.execute(
                 """
@@ -364,6 +339,36 @@ def live_operator_status(
                 "result": run_json["result"],
                 "public_summary": run_json["public_summary"],
                 "decision_count": len(run_json["decision_ids"]),
+            }
+        snapshot_row = conn.execute(
+            """
+            SELECT snapshot_json FROM live_portfolio_snapshots
+            WHERE execution_profile_id = ?
+              AND (? = '' OR portfolio_snapshot_id = ?)
+            ORDER BY captured_at DESC LIMIT 1
+            """,
+            (
+                profile_id,
+                run["portfolio_snapshot_id"] if run else "",
+                run["portfolio_snapshot_id"] if run else "",
+            ),
+        ).fetchone()
+        snapshot = None
+        if snapshot_row is not None:
+            snapshot_json = json.loads(snapshot_row[0])
+            snapshot = {
+                "portfolio_snapshot_id": snapshot_json["portfolio_snapshot_id"],
+                "captured_at": snapshot_json["captured_at"],
+                "account_equity": snapshot_json["account_equity"],
+                "buying_power": snapshot_json["buying_power"],
+                "positions": [
+                    {
+                        "ticker": position["ticker"],
+                        "market_value": position["market_value"],
+                        "primary_theme_id": position["primary_theme_id"],
+                    }
+                    for position in snapshot_json["positions"]
+                ],
             }
 
         packet_rows = conn.execute(

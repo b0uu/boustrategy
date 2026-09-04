@@ -7,7 +7,7 @@
       "broker_account_fingerprint": "",
       "enabled": false,
       "max_order_notional": 20.0,
-      "max_quote_age_seconds": 15,
+      "max_quote_age_seconds": 60,
       "max_spread_bps": 50.0,
       "require_human_approval": false
     },
@@ -18,7 +18,7 @@
       "broker_account_fingerprint": "",
       "enabled": false,
       "max_order_notional": 20.0,
-      "max_quote_age_seconds": 15,
+      "max_quote_age_seconds": 60,
       "max_spread_bps": 50.0,
       "require_human_approval": false
     }

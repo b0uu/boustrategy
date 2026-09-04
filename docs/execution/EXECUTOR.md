@@ -13,6 +13,9 @@ Live placement remains disabled unless all of these inputs already exist:
   regular-market-hours state;
 - one unexpired `LiveExecutionPacket` persisted by `python -m app.broker.run packet`.
 
+For the initial live trial, use a 60-second maximum quote age. Discard an expired packet and
+rebuild it from a new broker preflight quote. Never extend an existing packet's expiry.
+
 For one packet, follow this order:
 
 1. Confirm the packet's `agent_provider` matches this worker and its account alias identifies the

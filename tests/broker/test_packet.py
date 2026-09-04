@@ -28,7 +28,7 @@ def _profile(**updates: object) -> ExecutionProfile:
         "broker_account_fingerprint": "0123456789abcdef",
         "enabled": True,
         "max_order_notional": 20.0,
-        "max_quote_age_seconds": 15,
+        "max_quote_age_seconds": 60,
         "max_spread_bps": 50.0,
         "require_human_approval": False,
     }
@@ -116,7 +116,7 @@ def test_build_packet_allows_equity_growth_within_order_brake() -> None:
     [
         ({"enabled": False}, {}, "live_profile_disabled"),
         ({}, {"execution_profile_id": "claude"}, "preflight_profile_mismatch"),
-        ({}, {"quote_at": NOW - timedelta(seconds=16)}, "stale_quote"),
+        ({}, {"quote_at": NOW - timedelta(seconds=61)}, "stale_quote"),
         ({}, {"regular_market_hours": False}, "outside_regular_market_hours"),
         ({}, {"fractionable": False}, "ticker_not_fractionable"),
     ],

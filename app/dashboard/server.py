@@ -1,7 +1,7 @@
 import argparse
 import secrets
 import sqlite3
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from html import escape
 from pathlib import Path
 from typing import Any, Protocol
@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.broker.config import load_live_profiles, public_profile_status
 from app.dashboard import queries
-from app.reason.run import LIVE_SNAPSHOT_MAX_AGE, PreparationResult, prepare_session
+from app.reason.run import PreparationResult, prepare_session
 from app.storage.database import connect
 
 # Status colors are reserved for state and always ship with a text label,
@@ -194,15 +194,16 @@ def _copy_button(target: str, label: str, enabled: bool = True) -> str:
 
 def _live_reasoning_prompt(profile: dict[str, Any], shared: dict[str, Any]) -> str:
     run = profile["run"]
-    snapshot = profile["snapshot"]
     return (
         f"Follow docs/reasoning/RUNBOOK.md for reasoning run {run['reasoning_run_id']} and "
         f"execution profile {profile['execution_profile_id']}. Read shared bundle "
         f"{shared['shared_bundle_path']} with SHA-256 {shared['shared_bundle_sha256']} and only "
-        f"portfolio snapshot {snapshot['portfolio_snapshot_id']}. Market and research inputs "
+        f"initial portfolio snapshot {run['portfolio_snapshot_id']}. Market and research inputs "
         "match the other agent, but account state is intentionally isolated. Don't read or act "
-        "on the other profile. Submit every decision through the live run boundary, then complete "
-        "the run with a public summary, including when the result is no action."
+        "on the other profile. Immediately before submitting a decision, capture and save a fresh "
+        "snapshot for this same profile and pass its ID as --portfolio-snapshot. Submit every "
+        "decision through the live run boundary, then complete the run with a public summary, "
+        "including when the result is no action."
     )
 
 
@@ -237,18 +238,15 @@ def _live_operator_body(payload: dict[str, Any], *, now: datetime) -> str:
     for profile in payload["profiles"]:
         snapshot = profile["snapshot"]
         run = profile["run"]
-        snapshot_fresh = False
         snapshot_age = "none"
         if snapshot is not None:
             age = now - datetime.fromisoformat(snapshot["captured_at"])
-            snapshot_fresh = timedelta(0) <= age <= LIVE_SNAPSHOT_MAX_AGE
             snapshot_age = f"{max(0, int(age.total_seconds()))}s"
         reasoning_ready = bool(
             shared
             and run
             and run["result"] == "PREPARED"
             and snapshot
-            and snapshot_fresh
             and run["portfolio_snapshot_id"] == snapshot["portfolio_snapshot_id"]
             and profile["enabled"]
             and profile["account_bound"]

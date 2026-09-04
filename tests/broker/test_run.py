@@ -107,7 +107,7 @@ def test_broker_cli_builds_packet_without_placing_order(
                         "broker_account_fingerprint": "0123456789abcdef",
                         "enabled": True,
                         "max_order_notional": 20.0,
-                        "max_quote_age_seconds": 15,
+                        "max_quote_age_seconds": 60,
                         "max_spread_bps": 50.0,
                         "require_human_approval": False,
                     }

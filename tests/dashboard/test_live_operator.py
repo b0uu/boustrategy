@@ -33,7 +33,7 @@ def _config(path: Path, *, codex_enabled: bool = True) -> Path:
                         "broker_account_fingerprint": "0" * 16 if codex_enabled else "",
                         "enabled": codex_enabled,
                         "max_order_notional": 20,
-                        "max_quote_age_seconds": 15,
+                        "max_quote_age_seconds": 60,
                         "max_spread_bps": 50,
                     },
                     {
@@ -43,7 +43,7 @@ def _config(path: Path, *, codex_enabled: bool = True) -> Path:
                         "broker_account_fingerprint": "1" * 16,
                         "enabled": True,
                         "max_order_notional": 20,
-                        "max_quote_age_seconds": 15,
+                        "max_quote_age_seconds": 60,
                         "max_spread_bps": 50,
                     },
                 ]
@@ -161,7 +161,8 @@ def test_live_operator_query_degrades_empty_and_projects_safe_diverged_state(
     assert run is not None
     decision_id = f"{run.reasoning_run_id}_dec_001"
     conn.execute(
-        "INSERT INTO reasoning_run_decisions VALUES (?, ?)", (run.reasoning_run_id, decision_id)
+        "INSERT INTO reasoning_run_decisions VALUES (?, ?, ?)",
+        (run.reasoning_run_id, decision_id, run.portfolio_snapshot_id),
     )
     complete_reasoning_run(
         conn,
@@ -186,6 +187,20 @@ def test_live_operator_page_renders_isolated_prompts_and_escapes_private_state(
     db_path = tmp_path / "test.db"
     config_path = _config(tmp_path / "live.json")
     _populate(db_path, config_path)
+    conn = connect(db_path)
+    profile = load_live_profiles(config_path).profiles[0]
+    save_live_portfolio_snapshot(
+        conn,
+        LivePortfolioSnapshot(
+            portfolio_snapshot_id="snap_codex_submission",
+            execution_profile_id="codex",
+            broker_account_fingerprint="0" * 16,
+            captured_at=NOW,
+            account_equity=111,
+            buying_power=69,
+        ),
+        profile,
+    )
     client = TestClient(create_app(db_path, live_config_path=config_path))
 
     response = client.get("/operate/live")
@@ -200,6 +215,7 @@ def test_live_operator_page_renders_isolated_prompts_and_escapes_private_state(
     assert codex_prompt is not None
     assert "rr_2026-08-27_close_codex" in codex_prompt.group(1)
     assert "snap_codex" in codex_prompt.group(1)
+    assert "snap_codex_submission" not in codex_prompt.group(1)
     assert "snap_claude" not in codex_prompt.group(1)
     assert "data-copy='reasoning-codex' disabled" not in response.text
     assert "data-copy='reasoning-claude' disabled" in response.text

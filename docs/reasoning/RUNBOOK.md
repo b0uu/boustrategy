@@ -41,9 +41,12 @@ execution profile ID, shared bundle path and SHA-256, and its own snapshot ID.
 2. Never read, compare, or act on the other profile's snapshot, holdings, quotas, decisions,
    intents, packets, broker lifecycle, or account. The paper portfolio is out of scope and must be
    ignored in live mode.
-3. Namespace every decision ID with `<reasoning_run_id>_` and submit every record through
+3. Namespace every decision ID with `<reasoning_run_id>_`. Immediately before each submission,
+   capture and save a fresh snapshot for the same profile. Then submit through
    `python -m app.reason.run submit --execution-profile <profile> --reasoning-run <run-id>
-   --in <file> [--date YYYY-MM-DD]`. Never write a live decision, intent, or link directly.
+   --portfolio-snapshot <fresh-snapshot-id> --in <file> [--date YYYY-MM-DD]`. The run's original
+   snapshot remains its starting audit record; the fresh snapshot is the policy truth at
+   submission. Never write a live decision, intent, or link directly.
 4. Complete the run through `python -m app.reason.run complete-live --in <run-file>`. Use one
    terminal result: `NO_ACTION`, `DECISIONS_AUTHORED`, or `FAILED`. Always include a concise public
    summary. No action still requires durable completion and a public summary.
