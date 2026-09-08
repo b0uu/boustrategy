@@ -1,0 +1,16 @@
+{
+  "schedule_id": "paper-close",
+  "revision": 1,
+  "mode": "paper",
+  "account_id": "paper",
+  "configured_at": "2026-09-06T12:00:00-04:00",
+  "enabled": false,
+  "paused": false,
+  "schedule_mode": "manual",
+  "timezone": "America/New_York",
+  "slot": "close",
+  "due_local": "17:45:00",
+  "early_close_due_local": "14:45:00",
+  "grace_seconds": 1800,
+  "observer_max_age_seconds": 180
+}
