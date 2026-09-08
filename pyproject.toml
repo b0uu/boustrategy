@@ -9,6 +9,11 @@ dependencies = [
     "httpx>=0.27",
     "fastapi>=0.111",
     "uvicorn>=0.30",
+    # Not imported directly. Transitive minimums under yfinance/httpx for the
+    # advisories recorded in docs/plan-031-audit.md ("Dependency evidence").
+    "idna>=3.15",
+    "requests>=2.33.0",
+    "urllib3>=2.7.0",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +26,17 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = [
+    # Fail on upstream deprecations so a removal never lands as a broken suite.
+    # Deliberately NOT a blanket "error": ~20 test modules open sqlite connections
+    # without closing them, and on Python 3.14 the GC-time ResourceWarning would
+    # fail whichever test happens to be running (see plans/README.md backlog).
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "error::FutureWarning",
+    # Starlette's httpx test-client shim is deprecated upstream; tracked for the httpx2 migration.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
@@ -28,6 +44,9 @@ include = ["app*"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.format]
+exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

@@ -5,10 +5,13 @@ BouStrategy is an autonomous investment decision harness where LLM reasoning pro
 # Commands
 
 - `python -m pip install -e .[dev]`
+- `python -m pip install -r requirements.lock -e .` (reproducible install; CI uses this)
 - `python -m pytest -q`
 - `python -m ruff check .`
 - `python -m ruff format --check .`
 - `python -m mypy app tests`
+
+Environment variables are listed in `.env.example`.
 
 # Layout
 
@@ -25,4 +28,4 @@ BouStrategy is an autonomous investment decision harness where LLM reasoning pro
 5. Keep schema and policy layering separate: schemas never embed policy decisions, and policy never re-validates shape.
 6. Write policy rejection reasons as lowercase snake_case strings.
 7. Write plain pytest functions in arrange/act/assert style.
-8. When writing in English, refrain from using unnecessarily complicated synonyms and  em-dashes. Use contractions rather than full words for common uses such as "don't" instead of "do not", or "can't" such as "cannot". 
+8. When writing in English, use context-aware-writing skill.
