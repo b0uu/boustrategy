@@ -39,8 +39,6 @@ def test_built_public_surface_has_no_mutation_routes_and_reads_write_nothing(
     item = client.get("/api/public/v2/decisions?portfolio_id=paper").json()["items"][0]
     legacy = f"{item['ticker']}/{quote(item['created_at'], safe='')}"
     api_urls = [
-        "/api/public/v1/dashboard",
-        f"/api/public/v1/decisions/{legacy}",
         "/api/public/v2/portfolios",
         "/api/public/v2/portfolios/live/overview",
         "/api/public/v2/portfolios/live/runtime",

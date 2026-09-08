@@ -40,8 +40,105 @@ def test_readonly_missing_database_never_creates_file_and_rejects_writes(tmp_pat
             conn.execute("CREATE TABLE secret(value)")
     client = TestClient(create_public_app(source, tmp_path / "no-ui"))
     assert client.get("/api/public/v2/decisions").json()["items"] == []
-    assert client.get("/api/public/v1/dashboard").status_code == 200
+    assert client.get("/api/public/v2/portfolios/paper/overview").status_code == 200
     assert not source.parent.exists()
+
+
+def test_v2_detail_never_serializes_private_source_state(tmp_path: Path) -> None:
+    source, public = tmp_path / "source.db", tmp_path / "published.db"
+    conn = connect(source)
+    data = valid_decision_record_data()
+    data["public_summary"] = "Public <script>alert(1)</script> summary"
+    data["internal_notes"] = "PRIVATE_INTERNAL_NOTE"
+    data["source_pack_id"] = "PRIVATE_PACKET_ID"
+    data["source_claims"] = [
+        {
+            "claim": "Publishable company claim",
+            "source_ids": ["PRIVATE_SOURCE_ID"],
+            "source_type": "COMPANY_IR",
+            "source_timestamp": data["created_at"],
+            "confidence": 0.8,
+            "public_safe": True,
+        },
+        {
+            "claim": "PRIVATE_UNSAFE_CLAIM",
+            "source_ids": ["PRIVATE_SOURCE_ID_2"],
+            "source_type": "NEWS",
+            "source_timestamp": data["created_at"],
+            "confidence": 0.8,
+            "public_safe": False,
+        },
+        {
+            "claim": "PRIVATE_INTERNAL_MEMO",
+            "source_ids": ["PRIVATE_SOURCE_ID_3"],
+            "source_type": "INTERNAL_MEMO",
+            "source_timestamp": data["created_at"],
+            "confidence": 0.8,
+            "public_safe": True,
+        },
+    ]
+    data["x_signal_usage"] = {
+        "used": True,
+        "usage_type": "COUNTER_THESIS",
+        "summary": "PRIVATE_X_DETAIL",
+        "confirmed_outside_x": False,
+    }
+    record = InvestmentDecisionRecord.model_validate(data)
+    outcome = process_decision(conn, record.model_dump(), received_at=record.created_at)
+    conn.execute(
+        "INSERT INTO trigger_events VALUES "
+        "(?, 'price_move', 'PRIVATE_TRIGGER_SUBJECT', ?, ?, 'consumed')",
+        (record.trigger_id, record.created_at.isoformat(), json.dumps({"raw": "PRIVATE_RAW"})),
+    )
+    conn.execute(
+        "INSERT INTO regime_snapshots VALUES (?, 'GREEN', 'GREEN', 4, ?, ?)",
+        (
+            record.created_at.date().isoformat(),
+            json.dumps({"trend": 0.75, "private_note": "PRIVATE_COMPONENT"}),
+            record.created_at.isoformat(),
+        ),
+    )
+    assert outcome.order_intent_id is not None
+    conn.execute(
+        "INSERT INTO broker_execution_events VALUES "
+        "('PRIVATE_EVENT_ID', 'PRIVATE_RECORD_ID', ?, 'PRIVATE_PACKET_ID', 'PRIVATE_PROFILE', "
+        "'FAILED', ?, 'PRIVATE_RAW_ERROR', ?)",
+        (
+            outcome.order_intent_id,
+            record.created_at.isoformat(),
+            json.dumps({"secret": "CREDENTIAL"}),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    publish(source, public)
+    client = TestClient(create_public_app(public))
+    item = client.get("/api/public/v2/decisions?portfolio_id=paper").json()["items"][0]
+    responses = (
+        client.get(f"/api/public/v2/decisions/{item['public_id']}"),
+        client.get(f"/api/public/v2/decisions/{item['public_id']}/export"),
+    )
+    sensitive = (
+        record.decision_id,
+        "PRIVATE_INTERNAL_NOTE",
+        "PRIVATE_PACKET_ID",
+        "PRIVATE_SOURCE_ID",
+        "PRIVATE_UNSAFE_CLAIM",
+        "PRIVATE_INTERNAL_MEMO",
+        "PRIVATE_X_DETAIL",
+        "PRIVATE_TRIGGER_SUBJECT",
+        "PRIVATE_RAW_ERROR",
+        "PRIVATE_PROFILE",
+        "CREDENTIAL",
+        "confidence",
+    )
+    published_bytes = public.read_bytes()
+    for response in responses:
+        assert response.status_code == 200
+        for private_value in sensitive:
+            assert private_value not in response.text
+    for private_value in sensitive:
+        assert private_value.encode() not in published_bytes
 
 
 def test_tied_timestamps_cursor_stability_search_and_live_paper_scope(tmp_path: Path) -> None:
@@ -120,7 +217,7 @@ def test_withdrawal_hides_legacy_links_and_position_summary(tmp_path: Path) -> N
     conn.close()
     publish(source, public)
     client = TestClient(create_public_app(public))
-    old_link = "/api/public/v1/decisions/NVDA/2026-06-10T12:00:00+00:00"
+    old_link = "/api/public/v2/legacy-decisions/NVDA/2026-06-10T12:00:00+00:00"
     assert client.get(old_link).status_code == 200
     item = client.get("/api/public/v2/decisions", params={"portfolio_id": "paper"}).json()["items"][
         0
@@ -131,7 +228,7 @@ def test_withdrawal_hides_legacy_links_and_position_summary(tmp_path: Path) -> N
     assert len(positions) == 1
     assert positions[0]["market_value"] is None
     assert positions[0]["latest_public_summary"] is None
-    assert client.get("/api/public/v1/dashboard").json()["decisions"] == []
+    assert client.get("/api/public/v2/decisions?portfolio_id=paper").json()["items"] == []
 
 
 def test_unpublication_is_atomic_and_invalid_source_does_not_hide_records(tmp_path: Path) -> None:
@@ -314,9 +411,7 @@ def test_v2_runtime_distinguishes_unpublished_from_recorded_manual_state(tmp_pat
     conn = connect(source)
     conn.close()
     publish(source, public)
-    response = TestClient(create_public_app(public)).get(
-        "/api/public/v2/portfolios/live/runtime"
-    )
+    response = TestClient(create_public_app(public)).get("/api/public/v2/portfolios/live/runtime")
     assert response.status_code == 200
     assert response.json()["schedule_mode"] == "manual"
     assert response.json()["schedules"] == []
@@ -361,7 +456,7 @@ def test_get_preserves_database_bytes_and_closes_connection(tmp_path: Path) -> N
     before = (source.read_bytes(), public.read_bytes())
     client = TestClient(create_public_app(public))
     assert client.get("/api/public/v2/decisions").status_code == 200
-    assert client.get("/api/public/v1/dashboard").status_code == 200
+    assert client.get("/api/public/v2/portfolios/paper/overview").status_code == 200
     assert before == (source.read_bytes(), public.read_bytes())
     with open_readonly(public) as conn:
         assert conn.execute("PRAGMA query_only").fetchone()[0] == 1
@@ -407,10 +502,14 @@ def test_search_theme_and_exact_ticker_priority_continue_consistently(tmp_path: 
 
 
 def test_ambiguous_legacy_timestamp_does_not_pick_a_record(tmp_path: Path) -> None:
-    source = tmp_path / "source.db"
+    source, public = tmp_path / "source.db", tmp_path / "published.db"
     seed(source, count=2)
-    client = TestClient(create_public_app(source))
-    assert client.get("/api/public/v1/decisions/NVDA/2026-06-10T12:00:00+00:00").status_code == 404
+    publish(source, public)
+    client = TestClient(create_public_app(public))
+    assert (
+        client.get("/api/public/v2/legacy-decisions/NVDA/2026-06-10T12:00:00+00:00").status_code
+        == 404
+    )
 
 
 def test_published_legacy_views_never_rerender_changed_private_source(tmp_path: Path) -> None:
@@ -427,44 +526,12 @@ def test_published_legacy_views_never_rerender_changed_private_source(tmp_path: 
     )
     conn.commit()
     conn.close()
-    dashboard = client.get("/api/public/v1/dashboard")
-    assert dashboard.status_code == 200
-    assert len(dashboard.json()["decisions"]) == 1
-    assert dashboard.json()["decisions"][0]["public_summary"] == items[1]["public_summary"]
-    assert "UNPUBLISHED_EDIT" not in dashboard.text
-    assert "PRIVATE_THESIS" not in dashboard.text
-
-
-def test_published_legacy_detail_uses_publication_snapshot(tmp_path: Path) -> None:
-    source, public = tmp_path / "source.db", tmp_path / "published.db"
-    seed(source, count=1)
-    publish(source, public)
-    conn = connect(source)
-    conn.execute(
-        "UPDATE decision_records SET record_json=json_set(record_json, "
-        "'$.public_summary', 'UNPUBLISHED_EDIT')"
-    )
-    conn.commit()
-    conn.close()
-    client = TestClient(create_public_app(public))
-    response = client.get("/api/public/v1/decisions/NVDA/2026-06-10T12:00:00+00:00")
-    assert response.status_code == 200
-    assert response.json()["initial_thesis"] == ""
-    assert response.json()["public_summary"] == "Company outlook 0"
-    assert "UNPUBLISHED_EDIT" not in response.text
-
-
-def test_legacy_feeds_are_bounded_with_independent_history_counts(tmp_path: Path) -> None:
-    source, public = tmp_path / "source.db", tmp_path / "published.db"
-    seed(source, count=105)
-    client = TestClient(create_public_app(public))
-    source_response = client.get("/api/public/v1/dashboard").json()
-    assert len(source_response["decisions"]) == 100
-    assert source_response["policy"]["approved"] == 105
-    publish(source, public)
-    published_response = client.get("/api/public/v1/dashboard").json()
-    assert len(published_response["decisions"]) == 100
-    assert published_response["policy"]["approved"] == 105
+    feed_response = client.get("/api/public/v2/decisions?portfolio_id=paper")
+    assert feed_response.status_code == 200
+    assert len(feed_response.json()["items"]) == 1
+    assert feed_response.json()["items"][0]["public_summary"] == items[1]["public_summary"]
+    assert "UNPUBLISHED_EDIT" not in feed_response.text
+    assert "PRIVATE_THESIS" not in feed_response.text
 
 
 def test_published_x_usage_keeps_recorded_flags_and_hides_private_summary(tmp_path: Path) -> None:
@@ -489,7 +556,7 @@ def test_published_x_usage_keeps_recorded_flags_and_hides_private_summary(tmp_pa
     conn.close()
     publish(source, public)
     client = TestClient(create_public_app(public))
-    response = client.get("/api/public/v1/decisions/NVDA/2026-06-10T12:00:00+00:00")
+    response = client.get("/api/public/v2/legacy-decisions/NVDA/2026-06-10T12:00:00+00:00")
     assert response.json()["x_usage"] == {
         "used": True,
         "usage_type": "COUNTER_THESIS",
@@ -530,7 +597,7 @@ def test_company_metadata_is_searchable_and_unknown_paper_cost_remains_nullable(
     response = client.get("/api/public/v2/decisions?portfolio_id=paper&q=NVIDIA")
     assert response.json()["total"] == 1
     assert response.json()["items"][0]["company_name"] == "NVIDIA Corporation"
-    legacy = client.get("/api/public/v1/dashboard")
-    assert legacy.status_code == 200
-    assert legacy.json()["positions"][0]["average_cost"] is None
-    assert legacy.json()["positions"][0]["shares"] is None
+    positions = client.get("/api/public/v2/portfolios/paper/positions")
+    assert positions.status_code == 200
+    assert positions.json()["items"][0]["average_cost"] is None
+    assert positions.json()["items"][0]["shares"] is None

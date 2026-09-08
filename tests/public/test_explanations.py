@@ -106,8 +106,10 @@ def test_public_narrative_feed_exports_and_source_retraction(tmp_path: Path) -> 
     )
     assert exported["public_summary"].startswith("'=SUM")
     assert exported["confirmed_gross_notional"] == ""
-    legacy = client.get(f"/api/public/v1/decisions/{item['ticker']}/{item['created_at']}").json()
-    assert legacy["what_is_priced_in"] == "Public priced-in summary"
+    legacy = client.get(
+        f"/api/public/v2/legacy-decisions/{item['ticker']}/{item['created_at']}"
+    ).json()
+    assert legacy["narrative"]["stages"][0]["summary"] == "Public priced-in summary"
     conn = connect(source)
     assert (
         save_public_source(
@@ -395,7 +397,7 @@ def test_prior_public_store_reads_without_get_migration(tmp_path: Path) -> None:
     assert item["public_id"] and item["public_summary"]
     assert "policy_evaluation" not in item and "narrative" not in item
     assert client.get("/api/public/v2/portfolios/paper/policy").json()["status"] == "unavailable"
-    assert client.get("/api/public/v1/dashboard").status_code == 200
+    assert client.get("/api/public/v2/portfolios/paper/overview").status_code == 200
     assert "feed_content" not in {
         row[1] for row in conn.execute("PRAGMA table_info(public_decisions)")
     }
