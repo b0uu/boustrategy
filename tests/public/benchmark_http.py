@@ -243,9 +243,9 @@ def main() -> None:
                 yield conn
 
         with patch("app.public.server.open_readonly", traced_readonly):
-            overview_response = TestClient(
-                create_public_app(public, root / "no-ui")
-            ).get("/api/public/v2/portfolios/live/overview")
+            overview_response = TestClient(create_public_app(public, root / "no-ui")).get(
+                "/api/public/v2/portfolios/live/overview"
+            )
         overview_response.raise_for_status()
         overview_query_count = len(overview_statements)
         before = hashlib.sha256(public.read_bytes()).hexdigest()

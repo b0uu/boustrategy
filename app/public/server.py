@@ -250,7 +250,7 @@ def create_public_app(
             return result
 
     @app.api_route("/api/public/v2/legacy-decisions/{ticker}/{created_at}", methods=["GET", "HEAD"])
-    def legacy_decision_detail(ticker: str, created_at: str) -> dict[str, Any]:
+    def legacy_link_detail(ticker: str, created_at: str) -> dict[str, Any]:
         try:
             instant = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
         except ValueError as exc:

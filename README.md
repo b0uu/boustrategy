@@ -34,5 +34,6 @@ live trading, see [DEVELOPMENT.md](DEVELOPMENT.md).
 On Windows, double-click `start-boustrategy.cmd` to open the private personal operator panel and
 test surface in your browser. The interface guides digesting, session preparation, and reasoning
 while leaving the X and agent steps under human control. See [the operator
-guide](docs/reasoning/OPERATOR_GUIDE.md) for the short walkthrough. A separate public-facing
-dashboard will eventually present public-safe account performance and agent reasoning.
+guide](docs/reasoning/OPERATOR_GUIDE.md) for the short walkthrough. The public dashboard
+(`app/public/`, `public-ui/`) is documented in [docs/public-release.md](docs/public-release.md).
+Retired subsystems are listed in [docs/archive/README.md](docs/archive/README.md).
