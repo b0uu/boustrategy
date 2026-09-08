@@ -336,7 +336,7 @@ backlog so nobody re-audits them.
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
 | 032 | [Keep account identity out of the published store; never publish X-typed excerpts](032-close-public-trust-boundary.md) | P1 | S | 037 (DONE) | DONE |
-| 033 | [Scheduler survives ET-midnight grace windows; runner cleanup never masks or strands an attempt](033-scheduler-and-worker-failure-handling.md) | P1 | S | none | TODO |
+| 033 | [Scheduler survives ET-midnight grace windows; runner cleanup never masks or strands an attempt](033-scheduler-and-worker-failure-handling.md) | P1 | S | none | DONE |
 | 034 | [ET session date for paper fills, price refresh and source eligibility](034-et-session-dates-for-fills-and-source-eligibility.md) | P2 | S | none (bumps the same checkpoint version as 032; run after it) | TODO |
 | 035 | [Operator view counts linked decisions for retried runs; remove dead retry bypass](035-operator-view-reports-attempt-truth.md) | P2 | S | none | TODO |
 | 036 | [CI workflow (Windows runner), Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | TODO (rewritten 2026-09-08: Windows runner, correct warning class) |
