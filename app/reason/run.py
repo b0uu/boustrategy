@@ -198,7 +198,6 @@ def _submit_decision(
     conn: sqlite3.Connection,
     record_data: dict[str, Any],
     on_date: date,
-    consume_trigger_ids: list[str] | None = None,
     *,
     execution_mode: ExecutionMode = ExecutionMode.PAPER,
     execution_profile_id: str = "",
@@ -206,7 +205,7 @@ def _submit_decision(
     submission_snapshot_id: str = "",
     execution_profile: ExecutionProfile | None = None,
     submitted_at: datetime | None = None,
-    runtime_retry: bool = False,
+    runtime_bound: bool = False,
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
@@ -220,7 +219,9 @@ def _submit_decision(
         run = get_reasoning_run(conn, reasoning_run_id)
         if run is None:
             raise ValueError(f"missing reasoning run {reasoning_run_id}")
-        if run.result != ReasoningRunResult.PREPARED and not runtime_retry:
+        # Runtime submissions are bound to their attempt by validate_fence and the
+        # identity check in submit_decision; the legacy PREPARED guard is for manual ones.
+        if run.result != ReasoningRunResult.PREPARED and not runtime_bound:
             raise ValueError("reasoning run is not PREPARED")
         if run.execution_profile_id != execution_profile_id:
             raise ValueError("reasoning run profile mismatch")
@@ -349,8 +350,6 @@ def _submit_decision(
             execution_profile_id=execution_profile_id,
             commit=False,
         )
-    if consume_trigger_ids and outcome.final_status in _CONSIDERED_STATUSES:
-        mark_triggers(conn, consume_trigger_ids, "consumed")
     return outcome
 
 
@@ -402,7 +401,7 @@ def submit_decision(
             submission_snapshot_id=submission_snapshot_id,
             execution_profile=execution_profile,
             submitted_at=processing_time,
-            runtime_retry=runtime_attempt_id is not None,
+            runtime_bound=runtime_attempt_id is not None,
         )
         if runtime_attempt_id and outcome.decision_id:
             existing = conn.execute(

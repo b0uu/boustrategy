@@ -210,7 +210,8 @@ def test_live_operator_page_renders_isolated_prompts_and_escapes_private_state(
     assert "Live trial" in response.text
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in response.text
     assert "<script>alert(1)</script>" not in response.text
-    assert "&lt;b&gt;rejected&lt;/b&gt;" in response.text
+    assert "&lt;b&gt;rejected&lt;/b&gt;" not in response.text
+    assert "Broker lifecycle detail is withheld from the dashboard." in response.text
     codex_prompt = re.search(r"id='reasoning-codex'>(.*?)</pre>", response.text, re.DOTALL)
     assert codex_prompt is not None
     assert "rr_2026-08-27_close_codex" in codex_prompt.group(1)
@@ -235,3 +236,204 @@ def test_live_operator_disables_prompts_for_disabled_profile(tmp_path: Path) -> 
 
     assert "data-copy='reasoning-codex' disabled" in response.text
     assert "data-copy='execution-codex' disabled" in response.text
+
+
+def test_live_operator_shows_bound_snapshot_as_ready_to_enable(tmp_path: Path) -> None:
+    db_path = tmp_path / "test.db"
+    config_path = _config(tmp_path / "live.json")
+    _populate(db_path, config_path)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["profiles"][0]["enabled"] = False
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/operate/live")
+
+    assert "ready to enable; account bound and snapshot saved; profile disabled" in response.text
+    assert "data-copy='reasoning-codex' disabled" in response.text
+    assert "data-copy='execution-codex' disabled" in response.text
+
+
+def test_live_operator_supports_one_enabled_codex_profile(tmp_path: Path) -> None:
+    db_path = tmp_path / "test.db"
+    config_path = _config(tmp_path / "live.json")
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["profiles"] = [config["profiles"][0]]
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    _populate(db_path, config_path)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/operate/live")
+
+    assert response.status_code == 200
+    assert "reasoning-codex" in response.text
+    assert "data-copy='reasoning-codex' disabled" not in response.text
+    assert "reasoning-claude" not in response.text
+    assert "codex-agentic" not in response.text
+    assert "0" * 16 not in response.text
+
+
+def test_claude_is_rendered_as_disabled_future_support_even_if_configured_enabled(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "test.db"
+    config_path = _config(tmp_path / "live.json")
+    _populate(db_path, config_path)
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/operate/live")
+
+    assert "Claude is disabled future support" in response.text
+    assert "data-copy='reasoning-claude' disabled" in response.text
+    assert "data-copy='execution-claude' disabled" in response.text
+
+
+def test_reasoning_prompt_requires_the_latest_matching_shared_intake(tmp_path: Path) -> None:
+    db_path = tmp_path / "test.db"
+    config_path = _config(tmp_path / "live.json")
+    _populate(db_path, config_path)
+    conn = connect(db_path)
+    claude_run = get_reasoning_run(conn, "rr_2026-08-27_close_claude")
+    assert claude_run is not None
+    mismatched = claude_run.model_copy(
+        update={
+            "shared_bundle_path": "data/reason/2026-08-27/replacement.md",
+            "shared_bundle_sha256": "b" * 64,
+        }
+    )
+    conn.execute(
+        """
+        UPDATE reasoning_runs
+        SET started_at = ?, shared_bundle_sha256 = ?, run_json = ?
+        WHERE reasoning_run_id = ?
+        """,
+        (
+            (NOW + timedelta(minutes=1)).isoformat(),
+            "b" * 64,
+            mismatched.model_dump_json(),
+            mismatched.reasoning_run_id,
+        ),
+    )
+    conn.commit()
+
+    response = TestClient(create_app(db_path, live_config_path=config_path)).get("/operate/live")
+
+    assert "The reasoning run doesn&#x27;t match the latest shared intake." in response.text
+    assert "data-copy='reasoning-codex' disabled" in response.text
+
+
+def test_private_operator_reports_actual_runtime_attempt(tmp_path: Path) -> None:
+    db = tmp_path / "source.db"
+    config_path = _config(tmp_path / "profiles.json")
+    _populate(db, config_path)
+    conn = connect(db)
+    conn.execute(
+        "INSERT INTO runtime_runs VALUES "
+        "('runtime', 'public', 'live/test', 'live', 'test', 'codex', '2026-08-27', "
+        "'close', ?, 'rr_2026-08-27_close_codex', NULL, '{}')",
+        (NOW.isoformat(),),
+    )
+    conn.execute(
+        "INSERT INTO runtime_attempts VALUES "
+        "('attempt', 'attempt-public', 'runtime', 1, 1, 'no_action', 'finished', "
+        "'test-model', NULL, ?, ?, ?, NULL, 'No action')",
+        (NOW.isoformat(), NOW.isoformat(), NOW.isoformat()),
+    )
+    conn.commit()
+    payload = live_operator_status(
+        conn, public_profile_status(load_live_profiles(config_path)), now=NOW
+    )
+    profile = next(item for item in payload["profiles"] if item["execution_profile_id"] == "codex")
+    assert profile["runtime_status"] == "no_action"
+    assert profile["runtime_attempts"][0]["attempt_id"] == "attempt"
+    assert not profile["reasoning_ready"]
+    conn.close()
+    client = TestClient(create_app(db, live_config_path=config_path))
+    assert "Actual runtime attempts" in client.get("/operate/live").text
+
+
+def test_operator_view_counts_linked_decisions_after_successful_retry(tmp_path: Path) -> None:
+    from typing import Any
+
+    from app.reason.worker import execute_attempt
+    from app.schemas.decision_record import InvestmentDecisionRecord
+    from app.schemas.live_execution import LivePortfolioSnapshot
+    from app.schemas.runtime import AuthoredOutput
+    from app.storage.records import save_live_portfolio_snapshot
+    from app.storage.runtime import save_run
+    from tests.fixtures.decision_records import valid_decision_record_data
+    from tests.reason.test_live_submit import _profile
+    from tests.reason.test_runtime import NOW as RUNTIME_NOW
+    from tests.reason.test_runtime import live_run
+
+    db = tmp_path / "source.db"
+    config_path = _config(tmp_path / "profiles.json")
+    conn = connect(db)
+    run = live_run(conn, tmp_path)
+    save_run(conn, run)
+    current = RUNTIME_NOW
+
+    def blocked_author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        record = InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "decision_id": namespace + "one"}
+        )
+        conflict = record.model_copy(update={"public_summary": "Conflicting immutable record"})
+        return AuthoredOutput(decisions=[record, conflict], public_summary="Two outputs.")
+
+    first = execute_attempt(
+        conn,
+        run.run_id,
+        "first-model",
+        profile=_profile(),
+        runner=blocked_author,
+        clock=lambda: current,
+        log_root=tmp_path / "logs",
+    )
+    assert first.status == "blocked" and first.reason == "submission_blocked"
+    current += timedelta(seconds=1)
+    save_live_portfolio_snapshot(
+        conn,
+        LivePortfolioSnapshot(
+            portfolio_snapshot_id="fresh",
+            execution_profile_id="codex",
+            broker_account_fingerprint="0" * 16,
+            captured_at=current,
+            account_equity=100,
+            buying_power=100,
+        ),
+        _profile(),
+    )
+
+    def retry_author(prompt: str, **kwargs: object) -> AuthoredOutput:
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        record = InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "decision_id": namespace + "retry"}
+        )
+        return AuthoredOutput(decisions=[record], public_summary="Fresh snapshot review.")
+
+    retried = execute_attempt(
+        conn,
+        run.run_id,
+        "retry-model",
+        profile=_profile(),
+        runner=retry_author,
+        retry=True,
+        clock=lambda: current,
+        log_root=tmp_path / "logs",
+    )
+    assert retried.status == "completed"
+    linked = conn.execute(
+        "SELECT COUNT(*) FROM reasoning_run_decisions WHERE reasoning_run_id = ?",
+        (run.reasoning_run_id,),
+    ).fetchone()[0]
+    assert linked == 2
+
+    payload = live_operator_status(
+        conn, public_profile_status(load_live_profiles(config_path)), now=current
+    )
+    profile = next(item for item in payload["profiles"] if item["execution_profile_id"] == "codex")
+    assert profile["run"]["result"] == "FAILED"
+    assert profile["run"]["decision_count"] == linked
+    assert profile["runtime_status"] == "completed"
+    conn.close()
+    client = TestClient(create_app(db, live_config_path=config_path))
+    body = client.get("/operate/live").text
+    assert "<div class='metric-label'>Decisions</div><div class='metric-value'>2</div>" in body
