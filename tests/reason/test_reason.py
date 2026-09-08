@@ -7,7 +7,13 @@ import pytest
 
 from app.policy.decision_policy import PortfolioContext
 from app.reason.intake import build_intake
-from app.reason.run import main, prepare_live_runs, prepare_session, submit_decision
+from app.reason.run import (
+    _pending_intent_dates,
+    main,
+    prepare_live_runs,
+    prepare_session,
+    submit_decision,
+)
 from app.regime.rules import Component, RegimeScore
 from app.schemas.decision_record import RegimeState
 from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
@@ -17,6 +23,23 @@ from app.storage.database import connect
 from app.storage.records import save_live_portfolio_snapshot
 from app.triggers.store import insert_trigger
 from tests.fixtures.decision_records import valid_decision_record_data
+from tests.paper.test_paper import _intent
+
+
+def test_pending_intent_refresh_starts_on_new_york_session_date(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "test.db")
+    _intent(
+        conn,
+        "buy",
+        "BUY",
+        0.10,
+        date(2026, 7, 20),
+        created_at=datetime(2026, 7, 21, 1, 30, tzinfo=UTC),
+    )
+
+    pending = _pending_intent_dates(conn)
+
+    assert pending == {"NVDA": date(2026, 7, 20)}
 
 
 def test_intake_renders_every_section_and_does_not_mutate_database(tmp_path: Path) -> None:
@@ -403,6 +426,7 @@ def test_submit_rejects_self_reported_regime_mismatch(tmp_path: Path) -> None:
         ('2026-06-10', 'RED', 'RED', -5, '{"trend": -1}', '2026-06-10T10:00:00Z')
         """
     )
+    conn.commit()
     record = valid_decision_record_data()  # fixture's regime_state defaults to GREEN
 
     outcome = submit_decision(conn, record, date(2026, 6, 10))
@@ -419,6 +443,7 @@ def test_submit_uses_latest_snapshot_on_or_before_the_submit_date(tmp_path: Path
         ('2026-06-01', 'GREEN', 'GREEN', 5, '{"trend": 1}', '2026-06-01T10:00:00Z')
         """
     )
+    conn.commit()
     record = valid_decision_record_data()  # regime_state GREEN matches the only snapshot
 
     outcome = submit_decision(conn, record, date(2026, 6, 10))
@@ -447,20 +472,19 @@ def test_submit_passes_record_ticker_to_portfolio_context(monkeypatch: pytest.Mo
         *,
         execution_mode: ExecutionMode,
         execution_profile_id: str,
+        received_at: datetime,
+        input_identity: object,
+        commit: bool,
     ) -> ProcessOutcome:
         captured["portfolio"] = portfolio
         captured["execution_mode"] = execution_mode
         captured["execution_profile_id"] = execution_profile_id
         return ProcessOutcome(decision_id=None, final_status=DecisionStatus.SCHEMA_FAILED)
 
-    def fake_regime(conn: object, on_date: date) -> None:
-        return None
-
     monkeypatch.setattr("app.reason.run.portfolio_context", fake_context)
     monkeypatch.setattr("app.reason.run.process_decision", fake_process)
-    monkeypatch.setattr("app.reason.run.latest_published_regime", fake_regime)
 
-    submit_decision(object(), {"ticker": "nvda"}, date(2026, 6, 10))  # type: ignore[arg-type]
+    submit_decision(connect(":memory:"), {"ticker": "nvda"}, date(2026, 6, 10))
 
     assert captured == {
         "ticker": "nvda",

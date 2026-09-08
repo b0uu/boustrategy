@@ -219,7 +219,7 @@ def publish(
             ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 8,
+                    "version": 9,
                     "accounting_clock": accounting_clock,
                     "identity": identity,
                     "changes": changes,
@@ -548,7 +548,8 @@ def publish(
                     ref: metadata
                     for ref, metadata in sources.items()
                     if metadata["published_on"] is None
-                    or metadata["published_on"] <= record.created_at.date().isoformat()
+                    or metadata["published_on"]
+                    <= record.created_at.astimezone(NEW_YORK).date().isoformat()
                 }
                 evaluation = evaluations.get(decision_id)
                 intent = intents.get(decision_id)

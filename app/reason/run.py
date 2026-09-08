@@ -5,6 +5,7 @@ import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,21 +16,25 @@ from app.paper.broker import settle
 from app.paper.context import portfolio_context, position_tickers
 from app.prices.cache import refresh_ticker
 from app.reason.live_context import live_portfolio_context
-from app.regime.run import latest_published_regime, score_date
+from app.regime.run import score_date
 from app.schemas.decision_record import RegimeState
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import ExecutionMode
+from app.schemas.policy_reporting import PolicyInputIdentity
 from app.schemas.reasoning_run import ReasoningRun, ReasoningRunResult, reasoning_run_id
 from app.state.pipeline import DecisionStatus, ProcessOutcome, process_decision
 from app.storage.database import connect
 from app.storage.records import (
     complete_reasoning_run,
+    get_decision_record,
     get_live_portfolio_snapshot,
     get_reasoning_run,
     save_reasoning_run,
 )
+from app.storage.runtime import get_run, immediate, validate_fence
 from app.triggers.evaluate import evaluate_triggers
 from app.triggers.store import mark_triggers
+from app.x.calendar import NEW_YORK, completed_session, completed_through, is_session, session_close
 
 from .intake import build_intake
 
@@ -80,14 +85,18 @@ def _completed_digest_runs(conn: sqlite3.Connection, on_date: date, digest_path:
 def _pending_intent_dates(conn: sqlite3.Connection) -> dict[str, date]:
     rows = conn.execute(
         """
-        SELECT o.ticker, MIN(substr(o.created_at, 1, 10))
+        SELECT o.ticker, o.created_at
         FROM order_intents o
         LEFT JOIN paper_fills f ON f.order_intent_id = o.order_intent_id
-        WHERE f.fill_id IS NULL
-        GROUP BY o.ticker ORDER BY o.ticker
+        WHERE f.fill_id IS NULL AND o.execution_mode = 'PAPER'
+        ORDER BY o.ticker
         """
     ).fetchall()
-    return {ticker: date.fromisoformat(created_at) for ticker, created_at in rows}
+    pending: dict[str, date] = {}
+    for ticker, created_at in rows:
+        session_date = datetime.fromisoformat(created_at).astimezone(NEW_YORK).date()
+        pending[ticker] = min(pending.get(ticker, session_date), session_date)
+    return pending
 
 
 def prepare_session(
@@ -118,13 +127,14 @@ def prepare_session(
     for ticker, start in sorted(refresh_starts.items()):
         refreshed[ticker] = refresh_ticker(conn, ticker, start, on_date + timedelta(days=1))
 
-    fills, awaiting = settle(conn, through_date=on_date)
+    completed_date = completed_through(on_date, datetime.now(UTC))
+    fills, awaiting = settle(conn, through_date=completed_date)
     calendar_counts = {
         ticker: refresh_earnings(conn, ticker, today=on_date) for ticker in tracked_tickers
     }
     calendar_counts["FOMC"] = sync_fomc(conn, FOMC_COVERAGE_END)
-    trigger_counts = evaluate_triggers(conn, tracked_tickers, on_date)
-    published, score = score_date(conn, on_date)
+    trigger_counts = evaluate_triggers(conn, tracked_tickers, completed_date)
+    published, score = score_date(conn, completed_date)
     bundle_path = build_intake(conn, on_date, out_dir, digest_dir)
     result = PreparationResult(
         session_date=on_date,
@@ -184,7 +194,7 @@ def prepare_live_runs(
     return runs
 
 
-def submit_decision(
+def _submit_decision(
     conn: sqlite3.Connection,
     record_data: dict[str, Any],
     on_date: date,
@@ -196,6 +206,7 @@ def submit_decision(
     submission_snapshot_id: str = "",
     execution_profile: ExecutionProfile | None = None,
     submitted_at: datetime | None = None,
+    runtime_retry: bool = False,
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
@@ -209,7 +220,7 @@ def submit_decision(
         run = get_reasoning_run(conn, reasoning_run_id)
         if run is None:
             raise ValueError(f"missing reasoning run {reasoning_run_id}")
-        if run.result != ReasoningRunResult.PREPARED:
+        if run.result != ReasoningRunResult.PREPARED and not runtime_retry:
             raise ValueError("reasoning run is not PREPARED")
         if run.execution_profile_id != execution_profile_id:
             raise ValueError("reasoning run profile mismatch")
@@ -223,6 +234,15 @@ def submit_decision(
         if snapshot.broker_account_fingerprint != execution_profile.broker_account_fingerprint:
             raise ValueError("portfolio snapshot account mismatch")
         now = submitted_at or datetime.now(UTC)
+        if (
+            on_date != now.astimezone(NEW_YORK).date()
+            or run.session_date != on_date
+            or (
+                record_data.get("decision") in {"BUY", "ADD", "TRIM", "SELL"}
+                and not is_session(on_date)
+            )
+        ):
+            raise ValueError("prepared_session_stale")
         if snapshot.captured_at > now or now - snapshot.captured_at > LIVE_SNAPSHOT_MAX_AGE:
             raise ValueError("portfolio snapshot is stale")
         raw_decision_id = record_data.get("decision_id")
@@ -230,56 +250,171 @@ def submit_decision(
             f"{reasoning_run_id}_"
         ):
             raise ValueError("live decision_id must use the reasoning run namespace")
-        portfolio = live_portfolio_context(conn, snapshot, on_date, exclude_ticker=ticker)
-    true_regime_state = latest_published_regime(conn, on_date)
+        portfolio = live_portfolio_context(
+            conn, snapshot, on_date, exclude_ticker=ticker.strip().upper() if ticker else None
+        )
+    evaluation_time = submitted_at or datetime.now(UTC)
+    regime_date = (
+        completed_session(evaluation_time) if execution_mode == ExecutionMode.LIVE else on_date
+    )
+    regime_row = conn.execute(
+        "SELECT snapshot_date, regime, raw_regime, score, components_json, computed_at "
+        "FROM regime_snapshots WHERE snapshot_date<=? AND julianday(computed_at)<=julianday(?) "
+        "ORDER BY snapshot_date DESC LIMIT 1",
+        (regime_date.isoformat(), evaluation_time.isoformat()),
+    ).fetchone()
     if execution_mode == ExecutionMode.LIVE:
-        conn.execute("BEGIN")
-        try:
-            outcome = process_decision(
-                conn,
-                record_data,
-                portfolio,
-                true_regime_state,
-                received_at=submitted_at,
-                execution_mode=execution_mode,
-                execution_profile_id=execution_profile_id,
-                commit=False,
+        expected_session = completed_session(evaluation_time)
+        if regime_row is None:
+            raise ValueError("regime_missing")
+        if date.fromisoformat(regime_row[0]) != expected_session:
+            raise ValueError("regime_stale")
+        close = session_close(expected_session)
+        if close is None or datetime.fromisoformat(regime_row[5]) < close:
+            raise ValueError("regime_precedes_completed_session")
+    true_regime_state = RegimeState(regime_row[1]) if regime_row else None
+    current_weight = None
+    if execution_mode == ExecutionMode.LIVE:
+        assert snapshot is not None
+        current_weight = (
+            sum(
+                p.market_value
+                for p in snapshot.positions
+                if p.ticker == (ticker or "").strip().upper()
             )
-            if outcome.decision_id is None:
-                raise ValueError("live submission requires a valid decision_id")
-            existing_link = conn.execute(
-                """
-                SELECT reasoning_run_id, submission_snapshot_id
-                FROM reasoning_run_decisions WHERE decision_id = ?
-                """,
-                (outcome.decision_id,),
-            ).fetchone()
-            if existing_link is not None and existing_link != (
-                reasoning_run_id,
-                submission_snapshot_id,
-            ):
-                raise ValueError("decision is linked to another reasoning run or snapshot")
-            conn.execute(
-                """
-                INSERT OR IGNORE INTO reasoning_run_decisions
-                    (reasoning_run_id, decision_id, submission_snapshot_id)
-                VALUES (?, ?, ?)
-                """,
-                (reasoning_run_id, outcome.decision_id, submission_snapshot_id),
+            / snapshot.account_equity
+        )
+    identity = PolicyInputIdentity(
+        portfolio_snapshot_id=submission_snapshot_id or None,
+        regime_snapshot_id=regime_row[0] if regime_row else None,
+        regime_snapshot_hash=hashlib.sha256(json.dumps(list(regime_row)).encode()).hexdigest()
+        if regime_row
+        else None,
+        current_weight=current_weight,
+    )
+    if execution_mode == ExecutionMode.LIVE:
+        outcome = process_decision(
+            conn,
+            record_data,
+            portfolio,
+            true_regime_state,
+            received_at=evaluation_time,
+            input_identity=identity,
+            execution_mode=execution_mode,
+            execution_profile_id=execution_profile_id,
+            commit=False,
+        )
+        if outcome.decision_id is None:
+            raise ValueError("live submission requires a valid decision_id")
+        assert run is not None
+        authored = get_decision_record(conn, outcome.decision_id)
+        if (
+            authored
+            and authored.public_narrative
+            and any(
+                stage.started_at and stage.started_at < run.started_at
+                for stage in authored.public_narrative.stages
             )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+        ):
+            raise ValueError("public stage precedes its reasoning run")
+        existing_link = conn.execute(
+            """
+            SELECT reasoning_run_id, submission_snapshot_id
+            FROM reasoning_run_decisions WHERE decision_id = ?
+            """,
+            (outcome.decision_id,),
+        ).fetchone()
+        if existing_link is not None and existing_link != (
+            reasoning_run_id,
+            submission_snapshot_id,
+        ):
+            raise ValueError("decision is linked to another reasoning run or snapshot")
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO reasoning_run_decisions
+                (reasoning_run_id, decision_id, submission_snapshot_id)
+            VALUES (?, ?, ?)
+            """,
+            (reasoning_run_id, outcome.decision_id, submission_snapshot_id),
+        )
     else:
         outcome = process_decision(
             conn,
             record_data,
             portfolio,
             true_regime_state,
+            received_at=evaluation_time,
+            input_identity=identity,
             execution_mode=execution_mode,
             execution_profile_id=execution_profile_id,
+            commit=False,
         )
+    if consume_trigger_ids and outcome.final_status in _CONSIDERED_STATUSES:
+        mark_triggers(conn, consume_trigger_ids, "consumed")
+    return outcome
+
+
+def submit_decision(
+    conn: sqlite3.Connection,
+    record_data: dict[str, Any],
+    on_date: date,
+    consume_trigger_ids: list[str] | None = None,
+    *,
+    execution_mode: ExecutionMode = ExecutionMode.PAPER,
+    execution_profile_id: str = "",
+    reasoning_run_id: str = "",
+    submission_snapshot_id: str = "",
+    execution_profile: ExecutionProfile | None = None,
+    submitted_at: datetime | None = None,
+    runtime_attempt_id: str | None = None,
+    fence: int | None = None,
+) -> ProcessOutcome:
+    processing_time = submitted_at or datetime.now(UTC)
+    if (runtime_attempt_id is None) != (fence is None):
+        raise ValueError("runtime submission requires both attempt and fence")
+    with immediate(conn):
+        if runtime_attempt_id is not None and fence is not None:
+            attempt = validate_fence(conn, runtime_attempt_id, fence, processing_time)
+            runtime_run = get_run(conn, attempt.run_id)
+            if (
+                runtime_run.mode != execution_mode.value.lower()
+                or runtime_run.execution_profile_id != execution_profile_id
+                or runtime_run.session_date != on_date
+                or runtime_run.session_date != processing_time.astimezone(NEW_YORK).date()
+                or runtime_run.reasoning_run_id != (reasoning_run_id or None)
+            ):
+                raise ValueError("runtime submission identity mismatch")
+            prefix = (
+                (runtime_run.reasoning_run_id or runtime_run.run_id)
+                + "_"
+                + runtime_attempt_id
+                + "_"
+            )
+            if not str(record_data.get("decision_id", "")).startswith(prefix):
+                raise ValueError("decision must use its attempt namespace")
+        outcome = _submit_decision(
+            conn,
+            record_data,
+            on_date,
+            execution_mode=execution_mode,
+            execution_profile_id=execution_profile_id,
+            reasoning_run_id=reasoning_run_id,
+            submission_snapshot_id=submission_snapshot_id,
+            execution_profile=execution_profile,
+            submitted_at=processing_time,
+            runtime_retry=runtime_attempt_id is not None,
+        )
+        if runtime_attempt_id and outcome.decision_id:
+            existing = conn.execute(
+                "SELECT runtime_attempt_id FROM decision_records WHERE decision_id=?",
+                (outcome.decision_id,),
+            ).fetchone()
+            if existing and existing[0] not in {"", runtime_attempt_id}:
+                raise ValueError("decision belongs to another attempt")
+            conn.execute(
+                "UPDATE decision_records SET runtime_attempt_id=? WHERE decision_id=?",
+                (runtime_attempt_id, outcome.decision_id),
+            )
     if consume_trigger_ids and outcome.final_status in _CONSIDERED_STATUSES:
         mark_triggers(conn, consume_trigger_ids, "consumed")
     return outcome
@@ -321,76 +456,87 @@ def main() -> None:
 
     args = parser.parse_args()
     conn = connect(args.db)
-    on_date = date.fromisoformat(args.date) if args.date else date.today()
-    if args.command == "prepare":
-        result = prepare_session(
-            conn,
-            on_date,
-            args.out,
-            digest_dir=args.digest_dir,
-            watchlist_path=args.watchlist,
+    try:
+        on_date = (
+            date.fromisoformat(args.date)
+            if getattr(args, "date", None)
+            else datetime.now(ZoneInfo("America/New_York")).date()
         )
-        print(result.model_dump_json())
-    elif args.command == "intake":
-        print(build_intake(conn, on_date, args.out))
-    elif args.command == "prepare-live":
-        payload = json.loads(Path(args.runs).read_text(encoding="utf-8"))
-        profiles = [
-            (
-                item["execution_profile_id"],
-                item["model_label"],
-                item["portfolio_snapshot_id"],
+        if args.command == "prepare":
+            result = prepare_session(
+                conn,
+                on_date,
+                args.out,
+                digest_dir=args.digest_dir,
+                watchlist_path=args.watchlist,
             )
-            for item in payload
-        ]
-        runs = prepare_live_runs(
-            conn,
-            on_date,
-            args.slot,
-            args.out,
-            profiles,
-            digest_dir=args.digest_dir,
-        )
-        print(json.dumps({"runs": [run.model_dump(mode="json") for run in runs]}))
-    elif args.command == "complete-live":
-        run = ReasoningRun.model_validate_json(Path(args.input_path).read_text(encoding="utf-8"))
-        completed = complete_reasoning_run(conn, run)
-        print(
-            json.dumps(
-                {
-                    "reasoning_run_id": completed.reasoning_run_id,
-                    "result": completed.result.value,
-                    "decision_ids": completed.decision_ids,
-                }
+            print(result.model_dump_json())
+        elif args.command == "intake":
+            print(build_intake(conn, on_date, args.out))
+        elif args.command == "prepare-live":
+            payload = json.loads(Path(args.runs).read_text(encoding="utf-8"))
+            profiles = [
+                (
+                    item["execution_profile_id"],
+                    item["model_label"],
+                    item["portfolio_snapshot_id"],
+                )
+                for item in payload
+            ]
+            runs = prepare_live_runs(
+                conn,
+                on_date,
+                args.slot,
+                args.out,
+                profiles,
+                digest_dir=args.digest_dir,
             )
-        )
-    else:
-        record_data = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
-        trigger_ids = args.consume_triggers.split(",") if args.consume_triggers else []
-        execution_mode = ExecutionMode.PAPER
-        execution_profile_id = ""
-        profile = None
-        if args.execution_profile:
-            config = load_live_profiles(args.live_profiles)
-            profile = get_live_profile(config, args.execution_profile)
-            if not profile.enabled:
-                raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
-            execution_mode = ExecutionMode.LIVE
-            execution_profile_id = profile.execution_profile_id
-            if not args.reasoning_run:
-                raise ValueError("live submit requires --reasoning-run")
-        outcome = submit_decision(
-            conn,
-            record_data,
-            on_date,
-            trigger_ids,
-            execution_mode=execution_mode,
-            execution_profile_id=execution_profile_id,
-            reasoning_run_id=args.reasoning_run or "",
-            submission_snapshot_id=args.portfolio_snapshot or "",
-            execution_profile=profile,
-        )
-        print(outcome.model_dump_json())
+            print(json.dumps({"runs": [run.model_dump(mode="json") for run in runs]}))
+        elif args.command == "complete-live":
+            run = ReasoningRun.model_validate_json(
+                Path(args.input_path).read_text(encoding="utf-8")
+            )
+            completed = complete_reasoning_run(conn, run)
+            print(
+                json.dumps(
+                    {
+                        "reasoning_run_id": completed.reasoning_run_id,
+                        "result": completed.result.value,
+                        "decision_ids": completed.decision_ids,
+                    }
+                )
+            )
+        else:
+            record_data = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
+            trigger_ids = args.consume_triggers.split(",") if args.consume_triggers else []
+            execution_mode = ExecutionMode.PAPER
+            execution_profile_id = ""
+            profile = None
+            if args.execution_profile:
+                config = load_live_profiles(args.live_profiles)
+                profile = get_live_profile(config, args.execution_profile)
+                if not profile.enabled:
+                    raise ValueError(
+                        f"execution profile {profile.execution_profile_id} is disabled"
+                    )
+                execution_mode = ExecutionMode.LIVE
+                execution_profile_id = profile.execution_profile_id
+                if not args.reasoning_run:
+                    raise ValueError("live submit requires --reasoning-run")
+            outcome = submit_decision(
+                conn,
+                record_data,
+                on_date,
+                trigger_ids,
+                execution_mode=execution_mode,
+                execution_profile_id=execution_profile_id,
+                reasoning_run_id=args.reasoning_run or "",
+                submission_snapshot_id=args.portfolio_snapshot or "",
+                execution_profile=profile,
+            )
+            print(outcome.model_dump_json())
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

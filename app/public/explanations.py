@@ -9,6 +9,7 @@ from app.dashboard.queries import table_exists
 from app.schemas.policy_reporting import PolicyEvaluationRecord
 from app.schemas.public_authoring import PublicNarrative, PublicSourceRecord, ThesisReview
 from app.schemas.reporting import FillObservation
+from app.x.calendar import NEW_YORK
 
 
 def eligible_sources(conn: sqlite3.Connection) -> dict[str, dict[str, Any]]:
@@ -230,7 +231,7 @@ def thesis_projection(
         ref: metadata
         for ref, metadata in sources.items()
         if metadata["published_on"] is None
-        or metadata["published_on"] <= review.reviewed_at.date().isoformat()
+        or metadata["published_on"] <= review.reviewed_at.astimezone(NEW_YORK).date().isoformat()
     }
     narrative = narrative_projection(review.narrative, review_sources, review.episode_id)
     if review.narrative and review.narrative.required_source_refs and narrative is None:

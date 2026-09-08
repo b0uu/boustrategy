@@ -421,6 +421,64 @@ def test_future_source_is_not_decision_evidence_and_private_drafts_stay_private(
     )
 
 
+def test_source_published_on_the_utc_date_of_an_evening_et_decision_is_not_eligible(
+    tmp_path: Path,
+) -> None:
+    source, public = tmp_path / "source.db", tmp_path / "public.db"
+    conn = connect(source)
+    future_id = save_public_source(
+        conn,
+        source_record(
+            revision_id="future-revision",
+            source_ref="future-source",
+            published_on="2026-06-11",
+        ),
+    )
+    current_id = save_public_source(
+        conn,
+        source_record(
+            revision_id="current-revision",
+            source_ref="current-source",
+            published_on="2026-06-10",
+        ),
+    )
+    created_at = datetime(2026, 6, 11, 1, tzinfo=UTC)
+    data = valid_decision_record_data()
+    data.update(
+        created_at=created_at,
+        public_narrative={
+            "approved_for_publication": True,
+            "claims": [
+                {
+                    "claim_id": "future-claim",
+                    "text": "This source was not yet available in New York.",
+                    "source_refs": ["future-source"],
+                    "approved_for_publication": True,
+                },
+                {
+                    "claim_id": "current-claim",
+                    "text": "This source was available in New York.",
+                    "source_refs": ["current-source"],
+                    "approved_for_publication": True,
+                },
+            ],
+        },
+    )
+    process_decision(conn, data, received_at=created_at)
+    conn.close()
+    publish(source, public)
+    client = TestClient(create_public_app(public))
+
+    item = client.get("/api/public/v2/decisions", params={"portfolio_id": "paper"}).json()["items"][
+        0
+    ]
+    detail = client.get("/api/public/v2/decisions/" + item["public_id"]).json()
+
+    source_ids = {item["public_id"] for item in detail["narrative"]["sources"]}
+    assert current_id in source_ids
+    assert future_id not in source_ids
+
+
 def test_search_controls_are_client_errors_not_sql_failures(tmp_path: Path) -> None:
     source, public = tmp_path / "source.db", tmp_path / "public.db"
     conn = connect(source)
