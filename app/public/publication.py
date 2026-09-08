@@ -210,12 +210,18 @@ def publish(
                 published_at.astimezone(NEW_YORK).date().isoformat(),
                 eligible_close,
             ]
+            # The public file needs identity equality, not profile IDs or account fingerprints.
+            identity = hashlib.sha256(
+                json.dumps(
+                    {"profiles": sorted(live_profiles), "account": live_account_id},
+                    sort_keys=True,
+                ).encode("utf-8")
+            ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 7,
+                    "version": 8,
                     "accounting_clock": accounting_clock,
-                    "profiles": sorted(live_profiles),
-                    "account": live_account_id,
+                    "identity": identity,
                     "changes": changes,
                 },
                 sort_keys=True,
@@ -231,8 +237,7 @@ def publish(
                 changes
                 and previous
                 and previous["version"] == current["version"]
-                and previous["profiles"] == current["profiles"]
-                and previous["account"] == current["account"]
+                and previous["identity"] == current["identity"]
                 and previous["changes"]
                 and previous["changes"][0] == current["changes"][0]
                 and all(
@@ -258,8 +263,7 @@ def publish(
                 changes
                 and previous
                 and previous["version"] == current["version"]
-                and previous["profiles"] == current["profiles"]
-                and previous["account"] == current["account"]
+                and previous["identity"] == current["identity"]
                 and previous["changes"]
                 and previous["changes"][:3] == current["changes"][:3]
                 and previous.get("accounting_clock") == accounting_clock

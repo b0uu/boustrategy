@@ -135,6 +135,81 @@ def test_public_narrative_feed_exports_and_source_retraction(tmp_path: Path) -> 
     )
 
 
+def test_x_typed_source_never_publishes_an_excerpt(tmp_path: Path) -> None:
+    source, public = tmp_path / "source.db", tmp_path / "public.db"
+    conn = connect(source)
+    save_public_source(
+        conn,
+        source_record(
+            source_type="X",
+            excerpt="PRIVATE_X_TEXT",
+            excerpt_approved=True,
+            url="https://x.com/someone/status/1",
+        ),
+    )
+    save_public_source(
+        conn,
+        source_record(
+            revision_id="revision-2",
+            source_ref="ir-source",
+            excerpt="APPROVED_IR_TEXT",
+            excerpt_approved=True,
+        ),
+    )
+    data = valid_decision_record_data()
+    data["source_claims"] = [
+        {
+            "claim": "An X post described product demand.",
+            "source_ids": ["internal-source"],
+            "source_type": "X",
+            "source_timestamp": NOW,
+            "confidence": 0.7,
+            "public_safe": True,
+        },
+        {
+            "claim": "Company materials described product demand.",
+            "source_ids": ["ir-source"],
+            "source_type": "COMPANY_IR",
+            "source_timestamp": NOW,
+            "confidence": 0.9,
+            "public_safe": True,
+        },
+    ]
+    data["public_narrative"] = {
+        "approved_for_publication": True,
+        "claims": [
+            {
+                "claim_id": "x-claim",
+                "text": "Demand was discussed publicly.",
+                "source_refs": ["internal-source"],
+                "approved_for_publication": True,
+            },
+            {
+                "claim_id": "ir-claim",
+                "text": "Company materials support the demand claim.",
+                "source_refs": ["ir-source"],
+                "approved_for_publication": True,
+            },
+        ],
+    }
+    process_decision(conn, data, received_at=NOW)
+    conn.close()
+    publish(source, public)
+    client = TestClient(create_public_app(public))
+
+    item = client.get("/api/public/v2/decisions", params={"portfolio_id": "paper"}).json()["items"][
+        0
+    ]
+    detail = client.get("/api/public/v2/decisions/" + item["public_id"]).json()
+
+    excerpts = {
+        source["source_type"]: source["excerpt"] for source in detail["narrative"]["sources"]
+    }
+    assert excerpts["X"] is None
+    assert excerpts["COMPANY_IR"] == "APPROVED_IR_TEXT"
+    assert b"PRIVATE_X_TEXT" not in public.read_bytes()
+
+
 @pytest.mark.parametrize(
     "url",
     [

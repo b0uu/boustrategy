@@ -335,17 +335,18 @@ backlog so nobody re-audits them.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 032 | [Serve public routes only from the published store; no account identity or X excerpts in it](032-close-public-trust-boundary.md) | P1 | S | none | TODO |
+| 032 | [Keep account identity out of the published store; never publish X-typed excerpts](032-close-public-trust-boundary.md) | P1 | S | 037 (DONE) | DONE |
 | 033 | [Scheduler survives ET-midnight grace windows; runner cleanup never masks or strands an attempt](033-scheduler-and-worker-failure-handling.md) | P1 | S | none | TODO |
 | 034 | [ET session date for paper fills, price refresh and source eligibility](034-et-session-dates-for-fills-and-source-eligibility.md) | P2 | S | none (bumps the same checkpoint version as 032; run after it) | TODO |
 | 035 | [Operator view counts linked decisions for retried runs; remove dead retry bypass](035-operator-view-reports-attempt-truth.md) | P2 | S | none | TODO |
-| 036 | [CI workflow, Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | TODO |
-| 037 | [Retire labeling, replay tool and public v1 behind an archive tag; archive completed plans](037-retire-finished-subsystems-and-archive-history.md) | P2 | M | none; run BEFORE 032 (supersedes its Steps 1, 2, 4) | TODO |
+| 036 | [CI workflow (Windows runner), Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | TODO (rewritten 2026-09-08: Windows runner, correct warning class) |
+| 037 | [Retire labeling, replay tool and public v1 behind an archive tag; archive completed plans](037-retire-finished-subsystems-and-archive-history.md) | P2 | M | none | DONE (2026-09-08; commits 579a724..0702ddd on `advisor/037-retire-finished-subsystems`; tag `archive/2026-09-retirements`) |
 
-Recommended order: 037, 032, 033, 034, 035, 036. All are independent except
-that 037 removes the v1 routes 032's Steps 1, 2 and 4 would edit (032's header
-says what to skip once 037 has landed), and 032 and 034 both bump the
-publication checkpoint version (032 sets 8, 034 then sets 9). Each plan stages only its own files; the tree's pre-existing
+Recommended order: 032, 033, 034, 035, 036 (037 is done). All are independent
+except that 032 and 034 both bump the publication checkpoint version; each
+plan reads the current value and increments it by one, in whichever order they
+run. Plans 032-036 were re-verified line by line against commit `0702ddd`
+on 2026-09-08 after two executor STOPs exposed stale claims in 037 and 032. Each plan stages only its own files; the tree's pre-existing
 uncommitted delta must not be swept into a plan's commit.
 
 ### Bloat assessment (2026-09-08, maintainer request)
@@ -374,6 +375,7 @@ below (inline HTML templates in `app/dashboard/views.py`, `publish()` length,
 
 Ordered by leverage. Evidence was confirmed by the advisor against the code.
 
+- **`public-ui/fixtures/generate.py` is nondeterministic.** Two consecutive runs on an unchanged tree differ by ~700 lines (`published_at`, `server_now`, uuid-based public/claim/source ids), so "regenerate and diff" can never be a gate; the React suite (`npm --prefix public-ui run test`) against the checked-in fixture is the only frontend contract check. S effort to make it reproducible: inject a fixed clock into `publish`/`create_public_app` for fixture generation and derive ids from a seeded RNG or content hash. Until then, executors must not regenerate the fixture. (Found 2026-09-08 by an executor STOP on plan 032.)
 - **Private dashboard decision list is unbounded with a per-row query on an unindexed table.** `app/dashboard/queries.py:210-244` selects every `decision_records` row, parses each JSON, and runs one `status_events` query per decision (plus `table_exists` per row); `overview()` then keeps 8. `status_events` has no index on `(subject_type, subject_id)` (`app/storage/database.py:169-176`); the overview's correlated `MAX(event_id)` at `queries.py:90-96` is quadratic. Low pain today (two decisions in the real db), S effort, LOW risk: add `LIMIT`, hoist `table_exists`, one grouped events query, and `CREATE INDEX IF NOT EXISTS status_events_subject ON status_events(subject_type, subject_id, event_id)`. Same pass: `x_posts(review_status, posted_at)`, `broker_execution_events(order_intent_id)`, `live_execution_packets(order_intent_id, execution_profile_id)`.
 - **Paper reconstruction loads all of `daily_prices` and replays from inception on `/` and `/portfolio`.** `app/performance/paper.py:55-64`, reached via `app/dashboard/queries.py:194-207`; `publish()` computes it twice (`publication.py:517` and `:943`). M effort; needs a characterization test on the equity series first.
 - **Public feed runs a filtered `COUNT(*)` (and the FTS match twice) plus `PRAGMA table_info` on every request.** `app/public/queries.py:161-190`. S effort; carry `total` in the cursor, resolve the column at initialize.

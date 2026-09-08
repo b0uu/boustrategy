@@ -24,6 +24,25 @@ from tests.fixtures.decision_records import valid_decision_record_data
 from tests.public.test_public_v2 import seed
 
 
+def test_published_store_contains_no_profile_or_account_identity(tmp_path: Path) -> None:
+    source, public = tmp_path / "source.db", tmp_path / "public.db"
+    seed(source)
+
+    publish(source, public, live_profiles=("codex",), live_account_id="f" * 16)
+    blob = public.read_bytes()
+    with open_readonly(public) as conn:
+        checkpoint = json.loads(
+            conn.execute("SELECT content FROM publication_checkpoint").fetchone()[0]
+        )
+
+    assert b'"profiles"' not in blob
+    assert b'"account"' not in blob
+    assert ("f" * 16).encode() not in blob
+    assert len(checkpoint["identity"]) == 64
+    assert "profiles" not in checkpoint and "account" not in checkpoint
+    assert checkpoint["version"] == 8
+
+
 def test_built_public_surface_has_no_mutation_routes_and_reads_write_nothing(
     tmp_path: Path,
 ) -> None:
