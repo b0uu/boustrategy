@@ -95,3 +95,13 @@ JSON at step 7.
 
 There is no alternate persistence or order path. Never instruct the operator to
 skip `submit`.
+
+## Optional public explanation
+
+Keep private research in the existing thesis fields. Use the dedicated optional
+`public_narrative` schema for approved public stage summaries and evidence links.
+Read `docs/public-authoring.md` before supplying it. Don't copy private notes,
+internal source IDs, or authenticated source text into public prose. Missing
+historical stages, source dates, confidence scores, or stage timings stay missing.
+Public explanations don't change deterministic policy or require an overall
+confidence score. HOLD/PASS records don't need an elaborate public narrative.

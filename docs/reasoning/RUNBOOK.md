@@ -53,3 +53,18 @@ execution profile ID, shared bundle path and SHA-256, and its own snapshot ID.
 
 The reasoning session stops after terminal completion. It doesn't build execution packets, call
 Robinhood, review orders, or place trades.
+
+## Public reporting records
+
+The operator can register public source revisions and episode-bound thesis reviews
+through `python -m app.reason.public_records`, following
+[`docs/public-authoring.md`](../public-authoring.md). These commands only ingest
+reporting records. They don't submit orders or activate a reasoning session. The
+reasoning worker still submits decisions through the existing submission command.
+Use dedicated approved public fields when authoring a decision, then run trusted
+publication after ingestion. Public HTTP requests never publish source changes.
+
+
+For actual authoring attempts, leases, retries, inactive schedule configuration and
+continuous publication, see [Private authoring runtime](RUNTIME.md). The supervised
+prompt-copy workflow above remains supported; PREPARED alone never means running.

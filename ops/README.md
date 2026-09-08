@@ -1,15 +1,18 @@
 # Scheduled digester operations
 
+Public dashboard publication, serving, read-only smoke, and recovery are documented separately in
+[`docs/public-release.md`](../docs/public-release.md). Those steps don't enable these digester tasks.
+
 ## Current status: intentionally disabled
 
-As of August 26, 2026, all five `boustrategy-digester-*` tasks are disabled. BouStrategy is in a
+As verified read-only on September 8, 2026, all five `boustrategy-digester-*` tasks are disabled. BouStrategy is in a
 manual operating phase while ingestion, reasoning, paper execution, and evaluation are refined.
 This prevents unattended API spending and makes each run easy to inspect.
 
 The planned promotion order is:
 
 1. Run and review the complete paper process manually.
-2. Build a dashboard that exposes inputs, decisions, policy results, positions, costs, and errors.
+2. Use the implemented dashboards to inspect inputs, decisions, policy results, positions, and errors.
 3. Re-enable unattended ingestion and reasoning in paper mode.
 4. Consider live execution only after unattended paper operation has produced enough evidence for
    a separate human activation decision.
@@ -92,7 +95,9 @@ create a new one.
    powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\install-digester-tasks.ps1
    ```
 
-   Re-running this is safe. It replaces tasks with the same names instead of adding duplicates.
+   Registration replaces tasks with the same names and leaves them disabled by default.
+   The explicit `-Enable` switch permits activation after the separate operating decision.
+   Re-registering without that switch also disables previously enabled definitions.
 
 8. Verify the task definitions:
 
@@ -118,3 +123,10 @@ create a new one.
 11. After the next run, inspect `data/logs/digester/` and confirm the log ends with both a verified
     database status and `exit code: 0`. A Discord success message is useful observability, but the
     database verification remains the source of truth.
+
+
+Investment authoring now has a persisted runtime and CLI, described in
+[`docs/reasoning/RUNTIME.md`](../docs/reasoning/RUNTIME.md). It consumes completed intake;
+the digester does not launch investment reasoning. No runtime task was installed by Plan 031.
+The final control and activation recommendation is in
+[`docs/execution-assessment.md`](../docs/execution-assessment.md).

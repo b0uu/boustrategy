@@ -7,15 +7,18 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Drift check (run first)**: `git diff --stat 40b317b..HEAD -- pyproject.toml AGENTS.md .gitignore public-ui/.gitignore`
-> If any changed, compare the "Current state" excerpts against the live files
-> before proceeding; on a mismatch, treat it as a STOP condition.
+> **Drift check (run first)**: `git diff --stat 40b317b..HEAD -- pyproject.toml AGENTS.md .gitignore`
+> plus `cat public-ui/.gitignore` (untracked). If any differ from the
+> "Current state" excerpts, treat it as a STOP condition.
 >
 > **Precondition**: this plan only pays off once the maintainer commits the
-> current uncommitted working tree (see `plans/README.md`, "Findings the
-> maintainer must decide"). You may execute it on the uncommitted tree — CI
-> will simply not run until a push happens — but do not commit or push the
-> maintainer's delta yourself.
+> current uncommitted working tree. You may execute it on the uncommitted
+> tree — CI will simply not run until a push happens — but do not commit or
+> push the maintainer's delta yourself.
+>
+> **History**: rewritten 2026-09-08. The earlier version targeted
+> `ubuntu-latest`; the runtime imports Windows-only modules at import time
+> (see Current state), so the Python job now runs on `windows-latest`.
 
 ## Status
 
@@ -24,39 +27,34 @@
 - **Risk**: LOW
 - **Depends on**: none (see precondition)
 - **Category**: dx
-- **Planned at**: commit `40b317b` (branch `advisor/030-private-dual-agent-dashboard`, working tree uncommitted), 2026-09-08
+- **Planned at**: commit `0702ddd` (branch `advisor/037-retire-finished-subsystems`), 2026-09-08
 
 ## Why this matters
 
-Every verification gate in this repository is run by hand: the five Python
-commands in `AGENTS.md` and the four npm scripts in `public-ui/package.json`.
-There is no `.github/` directory. There is no Python lockfile, so
-`pip install -e .[dev]` resolves to whatever is current on the day, and the
-"506 tests pass" evidence recorded in `docs/plan-031-audit.md` describes one
-venv (Python 3.14.2, Pydantic 2.13.5, FastAPI 0.141.1 …) rather than a
-reproducible property. The declared floor is Python 3.11 and ruff/mypy reason
-about 3.11, but nothing has ever run the suite on 3.11. Finally, the test run
-already emits a `StarletteDeprecationWarning` (httpx test-client shim
-deprecated) that nothing enforces, so the day Starlette removes the shim the
-whole `tests/public` and `tests/dashboard` surface breaks with no warning
-history.
+Every verification gate is run by hand: the five Python commands in
+`AGENTS.md` and the four npm scripts in `public-ui/package.json`. There is no
+`.github/` directory. There is no Python lockfile, so `pip install -e .[dev]`
+resolves to whatever is current that day; the "506 tests pass" evidence in
+`docs/plan-031-audit.md` describes one venv (Python 3.14.2, FastAPI 0.141.1,
+Starlette 1.6.0 …), not a reproducible property. The declared floor is Python
+3.11 and ruff/mypy reason about 3.11, but nothing has ever run the suite on
+3.11. The test run already emits a `StarletteDeprecationWarning` (httpx
+test-client shim deprecated) that nothing enforces, so the day Starlette
+removes the shim the whole `tests/public` and `tests/dashboard` surface breaks
+with no warning history.
 
-After this plan: a GitHub Actions workflow runs the Python gates on 3.11 and
-3.14 and the frontend gates on Node 24 from a lockfile; unknown deprecation
-warnings fail the suite while the one known warning is explicitly acknowledged;
-the one required environment variable is documented in a committed
-`.env.example`; generated frontend files are ignored before they can be
-committed.
+After this plan: a GitHub Actions workflow runs the Python gates on Windows
+(the deployment platform) for 3.11 and 3.14 from a lockfile and the frontend
+gates on Node 24; unknown warnings fail the suite while the one known warning
+is explicitly acknowledged; the one required environment variable is
+documented in a committed `.env.example`; generated frontend files are
+ignored before they can be committed.
 
 ## Current state
 
-### `pyproject.toml` (whole file at `40b317b`)
+### `pyproject.toml` (relevant parts, verified 2026-09-08)
 
 ```toml
-[project]
-name = "boustrategy"
-version = "0.1.0"
-description = "Investment decision harness for BouStrategy."
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",
@@ -81,14 +79,18 @@ testpaths = ["tests"]
 pythonpath = ["."]
 ```
 
-(ruff and mypy sections follow; `target-version = "py311"`, mypy `python_version = "3.11"`, `strict = true`, `plugins = ["pydantic.mypy"]`.)
-
 `idna`, `requests`, `urllib3` are not imported anywhere in `app/` or `tests/`
-(`grep -rn "import requests\|import urllib3\|import idna" app tests` → 0). They
-are transitive-security floors documented in `docs/plan-031-audit.md`
+(`grep -rn "import requests\|import urllib3\|import idna" app tests` → 0).
+They are transitive-security floors documented in `docs/plan-031-audit.md`
 ("Dependency evidence"). Leave them; Step 4 labels them.
 
-### `AGENTS.md` Commands section
+### Windows-only runtime (why the Python job runs on Windows)
+
+- `app/reason/process_tree.py:3-4`: `import ctypes` / `from ctypes import wintypes` at module import; `ctypes.WinDLL("kernel32", ...)` at line 48. `app/reason/codex_runner.py` imports it unconditionally, and `app/reason/worker.py` imports `codex_runner`, so the whole runtime package imports Windows-only modules.
+- `app/reason/codex_runner.py:164-168` guards `creationflags` with `if os.name == "nt"`, but the `process_tree` import above is not guarded.
+- `ops/` is PowerShell + Windows Task Scheduler; the host is Windows Server 2019. Linux compatibility is neither claimed nor tested; do not try to add it in this plan.
+
+### `AGENTS.md` Commands section (lines 5-11)
 
 ```
 - `python -m pip install -e .[dev]`
@@ -100,14 +102,11 @@ are transitive-security floors documented in `docs/plan-031-audit.md`
 
 ### `public-ui/package.json` scripts
 
-```json
-"dev": "vite", "build": "tsc -b && vite build", "lint": "eslint .",
-"type-check": "tsc -b --pretty false", "test": "vitest run"
-```
+`dev`, `build` (`tsc -b && vite build`), `lint` (`eslint .`), `type-check`
+(`tsc -b --pretty false`), `test` (`vitest run`). `public-ui/package-lock.json`
+exists. Host Node is v24.12.0, npm 11.6.2.
 
-`public-ui/package-lock.json` exists and is tracked. Host Node is v24.12.0, npm 11.6.2.
-
-### `public-ui/.gitignore`
+### `public-ui/.gitignore` (currently 3 lines)
 
 ```
 node_modules/
@@ -116,71 +115,76 @@ dist/
 ```
 
 `public-ui/vite.config.js` and `public-ui/vite.config.d.ts` are generated by
-`tsc -b` from `vite.config.ts` and currently sit untracked beside it.
+`tsc -b` from `vite.config.ts` and sit beside it. (All of `public-ui/` is
+still untracked, so nothing is committed yet either way.)
 
 ### Root `.gitignore` (relevant lines)
 
 ```
+skills-lock.json
 data/
 .env
 ops/digester.local.psd1
 ops/live.local.json
 ```
 
+`git check-ignore -v .env.example` → exit 1 (not ignored). `.env.example` does
+not exist yet. `requirements.lock` does not exist. `.github/` does not exist.
+
 ### Environment variables read by the code
 
-- `X_BEARER_TOKEN` — `app/x/client.py:40`, required for any X API call; raises if unset. Documented only as an existence check in `ops/README.md:~87`.
-- `CODEX_HOME`, `OPENAI_API_KEY` — passed through to the Codex subprocess by the allowlist at `app/reason/codex_runner.py:~149-155`; optional.
-- The maintainer's local `.env` (gitignored, never committed — verified with `git log --all -- .env`) holds an X bearer token in a form no loader in this repo reads. Do not open, print, or copy it. Do not delete it either (it is the maintainer's file); Step 6 only documents the expected variables.
+- `X_BEARER_TOKEN` — `app/x/client.py:40`, required for any X API call; raises if unset. Documented only as an existence check in `ops/README.md`.
+- `CODEX_HOME`, `OPENAI_API_KEY` — passed through to the Codex subprocess by the allowlist in `app/reason/codex_runner.py` (~lines 140-155); optional.
+- The maintainer's local `.env` (gitignored, never committed — `git log --all -- .env` is empty) holds an X bearer token. Do not open, print, copy, or delete it. Step 6 only documents the expected variables.
 
-### Observed test warning (from `python -m pytest -q` on 2026-09-08)
+### The observed warning (verified 2026-09-08, Starlette 1.3.1 in the host env)
 
 ```
 site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
 ```
 
+`StarletteDeprecationWarning` is defined in `starlette/exceptions.py` and
+**subclasses `UserWarning`, not `DeprecationWarning`**, so the filter must
+name the class by its import path (Step 3).
+
 ### Repo conventions that apply
 
-- AGENTS.md: prefer modern language primitives; no premature abstraction. For CI that means one small workflow file, no reusable-workflow scaffolding.
+- AGENTS.md: prefer modern primitives; no premature abstraction. For CI that means one small workflow file.
 - Repo is PUBLIC on GitHub (`origin https://github.com/b0uu/boustrategy.git`); `data/` is gitignored and every collected test uses `tmp_path`, so CI needs no secrets and no fixtures.
+- Commit style: `chore:` prefix.
 
 ## Commands you will need
 
-| Purpose | Command | Expected on success |
+| Purpose | Command (PowerShell) | Expected on success |
 |---|---|---|
-| Fresh venv (Windows) | `python -m venv .venv-lock && .venv-lock\Scripts\python -m pip install -e .[dev]` | exit 0 |
-| Freeze | `.venv-lock\Scripts\python -m pip freeze --exclude-editable` | package list on stdout |
-| Python gates | `python -m pytest -q` / `python -m ruff check .` / `python -m ruff format --check .` / `python -m mypy app tests` | all exit 0 |
-| Frontend gates | `npm --prefix public-ui ci` then `npm --prefix public-ui run lint`, `run type-check`, `run test`, `run build` | all exit 0 |
-| Workflow syntax | `python -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml'))"` (install `pyyaml` in the throwaway venv if missing) | no exception |
-
-`.venv-lock/` matches the existing `.venv/`/`venv/` ignore only if named exactly
-`.venv` or `venv`; use `.venv` for the throwaway environment so it stays
-untracked, and delete it when done.
+| Throwaway venv | `python -m venv .venv; .\.venv\Scripts\python -m pip install -e .[dev]` | exit 0 (`.venv/` is gitignored) |
+| Freeze | `.\.venv\Scripts\python -m pip freeze --exclude-editable` | package list on stdout |
+| Python gates | `python -m pytest -q`; `python -m ruff check .`; `python -m ruff format --check .`; `python -m mypy app tests` | all exit 0 |
+| Frontend gates | `npm --prefix public-ui ci`; then `npm --prefix public-ui run lint`, `run type-check`, `run test`, `run build` | all exit 0 |
+| Workflow syntax | `python -c "import tomllib" ` is irrelevant; use `.\.venv\Scripts\python -m pip install pyyaml; .\.venv\Scripts\python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml'))"` | no exception |
 
 ## Scope
 
 **In scope**:
 - `.github/workflows/ci.yml` (create)
-- `requirements.lock` (create, at repo root)
+- `requirements.lock` (create, repo root)
 - `pyproject.toml` (`[tool.pytest.ini_options]` and a comment on the three security floors only)
 - `AGENTS.md` (Commands section: add the lockfile install line and the env example pointer)
 - `.env.example` (create)
 - `public-ui/.gitignore` (two lines)
-- `docs/public-release.md` (one sentence pointing at CI as the same gate sequence — optional; skip if it makes the doc worse)
 
 **Out of scope**:
-- Any source file under `app/` or `tests/` — if the warnings-as-errors change surfaces a NEW warning from repo code, STOP and report it instead of fixing it here.
-- Upgrading or pinning dependency versions in `pyproject.toml` — the lockfile records what resolves today; version policy is the maintainer's.
-- The maintainer's `.env`, `ops/live.local.json`, `ops/digester.local.psd1`, `data/` — never read or modify.
-- Pre-commit hooks, coverage tooling, Dependabot — follow-ups, not this plan.
-- Deploy or publish steps in CI — the workflow is read-only verification.
+- Any source file under `app/` or `tests/` — if warnings-as-errors surfaces a NEW warning from repo code, STOP and report it.
+- Upgrading or pinning dependency versions in `pyproject.toml`.
+- Adding Linux support to `app/reason/process_tree.py` or `codex_runner.py`.
+- The maintainer's `.env`, `ops/live.local.json`, `ops/digester.local.psd1`, `data/`.
+- Pre-commit hooks, coverage tooling, Dependabot, deploy steps.
 
 ## Git workflow
 
-- Branch: `advisor/036-ci-lockfile-warning-gates`, from the current working branch. The tree contains a large uncommitted delta that is NOT yours; stage only in-scope paths with `git add <path>`; never `git add -A` or `git add .`.
-- Commit style: `chore: add CI workflow and Python lockfile`.
-- Do NOT push. CI will start running only when the maintainer pushes.
+- Branch: `advisor/036-ci-lockfile-warning-gates`, from the current working branch. Stage only in-scope paths with `git add <path>`; never `git add -A` or `git add .`.
+- Commit message: `chore: add CI workflow and Python lockfile`.
+- Do NOT push.
 
 ## Steps
 
@@ -193,17 +197,17 @@ vite.config.js
 vite.config.d.ts
 ```
 
-**Verify**: `git status --short public-ui | grep -c "vite.config\.\(js\|d.ts\)"` → `0`.
+**Verify**: `git check-ignore public-ui/vite.config.js public-ui/vite.config.d.ts` → prints both paths (exit 0).
 
 ### Step 2: Produce the lockfile from a clean environment
 
-1. Create a throwaway venv: `python -m venv .venv` (this path is gitignored).
-2. `.venv\Scripts\python -m pip install -e .[dev]`.
-3. `.venv\Scripts\python -m pip freeze --exclude-editable > requirements.lock`.
-4. Open `requirements.lock` and confirm it lists `pydantic`, `fastapi`, `starlette`, `httpx`, `uvicorn`, `yfinance`, `pytest`, `ruff`, `mypy` with `==` pins and does not contain the editable project itself or any absolute path.
-5. Prepend a two-line comment header: `# Generated with: python -m pip freeze --exclude-editable  (Python <version>, <date>)` and `# Install with: python -m pip install -r requirements.lock -e .` — pip ignores `#` lines.
+1. `python -m venv .venv` (gitignored path).
+2. `.\.venv\Scripts\python -m pip install -e .[dev]`
+3. `.\.venv\Scripts\python -m pip freeze --exclude-editable > requirements.lock` — then open the file and confirm it is UTF-8 without BOM (PowerShell `>` writes UTF-16 or BOM on some hosts; if the first bytes are not ASCII `#`/letters, rewrite with `.\.venv\Scripts\python -m pip freeze --exclude-editable | Out-File -Encoding ascii requirements.lock`).
+4. Confirm it lists `pydantic`, `fastapi`, `starlette`, `httpx`, `uvicorn`, `yfinance`, `pytest`, `ruff`, `mypy` with `==` pins, no editable entry, no absolute path.
+5. Prepend two comment lines: `# Generated on Windows with: python -m pip freeze --exclude-editable  (Python <version>, <date>)` and `# Install with: python -m pip install -r requirements.lock -e .`. pip ignores `#` lines. Note that the freeze was taken on Windows and may include Windows-only wheels (e.g. `colorama`, `pywin32`); that is correct for the Windows CI runner.
 
-**Verify**: in the same venv, `python -m pip install -r requirements.lock -e .` → exit 0 (idempotent), then `python -m pytest -q` → all pass.
+**Verify**: `.\.venv\Scripts\python -m pip install -r requirements.lock -e .` → exit 0; `.\.venv\Scripts\python -m pytest -q` → all pass.
 
 ### Step 3: Enforce warnings, acknowledge the known one
 
@@ -211,26 +215,35 @@ In `pyproject.toml` add to `[tool.pytest.ini_options]`:
 
 ```toml
 filterwarnings = [
-    "error",
+    # Fail on upstream deprecations so a removal never lands as a broken suite.
+    # Deliberately NOT a blanket "error": ~20 test modules open sqlite connections
+    # without closing them, and on Python 3.14 the GC-time ResourceWarning would
+    # fail whichever test happens to be running (see plans/README.md backlog).
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "error::FutureWarning",
     # Starlette's httpx test-client shim is deprecated upstream; tracked for the httpx2 migration.
-    "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
 ]
 ```
 
-The exact warning class name is `StarletteDeprecationWarning`; it subclasses
-`DeprecationWarning`, so the category filter above matches. If pytest reports
-that the filter does not match (the warning still surfaces as an error), replace
-the category with the fully-qualified class shown in the pytest output.
+(Corrected 2026-09-08 after an executor STOP: a blanket `"error"` turned
+`ResourceWarning: unclosed database` from leaked test connections into seven
+non-deterministic failures. Verified: with the filters above the full suite
+passes, 458 tests, and the Starlette ignore matches.) The Starlette category is
+given by import path because the class subclasses `UserWarning`. If pytest
+still reports that warning, print
+`python -c "import starlette.exceptions as e; print(e.StarletteDeprecationWarning.__mro__)"`
+and adjust the path.
 
-Run `python -m pytest -q`. If ANY other warning is now an error, do not fix
-source; STOP and report the warning text and location (see STOP conditions).
+Run `python -m pytest -q`. If ANY deprecation-class warning from REPO code is
+now an error, do not fix source; STOP and report the warning text and location.
 
-**Verify**: `python -m pytest -q` → all pass, `0 warnings` in the summary line.
+**Verify**: `python -m pytest -q` → all pass (458 at planning time) with no warning count in the summary. If a `ResourceWarning` count appears it is informational, not a failure of this step.
 
 ### Step 4: Label the transitive-security floors
 
-In `pyproject.toml`, above the three lines `idna>=3.15`, `requests>=2.33.0`,
-`urllib3>=2.7.0`, add a TOML comment:
+In `pyproject.toml`, above `"idna>=3.15",` add:
 
 ```toml
     # Not imported directly. Transitive minimums under yfinance/httpx for the
@@ -252,7 +265,7 @@ on:
 
 jobs:
   python:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -288,19 +301,20 @@ jobs:
       - run: npm run build
 ```
 
-Notes for the executor:
-- The Python 3.14 leg reproduces the maintainer's host; the 3.11 leg tests the declared floor for the first time. If a pinned wheel in `requirements.lock` has no 3.11 build, the job will fail on install — that is a real finding; report it rather than dropping the 3.11 leg.
-- Tests must not need `data/`; `docs/plan-031-audit.md` and the audit that produced this plan verified every collected test uses `tmp_path`. `tests/public/benchmark_*.py` are not collected (they do not match `test_*.py`).
-- If `python -m mypy app tests` on Linux complains about Windows-only symbols (`subprocess.CREATE_NEW_PROCESS_GROUP`, `app/reason/process_tree.py`), STOP and report; the repo may need a `platform` guard, which is a source change outside this plan.
+Notes:
+- `windows-latest` is deliberate (see Current state). The 3.14 leg mirrors the host; the 3.11 leg tests the declared floor for the first time. If a pinned wheel in `requirements.lock` has no 3.11 build, the job fails on install — report it; do not drop the leg.
+- `git diff --check` is not included; on Windows runners with autocrlf it produces false positives.
+- Tests must not need `data/`; every collected test uses `tmp_path`. `tests/public/benchmark_*.py` are not collected.
 
-**Verify**: YAML parses (see Commands table). You cannot run GitHub Actions locally; the done criterion is a parseable file plus the local equivalents of every step passing.
+**Verify**: the YAML parses (Commands table). GitHub Actions cannot be run locally; the done criterion is a parseable file plus every listed command passing locally on the host.
 
 ### Step 6: Document the environment
 
 Create `.env.example` at the repo root:
 
 ```
-# Copy to .env only if you use a loader; the code reads these from the process environment.
+# The code reads these from the process environment (Windows user variables on the host).
+# Copy to .env only if you use an external loader; no loader in this repo reads .env.
 # Required for any X API call (app/x/client.py). Never commit the real value.
 X_BEARER_TOKEN=
 # Optional: passed through to the Codex CLI subprocess (app/reason/codex_runner.py).
@@ -308,39 +322,36 @@ OPENAI_API_KEY=
 CODEX_HOME=
 ```
 
-Add `.env.example` to nothing — it is meant to be tracked; confirm `.gitignore`'s
-`.env` line does not match `.env.example` (`git check-ignore .env.example` → exit 1, no output).
-
-In `AGENTS.md` Commands section, add after the install line:
+In `AGENTS.md` Commands section add, directly after the install line:
 
 ```
 - `python -m pip install -r requirements.lock -e .` (reproducible install; CI uses this)
 ```
 
-and one line under Layout or Commands: "Environment variables are listed in `.env.example`."
+and one line at the end of the Commands section: "Environment variables are listed in `.env.example`."
 
-**Verify**: `git check-ignore .env.example` → exit code 1. `git status --short` lists `.env.example`, `requirements.lock`, `.github/workflows/ci.yml`, `pyproject.toml`, `AGENTS.md`, `public-ui/.gitignore` and nothing else of yours.
+**Verify**: `git check-ignore .env.example` → exit 1, no output. `git status --short` lists `.env.example`, `requirements.lock`, `.github/`, `pyproject.toml`, `AGENTS.md` (and `public-ui/` remains untracked as before).
 
 ### Step 7: Full gates and cleanup
 
-Run all Python and frontend gates from the Commands table on the host interpreter (not just the throwaway venv). Delete the throwaway `.venv`.
+Run all Python and frontend gates from the Commands table with the host interpreter. Delete the throwaway `.venv`.
 
 ## Test plan
 
-No new test files. The verification is the gate sequence itself:
-- `python -m pytest -q` passes with `filterwarnings = ["error", ...]` and zero warnings.
+No new test files. Verification is the gate sequence:
+- `python -m pytest -q` passes with `filterwarnings = ["error", ...]` and no warnings.
 - `python -m pip install -r requirements.lock -e .` succeeds in a clean venv and the suite passes there.
-- Frontend: `npm ci && npm run lint && npm run type-check && npm test && npm run build` in `public-ui` all exit 0.
+- `npm ci && npm run lint && npm run type-check && npm test && npm run build` in `public-ui` all exit 0.
 
 ## Done criteria
 
-- [ ] `.github/workflows/ci.yml` exists and parses as YAML; it contains `python-version: ["3.11", "3.14"]`, `requirements.lock`, and the four npm scripts
-- [ ] `requirements.lock` exists, has `==` pins, no absolute paths, no editable entry
-- [ ] `grep -n 'filterwarnings' pyproject.toml` → one match; `python -m pytest -q` summary shows `0 warnings` (or no warnings line)
+- [ ] `.github/workflows/ci.yml` exists, parses as YAML, contains `runs-on: windows-latest` for the python job, `python-version: ["3.11", "3.14"]`, `requirements.lock`, and the four npm scripts
+- [ ] `requirements.lock` exists, is ASCII/UTF-8 without BOM, has `==` pins, no absolute paths, no editable entry
+- [ ] `grep -n 'filterwarnings' pyproject.toml` → one match; `grep -c 'error::' pyproject.toml` → 3; `grep -n 'starlette.exceptions.StarletteDeprecationWarning' pyproject.toml` → one match; `python -m pytest -q` exits 0
 - [ ] `.env.example` exists and `git check-ignore .env.example` exits 1
-- [ ] `git status --short public-ui` shows no `vite.config.js` / `vite.config.d.ts`
+- [ ] `git check-ignore public-ui/vite.config.js` exits 0
 - [ ] `python -m ruff check .`, `python -m ruff format --check .`, `python -m mypy app tests`, `python -m pytest -q` exit 0
-- [ ] `git status --short` shows no changes outside the in-scope list (the maintainer's pre-existing uncommitted delta is expected and must be left untouched)
+- [ ] `git status --short` shows no changes outside the in-scope list (the maintainer's pre-existing uncommitted delta is expected and untouched)
 - [ ] `plans/README.md` status row updated
 
 ## STOP conditions
@@ -348,14 +359,16 @@ No new test files. The verification is the gate sequence itself:
 Stop and report back if:
 
 - Any "Current state" excerpt does not match the live file.
-- Enabling `filterwarnings = ["error"]` turns a warning from REPO code (`app/` or `tests/`) into a failure — report the warning; fixing it is source work for a separate plan.
-- A pinned wheel in `requirements.lock` cannot install on Python 3.11 (you can check with a second throwaway venv only if a 3.11 interpreter is available; otherwise note that the 3.11 leg is unverified locally).
-- `git check-ignore .env.example` exits 0 (an ignore rule matches it; report which).
-- You are tempted to touch the maintainer's `.env`, `ops/*.local.*`, or anything under `data/` — do not.
+- A `DeprecationWarning`/`PendingDeprecationWarning`/`FutureWarning` from REPO code (`app/` or `tests/`) becomes a failure — report the warning; fixing it is source work for a separate plan. (`ResourceWarning`s are expected and are not covered by the filters; do not add a blanket `error`.)
+- The Starlette filter cannot be made to match after checking the class's real module path.
+- A pinned wheel in `requirements.lock` cannot install on Python 3.11 (checkable only if a 3.11 interpreter is present; otherwise note that the 3.11 leg is unverified locally).
+- `git check-ignore .env.example` exits 0.
+- You are tempted to touch the maintainer's `.env`, `ops/*.local.*`, or anything under `data/`.
 
 ## Maintenance notes
 
-- Regenerate `requirements.lock` deliberately (new venv, `pip freeze --exclude-editable`) when dependencies are bumped; never hand-edit pins. Record the interpreter version in the header comment.
-- When Starlette ships the `httpx2` test client, remove the ignore filter and migrate; the `error` filter will then flag any new deprecation immediately.
-- If the 3.11 CI leg fails on a Windows-only symbol or a wheel gap, the maintainer decides between raising `requires-python` (and ruff/mypy targets) to what actually runs, or adding platform guards — do not silently drop the leg.
-- Follow-ups deliberately left out: pre-commit hooks, `pytest-cov` coverage reporting, Dependabot/Renovate, moving `tests/public/benchmark_*.py` to a non-collected `tools/` directory.
+- Regenerate `requirements.lock` deliberately (fresh venv, `pip freeze --exclude-editable`, ASCII encoding) when dependencies change; never hand-edit pins. Record the interpreter and date in the header comment.
+- When Starlette ships the `httpx2` test client, remove the ignore filter and migrate; the deprecation `error` filters will then flag any new deprecation immediately.
+- Once the test-connection leaks in the backlog are closed, the filters can be tightened to a blanket `"error"`.
+- If Linux support is ever wanted, `app/reason/process_tree.py` needs a platform guard at import time and `codex_runner.py` a non-Windows `WindowsProcessTree` substitute; only then add an `ubuntu-latest` leg.
+- Follow-ups deliberately left out: pre-commit hooks, `pytest-cov`, Dependabot/Renovate, relocating `tests/public/benchmark_*.py`.

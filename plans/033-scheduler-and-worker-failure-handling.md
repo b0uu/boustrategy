@@ -20,7 +20,7 @@
 - **Risk**: LOW
 - **Depends on**: none
 - **Category**: bug
-- **Planned at**: commit `40b317b` (branch `advisor/030-private-dual-agent-dashboard`, working tree uncommitted), 2026-09-08
+- **Planned at**: commit `40b317b`; every excerpt re-verified against the tree at `0702ddd` (after plan 037) on 2026-09-08
 
 ## Why this matters
 
@@ -73,7 +73,7 @@ Files and roles:
 - `tests/reason/test_codex_runner.py` — exemplar tests that run a real local fake process.
 - `tests/reason/test_runtime.py` — `NOW = datetime(2026, 6, 10, 21, 45, tzinfo=UTC)` (a Wednesday, 17:45 ET) and `paper_run(...)` helper reused by other tests.
 
-### Excerpt A — `app/storage/schedules.py:198-232` (`record_due` body)
+### Excerpt A — `app/storage/schedules.py:198-233` (`record_due` body; the function starts at line 183)
 
 ```python
         ready = []
@@ -169,7 +169,7 @@ the checks, `except (OSError, ValueError)`, a diagnostic file under `log_root`,
 then `with immediate(conn): UPDATE schedule_occurrences SET reason=..., observed_at=... WHERE occurrence_id=? AND status='waiting'`,
 `outcomes.append({...})`, `continue`.
 
-### Excerpt D — `app/reason/codex_runner.py:219-236` (the `finally` block)
+### Excerpt D — `app/reason/codex_runner.py:220-237` (the `finally` block)
 
 ```python
         finally:
@@ -323,7 +323,7 @@ expired = now > due + timedelta(seconds=schedule.grace_seconds) or (
 Add a one-line comment above it explaining the invariant: a run is prepared and
 claimed on its own ET session day (`save_run` and `claim` both enforce this), so
 an occurrence cannot remain ready after ET midnight regardless of grace.
-`NEW_YORK` is already imported in this module (it is used at line ~195).
+`NEW_YORK` is already imported in this module (`from app.x.calendar import COVERAGE_END, NEW_YORK, ...` at line 11).
 
 **Verify**: `python -m pytest -q tests/reason/test_scheduler.py tests/reason/test_runtime.py` → existing tests still pass.
 
@@ -380,15 +380,43 @@ exception; that is exactly what this step removes.
 ### Step 5: Test the cleanup path
 
 In `tests/reason/test_codex_runner.py`, model on
-`test_runner_timeout_and_cancel_stop_real_local_process` (line 72), which
-launches a real local fake executable. Add
-`test_cleanup_failure_does_not_mask_runner_timeout`: monkeypatch
-`subprocess.Popen.wait` (or the `process` object's `wait` via a small subclass
-passed as `executable` — inspect how the existing test injects the fake process)
-to raise `subprocess.TimeoutExpired(cmd="codex", timeout=10)` on the cleanup
-call, run `run_codex` with a tiny `timeout_seconds`, and assert
+`test_runner_timeout_and_cancel_stop_real_local_process` (line 72). The
+existing tests inject a real local process like this (lines 75-82):
+
+```python
+    script = tmp_path / "fake.py"
+    ...  # writes a small python script that sleeps
+    real_popen = subprocess.Popen
+
+    def fake(argv: list[str], **kwargs: object) -> subprocess.Popen[bytes]:
+        return real_popen([sys.executable, str(script)], **kwargs)  # type: ignore[call-overload,no-any-return]
+
+    monkeypatch.setattr("app.reason.codex_runner.subprocess.Popen", fake)
+```
+
+Add `test_cleanup_failure_does_not_mask_runner_timeout` using the same
+pattern, but make the fake's returned process fail its cleanup `wait` AFTER
+reaping the child (so no zombie is left behind):
+
+```python
+    def fake(argv: list[str], **kwargs: object) -> subprocess.Popen[bytes]:
+        process = real_popen([sys.executable, str(script)], **kwargs)  # type: ignore[call-overload]
+        original_wait = process.wait
+
+        def failing_wait(timeout: float | None = None) -> int:
+            original_wait(timeout=timeout)
+            raise subprocess.TimeoutExpired(argv, timeout or 0)
+
+        process.wait = failing_wait  # type: ignore[method-assign]
+        return process  # type: ignore[no-any-return]
+```
+
+Run `run_codex(...)` with `timeout_seconds=0.2` against a script that sleeps
+60 s (copy the script body from the timeout test) and assert
 `pytest.raises(RunnerFailure, match="runner_timeout")` — the ORIGINAL cause,
-not `subprocess_pipe_cleanup_failed`.
+not `subprocess_pipe_cleanup_failed`. Before Step 3 this test fails with
+`subprocess.TimeoutExpired`; run it once against the unpatched runner to
+confirm, then restore Step 3.
 
 In `tests/reason/test_runtime.py`, model on
 `test_worker_partial_failure_explicit_retry_preserves_decisions_and_models`

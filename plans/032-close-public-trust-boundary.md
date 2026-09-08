@@ -1,4 +1,4 @@
-# Plan 032: Make the published store the only source for public reads and keep account identity out of it
+# Plan 032: Keep account identity out of the published store and never publish X-typed excerpts
 
 > **Executor instructions**: Follow this plan step by step. Run every
 > verification command and confirm the expected result before moving to the
@@ -7,149 +7,83 @@
 > in `plans/README.md` — unless a reviewer dispatched you and told you they
 > maintain the index.
 >
-> **Ordering note (added 2026-09-08)**: plan 037 retires the public v1
-> routes and `app/public/projection.py` entirely and drops the private
-> source path from `create_public_app`. Run 037 FIRST. After it lands, skip
-> Steps 1, 2 and 4 of this plan (they are superseded) and execute only
-> Steps 3, 5 and 6 (checkpoint identity digest, release-gate test, X-excerpt
-> rule); the done criteria that mention `db_path`/`open_readonly(path)` are
-> then already satisfied. If 037 has NOT landed, execute this plan as written.
+> **Drift check (run first)**: the in-scope files under `app/public/` are
+> UNTRACKED in git (uncommitted plan-031 work), so `git diff` cannot detect
+> drift. Instead run each `grep`/`sed` command in the "Current state" section
+> and confirm the output matches what is shown. On a mismatch, treat it as a
+> STOP condition.
 >
-> **Drift check (run first)**: the in-scope files are UNTRACKED in git at the
-> time of writing (the whole `app/public/` package is uncommitted work), so
-> `git diff` cannot detect drift. Instead compare every "Current state"
-> excerpt below against the live file with `sed -n '<start>,<end>p' <file>`.
-> On a mismatch, treat it as a STOP condition.
+> **History**: rewritten 2026-09-08 after plan 037 landed. 037 already removed
+> the public v1 routes, `app/public/projection.py`, and the private source
+> path from `create_public_app`, so the earlier version of this plan's
+> "source-database fallback" finding is closed. Two findings remain.
 
 ## Status
 
 - **Priority**: P1
 - **Effort**: S
 - **Risk**: LOW
-- **Depends on**: none
+- **Depends on**: plan 037 (DONE; this plan assumes its state)
 - **Category**: security
-- **Planned at**: commit `40b317b` (branch `advisor/030-private-dual-agent-dashboard`, working tree uncommitted), 2026-09-08
+- **Planned at**: commit `0702ddd` (branch `advisor/037-retire-finished-subsystems`; `app/public/*` still uncommitted in the working tree), 2026-09-08
 
 ## Why this matters
 
-The public dashboard is designed around one boundary: the internet-facing
-FastAPI process reads only a separately produced, read-only "published" SQLite
-file (`data/boustrategy.public.db`), which the trusted publisher fills after
-applying every publication rule (portfolio scope, live-profile gating,
-revocation, withdrawal, source approval). Today that boundary fails open in two
-ways:
+The public dashboard reads only a separately produced SQLite file
+(`data/boustrategy.public.db`) that the trusted publisher fills. That file is
+what gets copied to the internet host, so nothing account-identifying may be
+in it. Two gaps remain:
 
-1. Both `/api/public/v1/*` routes silently fall back to reading the **private
-   source database** whenever the published file does not exist, using a
-   projection that applies none of the publication rules. A renamed, deleted,
-   or not-yet-created public file turns the public API into a reader of the
-   private store, exposing decisions that were never approved for publication
-   and decisions that were revoked (revocation state lives only in the public
-   store).
-2. The publisher writes the live broker account fingerprint and the live
+1. The publisher writes the live broker account fingerprint and the live
    execution profile IDs in cleartext into the published file's
-   `publication_checkpoint` row. The release doctrine in
-   `docs/public-release.md` says no execution profile or account fingerprint
-   may appear in the public artifact. No route serves the row today, but the
-   file is what gets copied to the internet host.
+   `publication_checkpoint` row. `docs/public-release.md:45-47` calls these
+   "private producer inputs" and `:98-102` requires that no execution profile
+   or account fingerprint appear in the public surface. No route serves the
+   row today; the file itself is the leak.
+2. The maintainer's standing decision (plans/archive/README.md, "Dashboard X
+   content": claim summaries and links only, X post content is never
+   republished) is enforced for decision claims but not for source excerpts:
+   an X-typed source's excerpt reaches the public narrative and the React
+   `<blockquote>` if an author sets `excerpt_approved`. One mis-set flag
+   publishes third-party post text.
 
-A third, smaller gap: the maintainer's decision (plans/README.md, "Dashboard X
-content") is that only BouStrategy claim summaries and links may be public,
-never X post content. The source-excerpt path permits an X-typed source's
-excerpt to reach the public UI as a quoted block if an author sets one flag.
-This plan makes that structural.
-
-After this plan: the public process never opens the private database; the
-published file contains no account fingerprint or profile ID; X-typed sources
-never carry an excerpt into the public store.
+After this plan: the checkpoint stores a digest of the identity inputs and
+never the values; X-typed sources never carry an excerpt into the public store;
+both are covered by tests that read the published file's bytes.
 
 ## Current state
 
 Files and roles:
 
-- `app/public/server.py` — builds the public FastAPI app. `create_public_app(db_path, frontend_dir, *, public_db_path)` takes BOTH the private source path and the published path.
-- `app/public/projection.py` — the legacy "v1" projector that reads decision records directly from the source database. Still used at publication time for the paper view (`publication.py:900`), so it must NOT be deleted.
-- `app/public/publication.py` — the trusted publisher; `publish()` writes the checkpoint at lines ~201-246.
-- `app/public/explanations.py` — builds the public source list (`eligible_sources`) and narrative projection.
-- `app/public/database.py` — `open_readonly(path)`; returns an in-memory empty connection when the file does not exist.
-- `tests/public/test_public_dashboard.py` — currently exercises the v1 routes AGAINST the source database without publishing (the behavior this plan removes).
-- `tests/public/test_public_v2.py` — `seed(source, count)` helper and v2 route tests; the exemplar for "seed source, publish, query".
-- `tests/public/test_release.py` — release-gate tests; the exemplar for "assert the public file contains no private strings".
+- `app/public/publication.py` — the trusted publisher. `publish(source_path, public_path, *, live_profiles=(), live_account_id=None, rebuild=False)` at line 180.
+- `app/public/explanations.py` — `eligible_sources(conn)` builds the public source list (lines 13-32).
+- `tests/public/test_release.py` — release-gate tests; exemplar for "seed → publish → assert on the published file".
+- `tests/public/test_explanations.py` — has `source_record(**changes)` (line 25) building a `PublicSourceRecord` with `excerpt="PRIVATE_EXCERPT"`, and `save_public_source` from `app.storage.public_records`.
+- `tests/public/test_public_v2.py` — `seed(source, count=3)` at line 19.
 
-### Excerpt A — `app/public/server.py:22-33` (app construction)
+### Excerpt A — every checkpoint identity read in `publication.py`
 
-```python
-def create_public_app(
-    db_path: str | Path,
-    frontend_dir: str | Path = "public-ui/dist",
-    *,
-    public_db_path: str | Path | None = None,
-) -> FastAPI:
-    app = FastAPI(
-        title="BouStrategy public dashboard", docs_url=None, redoc_url=None, openapi_url=None
-    )
-    path = Path(db_path)
-    published = Path(public_db_path) if public_db_path else path.with_name(f"{path.stem}.public.db")
-    assets = Path(frontend_dir)
+Run `grep -n '"profiles"\|"account"\|"version"' app/public/publication.py` and confirm exactly these six lines:
+
+```
+215:                    "version": 7,
+217:                    "profiles": sorted(live_profiles),
+218:                    "account": live_account_id,
+233:                and previous["version"] == current["version"]
+234:                and previous["profiles"] == current["profiles"]
+235:                and previous["account"] == current["account"]
+260:                and previous["version"] == current["version"]
+261:                and previous["profiles"] == current["profiles"]
+262:                and previous["account"] == current["account"]
 ```
 
-### Excerpt B — `app/public/server.py:51-59` (v1 dashboard fallback)
+(Line 215 is the version; the comparisons at 233-235 are inside the
+`same_configuration = bool(...)` expression; the comparisons at 260-262 are
+inside the later `if (changes and previous and ...)` early-return block that
+only bumps `publication_meta.updated_at`.) There are exactly TWO comparison
+sites; both change.
 
-```python
-    @app.api_route(
-        "/api/public/v1/dashboard", methods=["GET", "HEAD"], response_model=PublicDashboard
-    )
-    def public_dashboard() -> PublicDashboard:
-        if not published.exists():
-            with open_readonly(path) as conn:
-                return projection.dashboard(conn, include_history=False)
-        with open_readonly(published) as conn:
-            return queries.legacy_dashboard(conn)
-```
-
-### Excerpt C — `app/public/server.py:61-90` (v1 decision fallback)
-
-```python
-    def public_decision(ticker: str, created_at: str) -> PublicDecision:
-        if published.exists():
-            ...
-                result = queries.legacy_decision(conn, matches[0][0])
-        else:
-            with open_readonly(path) as conn:
-                result = projection.decision(conn, ticker, created_at)
-        if result is None:
-            raise HTTPException(404, "public decision not found")
-        return result
-```
-
-### Excerpt D — `app/public/server.py:351-359` (CLI)
-
-```python
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="python -m app.public.server")
-    parser.add_argument("--db", default="data/boustrategy.db")
-    parser.add_argument("--public-db")
-    parser.add_argument("--port", type=int, default=8380)
-    args = parser.parse_args()
-    uvicorn.run(
-        create_public_app(args.db, public_db_path=args.public_db), host="127.0.0.1", port=args.port
-    )
-```
-
-### Excerpt E — `app/public/server.py:41-49` (existing 503 handler — reuse its shape)
-
-```python
-    @app.exception_handler(sqlite3.Error)
-    async def unavailable(request: Request, exc: sqlite3.Error) -> JSONResponse:
-        logging.getLogger(__name__).exception("Public store read failed", exc_info=exc)
-        return JSONResponse(
-            status_code=503,
-            content={"detail": "public_data_unavailable"},
-            headers={"Retry-After": "30"},
-        )
-```
-
-### Excerpt F — `app/public/publication.py:201-232` (checkpoint content)
+`sed -n 213,222p app/public/publication.py`:
 
 ```python
             checkpoint = json.dumps(
@@ -162,34 +96,13 @@ def main() -> None:
                 },
                 sort_keys=True,
             )
-            previous_row = target.execute(
-                "SELECT content FROM publication_checkpoint WHERE singleton=1"
-            ).fetchone()
-            previous = json.loads(previous_row[0]) if previous_row and not rebuild else None
-            current = json.loads(checkpoint)
-            if changes and previous == current:
-                return counts
-            same_configuration = bool(
-                changes
-                and previous
-                and previous["version"] == current["version"]
-                and previous["profiles"] == current["profiles"]
-                and previous["account"] == current["account"]
-                ...
 ```
 
-`live_profiles` is a tuple of execution profile IDs and `live_account_id` is the
-broker account fingerprint (compared against `broker_account_fingerprint` at
-`publication.py:~498-502`). Both are private producer inputs per
-`docs/public-release.md:45-47`.
+`hashlib` and `json` are already imported in `publication.py` (lines 8-9).
 
-### Excerpt G — `app/public/explanations.py:18-33` (source list)
+### Excerpt B — `app/public/explanations.py:22-31`
 
 ```python
-    for public_id, raw in conn.execute(
-        "SELECT s.public_id, s.record_json FROM public_source_records s WHERE NOT EXISTS "
-        "(SELECT 1 FROM public_source_records n WHERE n.supersedes=s.revision_id)"
-    ):
         source = PublicSourceRecord.model_validate_json(raw)
         if source.approved_for_publication and source.access == "public":
             sources[source.source_ref] = {
@@ -203,193 +116,175 @@ broker account fingerprint (compared against `broker_account_fingerprint` at
             }
 ```
 
-`app/public/projection.py:33` lists `"X"` among `_PUBLIC_SOURCE_TYPES`, and
-`app/schemas/public_authoring.py:~98` allows `source_type == "X"`.
+`PublicSourceRecord` (`app/schemas/public_authoring.py:90-103`) has
+`source_type: Literal["SEC", "COMPANY_IR", "NEWS", "X", "PRICE_DATA", "MACRO", "ETF_ISSUER"]`,
+`excerpt: Text | None = None`, `excerpt_approved: bool = False`.
 
-### Excerpt H — `tests/public/test_public_dashboard.py:13-28` (tests that enshrine the fallback)
+### Excerpt C — `tests/public/test_explanations.py:25-42` (helper)
 
 ```python
-def _client(tmp_path: Path) -> tuple[TestClient, Path]:
-    db_path = tmp_path / "public.db"
-    return TestClient(create_public_app(db_path, tmp_path / "missing-ui")), db_path
-
-
-def test_public_api_has_only_read_methods_and_empty_states(tmp_path: Path) -> None:
-    client, _ = _client(tmp_path)
-
-    response = client.get("/api/public/v1/dashboard")
-
-    assert response.status_code == 200
-    assert response.json()["performance"]["status"] == "unavailable"
-    assert response.json()["decisions"] == []
+def source_record(**changes: object) -> PublicSourceRecord:
+    return PublicSourceRecord.model_validate(
+        {
+            "revision_id": "revision-private",
+            "source_ref": "internal-source",
+            "recorded_at": NOW,
+            "title": "Quarterly results",
+            "publisher": "Company IR",
+            "published_on": "2026-06-10",
+            "source_type": "COMPANY_IR",
+            "url": "https://example.com/results#revenue",
+            "access": "public",
+            "approved_for_publication": True,
+            "excerpt": "PRIVATE_EXCERPT",
+            **changes,
+        }
+    )
 ```
 
-Note the misleading name: `db_path` here is a SOURCE database (the test later
-does `connect(db_path)` and inserts decision records), and the v1 route reads it
-directly because no published file exists. `test_public_v2.py:36-44`
-(`test_readonly_missing_database_never_creates_file_and_rejects_writes`) also
-asserts `client.get("/api/public/v1/dashboard").status_code == 200` with no
-published file.
+The first test in that file (`test_public_narrative_feed_exports_and_source_retraction`,
+lines 45-100) shows the full seed → `publish(source, public)` →
+`TestClient(create_public_app(public))` → `GET /api/public/v2/decisions?portfolio_id=paper&q=...`
+→ `GET /api/public/v2/decisions/{public_id}` sequence and asserts
+`detail["narrative"]["sources"][0]["excerpt"] is None` (because
+`excerpt_approved` defaults to False). Model the new test on it.
 
 ### Repo conventions that apply
 
-- AGENTS.md: crash early; no protective try/except; no single-use helpers; comments only for non-obvious business logic; plain pytest functions in arrange/act/assert style.
-- Public read tests follow the pattern in `tests/public/test_public_v2.py:47-52`: `seed(source)`, `publish(source, public)`, `TestClient(create_public_app(source, public_db_path=public))`, then GET.
-- Publication doctrine (`docs/public-release.md:98-102`): "no execution profile, account fingerprint, source key, local path, raw prompt, broker ID, or worker log appears" in the public surface.
+- AGENTS.md: crash early; no single-use helpers; comments only for non-obvious business logic; plain pytest functions, arrange/act/assert.
+- Publication changes that alter existing projections bump the checkpoint `"version"` so existing public stores refresh (`docs/plan-031-audit.md`: version 7 did this).
 
 ## Commands you will need
 
 | Purpose | Command | Expected on success |
 |---|---|---|
-| Install (once) | `python -m pip install -e .[dev]` | exit 0 |
 | Public tests | `python -m pytest -q tests/public` | all pass |
-| Full tests | `python -m pytest -q` | 506+ pass (count grows with new tests) |
+| Full tests | `python -m pytest -q` | all pass |
 | Lint | `python -m ruff check .` | `All checks passed!` |
 | Format | `python -m ruff format --check .` | `N files already formatted` |
 | Types | `python -m mypy app tests` | `Success: no issues found` |
+| Frontend | `npm --prefix public-ui run test` | 26 pass (uses the checked-in fixture; do not regenerate it) |
 
 ## Scope
 
 **In scope** (the only files you should modify):
-- `app/public/server.py`
-- `app/public/publication.py` (checkpoint block only, lines ~201-232, plus the `"version"` bump)
-- `app/public/explanations.py` (the `eligible_sources` loop only)
-- `tests/public/test_public_dashboard.py`
-- `tests/public/test_public_v2.py` (the one v1 assertion at line ~43 only)
-- `tests/public/test_release.py` (add one test)
-- `tests/public/test_explanations.py` (add one test)
-- `docs/public-release.md` (one sentence: the server no longer takes `--db`)
-- `docs/reasoning/RUNTIME.md` lines 158-159 (fix `data/public.db` to `data/boustrategy.public.db` while you are there — the two runbooks currently disagree)
+- `app/public/publication.py` — lines 213-222 (checkpoint dict), 233-235 and 260-262 (the two comparison sites) only
+- `app/public/explanations.py` — the `excerpt` line in Excerpt B only
+- `tests/public/test_release.py` — add one test
+- `tests/public/test_explanations.py` — add one test
 
-**Out of scope** (do NOT touch, even though they look related):
-- `app/public/projection.py` — still used by `publish()` for the paper view at publication time. Do not delete or edit it.
-- `app/public/queries.py`, `app/public/activity.py` — the v2 read path is already published-store-only.
-- `public-ui/` — no frontend change; the v1 response shapes are unchanged for the published case.
-- Any other checkpoint semantics (the `changes` tuple comparison, `same_configuration` logic) beyond replacing the two identity fields.
-- Response-hardening headers (CSP etc.) — a separate follow-up, not this plan.
+**Out of scope** (do NOT touch):
+- `app/public/server.py`, `app/public/queries.py`, `app/public/activity.py` — already published-store-only after plan 037.
+- Any other checkpoint semantics (`changes` tuple comparison, `accounting_clock`, `same_configuration`'s remaining clauses).
+- `public-ui/` — no frontend change.
+- Response-hardening headers and rate limiting — separate backlog items.
 
 ## Git workflow
 
-- Branch: `advisor/032-close-public-trust-boundary`, created from the current working branch. NOTE: the working tree contains a large uncommitted delta that is not yours. Do not stage or commit files outside the in-scope list. Use `git add <explicit paths>` only, never `git add -A` or `git add .`.
-- Commit message style (from `git log`): conventional prefix, e.g. `fix: refresh live state at submission`. Use `fix: serve public routes only from the published store`.
-- Do NOT push or open a PR.
+- Branch: `advisor/032-close-public-trust-boundary`, created from `advisor/037-retire-finished-subsystems`. The tree still contains a large uncommitted delta that is not yours: stage only in-scope paths with `git add <path>`; never `git add -A` or `git add .`.
+- Commit message: `fix: keep account identity and X excerpts out of the published store`.
+- Do NOT push.
 
 ## Steps
 
-### Step 1: Remove the private-source fallback from both v1 routes
+### Step 1: Replace the identity fields in the checkpoint with a digest
 
-In `app/public/server.py`:
+In `app/public/publication.py`:
 
-1. In `public_dashboard()` (Excerpt B) replace the `if not published.exists(): ...` block so the route raises `HTTPException(503, "public_data_unavailable", headers={"Retry-After": "30"})` when `published.exists()` is false, and otherwise reads from `published` exactly as today. Match the body shape of the existing sqlite3 handler (Excerpt E): the JSON body must be `{"detail": "public_data_unavailable"}`.
-2. In `public_decision()` (Excerpt C) delete the `else:` branch that calls `projection.decision(conn, ticker, created_at)`; when `published.exists()` is false raise the same 503.
-3. Remove the now-unused `projection` import if nothing else in `server.py` uses it (check with `grep -n "projection\." app/public/server.py`).
+1. Immediately before `checkpoint = json.dumps(` (line 213) add:
+   ```python
+   identity = hashlib.sha256(
+       json.dumps(
+           {"profiles": sorted(live_profiles), "account": live_account_id}, sort_keys=True
+       ).encode("utf-8")
+   ).hexdigest()
+   ```
+   with a one-line comment: the published file must not contain the profile IDs or the account fingerprint; equality on the digest is all the checkpoint needs.
+2. In the checkpoint dict replace the two lines `"profiles": sorted(live_profiles),` and `"account": live_account_id,` with `"identity": identity,`.
+3. Change `"version": 7` to `"version": 8`.
+4. At BOTH comparison sites (lines 234-235 and 261-262) replace the two lines
+   `and previous["profiles"] == current["profiles"]` / `and previous["account"] == current["account"]`
+   with the single line `and previous["identity"] == current["identity"]`.
+5. Re-run `grep -n '"profiles"\|"account"' app/public/publication.py` → no matches.
 
-Keep `path` (the source path) in `create_public_app` for now — Step 2 removes it.
+**Verify**: `python -m pytest -q tests/public` → all pass (existing tests republish from scratch, so the version bump only forces one refresh).
 
-**Verify**: `python -m pytest -q tests/public/test_public_dashboard.py` → FAILS on the v1 tests (expected; Step 4 fixes them). `python -m ruff check app/public/server.py` → passes.
+### Step 2: Release-gate test that the published file carries no identity
 
-### Step 2: Stop the public process from knowing the private database path
+In `tests/public/test_release.py` add
+`test_published_store_contains_no_profile_or_account_identity`:
 
-In `app/public/server.py`:
+- Arrange: `source, public = tmp_path / "source.db", tmp_path / "public.db"`; `seed(source)`.
+- Act: `publish(source, public, live_profiles=("codex",), live_account_id="f" * 16)`; `blob = public.read_bytes()`; open the public file with `open_readonly(public)` and read `json.loads(conn.execute("SELECT content FROM publication_checkpoint").fetchone()[0])`.
+- Assert: `b'"profiles"' not in blob`; `b'"account"' not in blob`; `("f" * 16).encode() not in blob`; the checkpoint dict has key `"identity"` (64 hex chars) and has neither `"profiles"` nor `"account"`; `checkpoint["version"] == 8`.
 
-1. Change the signature to `create_public_app(public_db_path: str | Path, frontend_dir: str | Path = "public-ui/dist") -> FastAPI`. Remove `db_path`, remove the `path` variable and the `path.with_name(...)` default. `published = Path(public_db_path)`.
-2. Search the file for every remaining use of `path` that referred to the source and delete it. There must be no `open_readonly(path)` left.
-3. Update `main()` (Excerpt D): remove the `--db` argument; make `--public-db` required (`required=True`); call `create_public_app(args.public_db, ...)`.
-4. Update every caller. Run `grep -rn "create_public_app(" app tests public-ui/fixtures` and change each call from `create_public_app(source, ..., public_db_path=public)` to `create_public_app(public, ...)`. Known callers at time of writing: `tests/performance/test_reporting.py:369`, `tests/public/benchmark_http.py:247,257`, `tests/public/test_activity.py:107`, `tests/public/test_explanations.py:77,209,282,335`, `tests/public/test_public_v2.py` (several), `tests/public/test_release.py:~39`, `tests/public/test_public_dashboard.py:15`. If `grep` shows callers outside the in-scope list other than these test files, STOP (see STOP conditions) — but editing the call expression in any `tests/**` or `public-ui/fixtures/*.py` file is permitted for this step.
-5. In `docs/public-release.md:70` change the serve command to `python -m app.public.server --public-db data/boustrategy.public.db --port 8380` and adjust the surrounding sentence if it mentions `--db`.
-
-**Verify**: `grep -rn "open_readonly(path)" app/public/server.py` → no matches. `python -m mypy app tests` → `Success`.
-
-### Step 3: Replace account fingerprint and profile IDs in the checkpoint with a digest
-
-In `app/public/publication.py` (Excerpt F):
-
-1. Compute `identity = hashlib.sha256(json.dumps({"profiles": sorted(live_profiles), "account": live_account_id}, sort_keys=True).encode("utf-8")).hexdigest()` immediately before building `checkpoint`. `hashlib` and `json` are already imported.
-2. In the checkpoint dict replace the two keys `"profiles"` and `"account"` with a single key `"identity": identity`.
-3. Bump `"version": 7` to `"version": 8` so every existing published store refreshes its projections once (this is the established mechanism; `docs/plan-031-audit.md` records version 7 doing the same).
-4. In the `same_configuration` expression replace the two comparisons `previous["profiles"] == current["profiles"] and previous["account"] == current["account"]` with `previous["identity"] == current["identity"]`.
-5. Search the rest of `publication.py` for any other read of `previous["profiles"]` or `previous["account"]` (`grep -n '\["profiles"\]\|\["account"\]' app/public/publication.py`). If any exist outside the block you edited, STOP.
-
-The equality-only comparison keeps the incremental-publish behavior intact; the
-digest is compared, never decoded.
-
-**Verify**: `python -m pytest -q tests/public/test_release.py tests/public/test_public_v2.py` → pass.
-
-### Step 4: Rewrite the v1 tests to go through publication
-
-In `tests/public/test_public_dashboard.py`:
-
-1. Change `_client` to create a source db AND publish it: seed the source with whatever records the test needs, call `publish(source, public)`, return `TestClient(create_public_app(public, tmp_path / "missing-ui"))` plus the source path. Model the seed/publish sequence after `tests/public/test_public_v2.py:47-52`. Tests that insert records after creating the client must call `publish(source, public)` again before asserting on the route.
-2. Add one new test `test_v1_routes_return_503_when_published_store_is_absent`: create the app with a public path that does not exist, GET `/api/public/v1/dashboard` and `/api/public/v1/decisions/NVDA/2026-06-10T00:00:00Z`; assert status 503, JSON `{"detail": "public_data_unavailable"}`, and `Retry-After` header `30` on both. Also assert the public file was NOT created (`not public.exists()`).
-3. In `tests/public/test_public_v2.py` (~line 43) change `assert client.get("/api/public/v1/dashboard").status_code == 200` to `== 503`.
-
-**Verify**: `python -m pytest -q tests/public` → all pass.
-
-### Step 5: Add a release-gate test that the published file carries no account identity
-
-In `tests/public/test_release.py` add `test_published_store_contains_no_profile_or_account_identity`:
-
-- Arrange: `seed(source)`; call `publish(source, public, live_profiles=("codex",), live_account_id="f" * 16)` (the test helper `_profile()` in `tests/reason/test_live_submit.py` uses fingerprints like `"0" * 16`; any 16-char string is fine here).
-- Act: read the whole published file as bytes: `blob = public.read_bytes()`; also read the checkpoint row: `json.loads(conn.execute("SELECT content FROM publication_checkpoint").fetchone()[0])`.
-- Assert: `b"codex" not in blob` is too broad if a decision mentions the word; instead assert `b'"profiles"' not in blob`, `b'"account"' not in blob`, `("f" * 16).encode() not in blob`, and the checkpoint dict has key `"identity"` and no key `"profiles"` or `"account"`.
+(`publish` with a `live_account_id` and no live records is valid: the
+fingerprint check at `publication.py:512` only fires when live snapshots exist.)
 
 **Verify**: `python -m pytest -q tests/public/test_release.py` → passes, including the new test.
 
-### Step 6: Never publish an excerpt for an X-typed source
+### Step 3: Never publish an excerpt for an X-typed source
 
-In `app/public/explanations.py` (Excerpt G) change the excerpt expression to
-`source.excerpt if source.excerpt_approved and source.source_type != "X" else None`.
-Add a one-line comment above it stating the business rule: X post content is
-never republished; only the claim summary and link are public (decision
-recorded in `plans/README.md`, "Dashboard X content").
+In `app/public/explanations.py` (Excerpt B) change the excerpt line to:
+
+```python
+"excerpt": source.excerpt if source.excerpt_approved and source.source_type != "X" else None,
+```
+
+with a one-line comment above it: X post content is never republished; only
+the claim summary, title, publisher and link are public (maintainer decision,
+plans/archive/README.md "Dashboard X content").
+
+**Verify**: `python -m ruff check app/public/explanations.py` → passes.
+
+### Step 4: Test that X-typed excerpts never materialize
 
 In `tests/public/test_explanations.py` add
-`test_x_typed_source_never_publishes_an_excerpt`, modeled on the existing test
-around line 77-92 that asserts `detail["narrative"]["sources"][0]["excerpt"] is None`:
-register a source with `source_type="X"`, `excerpt="PRIVATE_X_TEXT"`,
-`excerpt_approved=True`, `approved_for_publication=True`, `access="public"`;
-publish; fetch the decision detail; assert the excerpt is `None` and
-`"PRIVATE_X_TEXT"` does not appear anywhere in the published file bytes. Look at
-how that existing test builds its source record (`source_record(...)` helper at
-`tests/public/test_explanations.py` and `save_public_source`) and reuse it.
+`test_x_typed_source_never_publishes_an_excerpt`, modeled on the first test in
+the file (lines 45-100):
+
+- Arrange: `save_public_source(conn, source_record(source_type="X", excerpt="PRIVATE_X_TEXT", excerpt_approved=True, url="https://x.com/someone/status/1"))`; seed one decision whose `source_claims` references `"internal-source"` with `source_type="X"` and `public_safe=True` (copy the claim shape from the first test and change the type); `process_decision(...)`; `publish(source, public)`.
+- Act: fetch the decision detail through the v2 feed and detail routes as the first test does.
+- Assert: every entry in `detail["narrative"]["sources"]` has `excerpt is None`; `b"PRIVATE_X_TEXT" not in public.read_bytes()`; and a positive control in the same test: republishing after `save_public_source(conn, source_record(revision_id="revision-2", source_ref="ir-source", source_type="COMPANY_IR", excerpt="APPROVED_IR_TEXT", excerpt_approved=True))` referenced by a second claim yields `excerpt == "APPROVED_IR_TEXT"` for that source (so the rule is type-specific, not a blanket suppression).
+
+If wiring the positive control through claims is awkward, split it into a
+second test; do not drop it.
 
 **Verify**: `python -m pytest -q tests/public/test_explanations.py` → passes.
 
-### Step 7: Full gates
+### Step 5: Full gates
 
-Run all commands in the table. Then `git status --short` and confirm only in-scope files changed (plus the files whose `create_public_app(` call you updated in Step 2).
+Run every command in the table; `git status --short` shows only the four in-scope files changed by you.
 
 ## Test plan
 
-- `tests/public/test_public_dashboard.py`: existing v1 tests now seed → publish → read; new 503 test for the absent published store.
-- `tests/public/test_release.py`: new test that the published file has no `profiles`/`account` keys and no fingerprint bytes.
-- `tests/public/test_explanations.py`: new test that X-typed source excerpts are never materialized.
-- Pattern: `tests/public/test_public_v2.py` (seed/publish/client), `tests/public/test_release.py:27-60` (release-gate assertions).
-- Verification: `python -m pytest -q` → all pass, 3 new tests.
+- `tests/public/test_release.py`: published file has no `profiles`/`account` keys and no fingerprint bytes; checkpoint version is 8.
+- `tests/public/test_explanations.py`: X-typed excerpt never materializes; non-X approved excerpt still does.
+- Verification: `python -m pytest -q` → all pass, 2 new tests.
 
 ## Done criteria
 
-- [ ] `grep -n "db_path\|open_readonly(path)" app/public/server.py` → no matches
 - [ ] `grep -n '"profiles"\|"account"' app/public/publication.py` → no matches
+- [ ] `grep -n '"identity"' app/public/publication.py` → 3 matches (dict key + two comparisons)
 - [ ] `grep -n '"version": 8' app/public/publication.py` → one match
-- [ ] `python -m pytest -q` exits 0
-- [ ] `python -m ruff check .`, `python -m ruff format --check .`, `python -m mypy app tests` all exit 0
-- [ ] `git status --short` shows no modified files outside the in-scope list and the Step 2 call-site files
+- [ ] `grep -n 'source_type != "X"' app/public/explanations.py` → one match
+- [ ] `python -m pytest -q` exits 0 with the two new tests present
+- [ ] `python -m ruff check .`, `python -m ruff format --check .`, `python -m mypy app tests` exit 0
+- [ ] `npm --prefix public-ui run test` exits 0 with the fixture file unchanged (`public-ui/fixtures/public-v2.json` is not regenerated by this plan)
+- [ ] `git status --short` shows no changes outside the in-scope list
 - [ ] `plans/README.md` status row updated
 
 ## STOP conditions
 
-Stop and report back (do not improvise) if:
+Stop and report back if:
 
-- Any "Current state" excerpt does not match the live file.
-- `grep -rn "create_public_app(" app` shows a caller inside `app/` other than `app/public/server.py:main`.
-- `previous["profiles"]` or `previous["account"]` is read anywhere in `publication.py` outside the checkpoint block in Excerpt F.
-- A v2 test (`tests/public/test_public_v2.py`, `test_activity.py`) starts failing after Step 3 for a reason other than the version bump forcing a full refresh — that would mean the `same_configuration` change altered incremental semantics.
-- The `public-ui/fixtures/generate.py` script calls `create_public_app` with a source path in a way you cannot update without changing its output JSON.
+- The `grep` in Excerpt A does not return exactly those six lines (a third comparison site or a new identity field exists).
+- A v2 test in `tests/public/test_public_v2.py` or `test_activity.py` fails after Step 1 for a reason other than the version bump forcing a full refresh.
+- `PublicSourceRecord` no longer has `source_type`/`excerpt_approved` with the shapes shown.
+- `npm --prefix public-ui run test` fails after your change. (Do NOT use a byte-diff of `public-ui/fixtures/public-v2.json` as a check: the generator embeds `published_at`, `server_now` and random public/claim/source ids, so two consecutive runs on an unchanged tree differ by ~700 lines. Leave the fixture file as it is; the React tests are the contract check. Corrected 2026-09-08 after an executor STOP.)
 
 ## Maintenance notes
 
-- Any new public route must read from `published` only. There is now no source-path variable in `server.py` to reach for; keep it that way.
-- If the checkpoint ever needs to expose which profiles were published (for operator diagnostics), expose it from the PRIVATE dashboard by recomputing the digest, not by storing the raw values in the public file.
-- Deferred follow-ups (not this plan): response-hardening headers on the public server (CSP, `X-Content-Type-Options`, `Referrer-Policy`); per-IP request limiting before internet exposure; retiring the v1 routes in favor of v2 once the maintainer decides the deprecation.
-- Reviewer focus: confirm the 503 body shape matches the existing sqlite3 handler so the frontend's "unavailable" state handling stays uniform; confirm the version bump is 8 and no other checkpoint key changed.
+- If operator diagnostics ever need to show which profiles were published, recompute the digest on the PRIVATE side; never store the raw values in the public file.
+- Any new public source field must be reviewed against the X-content rule; the type check in `eligible_sources` is the single enforcement point.
+- Deferred: response-hardening headers (CSP, `X-Content-Type-Options`, `Referrer-Policy`) and per-IP request limiting on the public server; both are in the backlog in `plans/README.md`.

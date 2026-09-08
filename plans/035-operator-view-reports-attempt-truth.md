@@ -19,7 +19,7 @@
 - **Risk**: LOW
 - **Depends on**: none
 - **Category**: bug
-- **Planned at**: commit `40b317b` (branch `advisor/030-private-dual-agent-dashboard`, working tree uncommitted), 2026-09-08
+- **Planned at**: commit `40b317b`; every excerpt re-verified against the tree at `0702ddd` (after plan 037) on 2026-09-08
 
 ## Why this matters
 
@@ -60,7 +60,7 @@ honest name; the dead branch is gone.
 
 Files and roles:
 
-- `app/dashboard/queries.py` — `live_operator(...)` builds the operator payload per profile (lines ~500-715).
+- `app/dashboard/queries.py` — `live_operator_status(...)` (defined at line 518) builds the operator payload per profile; the run block is at lines 544-567 and the attempts block at 674-705.
 - `app/dashboard/views.py` — renders it (`displayed_run_status` at ~801-803; the "Run"/"Decisions" metrics at ~846-847; the comparison table at ~884-886).
 - `app/storage/runtime.py` — `finish()` completes the legacy run only while still `PREPARED` (lines ~305-332). BY DESIGN; do not change.
 - `app/reason/run.py` — `process_decision(..., runtime_retry: bool = False)` at ~195-220; `_submit_decision` ends at ~348-350; `submit_decision` at ~354-416.
@@ -240,7 +240,7 @@ when `run` exists, falling back to `attempts[0]["status"]` when there is no
 newest-first, so the first matching row is the latest. Inline it (a generator
 expression with `next(..., None)` is fine); no helper.
 
-**Verify**: `python -m pytest -q tests/dashboard/test_live_operator.py` → passes (the existing attempt test at line 322 seeds one run, so its expectation is unchanged).
+**Verify**: `python -m pytest -q tests/dashboard/test_live_operator.py` → passes (the existing attempt test at line 322 seeds a runtime run whose `reasoning_run_id` equals the displayed legacy run's id, so `runtime_status` stays `no_action`).
 
 ### Step 3: Test the retried-run display
 
@@ -252,7 +252,7 @@ query/render calls and on
 (line 422) for producing the state:
 
 - Arrange: reuse `live_run`, `save_run`, `execute_attempt` with a first runner that fails (`"submission_blocked"` branch of that test) and a retry runner that succeeds, exactly as the pinned test does. Import `live_run`, `NOW` from `tests.reason.test_runtime` and `_profile` from `tests.reason.test_live_submit` the way other tests already do (`tests/reason/test_scheduler.py:14`).
-- Act: call the operator query the exemplar uses, and GET `/operate/live` through the exemplar's `TestClient`.
+- Act: call `live_operator_status(conn, public_profile_status(load_live_profiles(config_path)), now=...)` exactly as the exemplar does (its imports: `load_live_profiles, public_profile_status` from `app.broker.config`; `live_operator_status` from `app.dashboard.queries`; `create_app` from `app.dashboard.server`), and GET `/operate/live` through `TestClient(create_app(db, live_config_path=config_path))`. Prefer building the failed-then-retried state with the operator test's own `_config`/`_populate` helpers plus `execute_attempt`; if you instead reuse `live_run` from `tests.reason.test_runtime` and `_profile` from `tests.reason.test_live_submit`, first confirm they use the same `execution_profile_id` (`codex`) and `broker_account_fingerprint` as `_config`, and STOP if they differ.
 - Assert: for the codex profile, `run["result"] == "FAILED"` (legacy fact, unchanged), `run["decision_count"]` equals the row count of `reasoning_run_decisions` for that run (2 for the `submission_blocked` variant), `runtime_status == "completed"`; and the rendered HTML's Decisions metric shows that count.
 
 **Verify**: `python -m pytest -q tests/dashboard` → passes including the new test.
@@ -295,7 +295,7 @@ Stop and report back if:
 - Any excerpt does not match the live file.
 - `_submit_decision` has a caller that passes `consume_trigger_ids` (the branch is live and the mid-transaction commit is a real bug to plan separately).
 - The pinned retry test in `tests/reason/test_runtime.py` fails after your change.
-- The existing operator test at `test_live_operator.py:322` fails after Step 2 because its seeded attempts belong to a different `reasoning_run_id` than the displayed run — report the seeded shape rather than loosening the match.
+- The existing operator test at `test_live_operator.py:322` fails after Step 2. It should not: its `_populate` helper (line 57) saves a reasoning run named `rr_2026-08-27_close_{profile}` per profile and the test seeds `runtime_runs` with `reasoning_run_id='rr_2026-08-27_close_codex'`, so the per-run match finds the same attempt. If it fails anyway, report the seeded shape rather than loosening the match.
 
 ## Maintenance notes
 

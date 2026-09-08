@@ -17,9 +17,9 @@
 - **Priority**: P2
 - **Effort**: S
 - **Risk**: LOW (paper/refresh sites) / MED (publication sites: existing projections shift, needs the checkpoint version bump)
-- **Depends on**: none. If plan 032 has landed, the checkpoint version will already be 8; bump to 9 in that case (see Step 4).
+- **Depends on**: none. Check the checkpoint version with `grep -n '"version":' app/public/publication.py` (7 at planning time; 8 if plan 032 has landed) and bump it by exactly one (see Step 4).
 - **Category**: bug
-- **Planned at**: commit `40b317b` (branch `advisor/030-private-dual-agent-dashboard`, working tree uncommitted), 2026-09-08
+- **Planned at**: commit `40b317b`; every excerpt re-verified against the tree at `0702ddd` (after plan 037) on 2026-09-08
 
 ## Why this matters
 
@@ -54,8 +54,8 @@ Files and roles:
 - `app/x/calendar.py:6` — `NEW_YORK = ZoneInfo("America/New_York")`, the canonical constant.
 - `app/paper/broker.py` — paper broker; `_settle(conn, through_date)` picks the fill bar per pending intent.
 - `app/reason/run.py` — session preparation; `_pending_intent_dates` decides from which date to refresh prices for pending paper intents.
-- `app/public/publication.py` — the trusted publisher; decision source eligibility at line ~530-536; checkpoint `"version"` at line ~203.
-- `app/public/explanations.py` — thesis review source eligibility at line ~226-231.
+- `app/public/publication.py` — the trusted publisher; decision source eligibility at lines 543-548; checkpoint `"version"` at line 215.
+- `app/public/explanations.py` — thesis review source eligibility at lines 226-231; the module does NOT import `NEW_YORK` today (imports are `hashlib, sqlite3, Decimal, Any` plus four `app.*` imports at lines 3-11), so Step 4 adds it.
 - `tests/paper/test_paper.py` — exemplar paper tests (`_intent(conn, id, side, weight, created)` helper builds an intent whose `created_at` is `datetime.combine(created, datetime.min.time(), tzinfo=UTC)`; `_bar(ticker, day, open)`; `upsert_daily_prices`).
 - `tests/public/test_explanations.py` — has a test around line 317 that registers a source with `published_on="2026-06-11"` against a decision created 2026-06-10 and asserts it is excluded; that is the exemplar for the eligibility tests.
 
@@ -104,7 +104,7 @@ def _pending_intent_dates(conn: sqlite3.Connection) -> dict[str, date]:
 `created_at` strings are ISO-8601 with offset (Python `isoformat()` of an aware
 datetime, e.g. `2026-06-11T01:00:00+00:00`).
 
-### Excerpt C — `app/public/publication.py:531-536` (decision source eligibility)
+### Excerpt C — `app/public/publication.py:543-548` (decision source eligibility)
 
 ```python
                 decision_sources = {
@@ -132,7 +132,7 @@ datetime, e.g. `2026-06-11T01:00:00+00:00`).
 Check whether `explanations.py` imports `NEW_YORK`; if not, add
 `from app.x.calendar import NEW_YORK`.
 
-### Excerpt E — `app/public/publication.py:201-204` (checkpoint version)
+### Excerpt E — `app/public/publication.py:213-215` (checkpoint version)
 
 ```python
             checkpoint = json.dumps(
@@ -158,11 +158,34 @@ def test_settle_uses_earliest_bar_after_intent_and_replay_matches(tmp_path: Path
     assert fill == (100.0, "2026-07-21")
 ```
 
-`_intent` (line 13-35) accepts a `date` and builds `created_at` at UTC midnight.
-For this plan's test you need an intent created at a specific aware instant, so
-read the helper and either add an optional `created_at: datetime | None`
-keyword to it (keep the existing call sites working) or build the record inline
-the same way the helper does.
+`_intent` (lines 30-59) has the signature
+`_intent(conn, identifier, side, target_weight, created: date, ticker="NVDA", theme="ai_semiconductors")`
+and sets `created_at=datetime.combine(created, datetime.min.time(), tzinfo=UTC)`
+on the decision record, then `created_at=record.created_at` on the intent.
+Add a keyword `created_at: datetime | None = None` after `theme`. The
+fallback must ALSO change: midnight UTC is 20:00 EDT / 19:00 EST on the
+PREVIOUS day, so once Step 1 converts to New York time every existing
+`_intent(..., date(2026, 7, 20))` call would land on July 19 and
+`test_settle_uses_earliest_bar_after_intent_and_replay_matches` and
+`test_buy_average_cost_sell_cap_and_close_delete` fail. Use noon UTC, which is
+08:00 EDT / 07:00 EST and therefore always the same New York date:
+
+```python
+    created_at: datetime | None = None,
+) -> OrderIntent:
+    record = decision_record_with(
+        ...
+        created_at=created_at or datetime.combine(created, time(12, 0), tzinfo=UTC),
+    )
+```
+
+and add `time` to the `from datetime import ...` line at the top of the test
+file. Every existing call site keeps working with its intended session day.
+(`tests/fixtures/decision_records.py:10` already defaults decision records to
+12:00 UTC for the same reason; this brings the paper helper in line. No other
+test module builds intents at UTC midnight — verified with
+`grep -rn "datetime.min.time()" tests`.) Corrected 2026-09-08 after an
+executor STOP.
 
 ### Repo conventions that apply
 
@@ -219,7 +242,7 @@ UTC date is already tomorrow after 20:00 ET.
 In `tests/paper/test_paper.py` add
 `test_evening_et_intent_fills_at_next_session_open_not_the_one_after`:
 
-- Arrange: an intent with `created_at = datetime(2026, 7, 21, 1, 30, tzinfo=UTC)` (that is 21:30 ET on Monday 2026-07-20). Bars for `NVDA` on 2026-07-20 (open 90), 2026-07-21 (open 100), 2026-07-22 (open 110).
+- Arrange: `_intent(conn, "buy", "BUY", 0.10, date(2026, 7, 20), created_at=datetime(2026, 7, 21, 1, 30, tzinfo=UTC))` (that instant is 21:30 EDT on Monday 2026-07-20; the `created` date argument only feeds the fallback). Bars for `NVDA` on 2026-07-20 (open 90), 2026-07-21 (open 100), 2026-07-22 (open 110).
 - Act: `settle(conn)`.
 - Assert: fill is `(100.0, "2026-07-21")`.
 
@@ -245,12 +268,16 @@ Read the rest of the function first to preserve its return type
 (`dict[str, date]`) and any subsequent processing of the rows.
 
 Add a direct unit test in `tests/reason/test_reason.py` (no existing test
-references `_pending_intent_dates`; write a plain arrange/act/assert function
-that connects a `tmp_path` database with `connect`, inserts one PAPER order
-intent via the same helper the paper tests use — see `_intent` in
-`tests/paper/test_paper.py:13-35` — with `created_at = 2026-07-21T01:30:00+00:00`,
-then calls `_pending_intent_dates(conn)`): the returned start date for that
-ticker is `date(2026, 7, 20)`.
+references `_pending_intent_dates`; its only caller is `prepare_session` at
+`run.py:109`). Write a plain arrange/act/assert function that connects a
+`tmp_path` database with `connect`, saves one PAPER decision record and order
+intent the way `tests/paper/test_paper.py::_intent` does (import that helper
+from `tests.paper.test_paper`, as other tests already import helpers across
+modules) with `created_at=datetime(2026, 7, 21, 1, 30, tzinfo=UTC)`, then calls
+`_pending_intent_dates(conn)` (import it from `app.reason.run`): the returned
+dict maps `"NVDA"` to `date(2026, 7, 20)`. The current function returns
+`{ticker: date.fromisoformat(created_at)}` from the SQL rows; keep the return
+type `dict[str, date]`.
 
 **Verify**: `python -m pytest -q tests/reason/test_reason.py` → passes.
 
@@ -299,6 +326,7 @@ Stop and report back if:
 
 - Any excerpt does not match the live file.
 - The Step 2 test does not fail against the unpatched code.
+- After Step 1, any paper test other than the two named above fails; a third failure means another helper or literal builds an intent at an evening-UTC instant and must be reported, not patched ad hoc.
 - `_pending_intent_dates` has callers that depend on the SQL shape (e.g. pass extra parameters) — `grep -rn "_pending_intent_dates" app tests`.
 - An existing public test fails after Step 4 for a reason other than the version bump forcing a refresh.
 - You find a fifth site using a UTC `.date()` for a session decision; report it rather than fixing it here.

@@ -5,11 +5,13 @@
 # replaced (Register-ScheduledTask -Force) rather than duplicated.
 #
 # The 14:45 ET trigger only does real work on NYSE half-days (Thanksgiving
-# eve, Christmas eve in 2026); on every other weekday it hits `cycle`,
+# Friday, Christmas eve in 2026); on every other weekday it hits `cycle`,
 # which is calendar-aware and no-ops cleanly (see plan 018). The 17:45 ET
 # trigger correspondingly no-ops ON half-days. This lets a naive
 # every-weekday schedule stay correct without special-casing specific
 # dates here.
+
+param([switch]$Enable)
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
 $ScriptPath = Join-Path $RepoRoot "ops\run-digester-session.ps1"
@@ -25,7 +27,8 @@ function New-DigesterTask {
         -WorkingDirectory $RepoRoot
     $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
         -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-        -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew
+        -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew `
+        -Disable:(-not $Enable)
     Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger `
         -Settings $Settings -Description "boustrategy X pipeline: $Slot slot (plan 019)" -Force | Out-Null
     Write-Output "Registered: $Name"

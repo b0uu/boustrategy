@@ -69,14 +69,16 @@ The localhost dashboard is a private personal operator panel and test surface. I
 operational data and must remain bound to `127.0.0.1`.
 
 - **Paper operator** keeps the existing paper preparation and reasoning workflow.
-- **Live trial** shows one shared market and research intake with separate Codex and Claude profile
-  cards. The agents receive the same research input but never share account snapshots, holdings,
-  quotas, decisions, intents, packets, or broker lifecycle state.
+- **Live operator** shows configured profile cards and actual runtime attempts. The current product
+  has one primary live account; a disabled legacy profile is not a second active portfolio. Account
+  snapshots, quotas, intents, packets and lifecycle records remain explicitly scoped.
 - **Executions** remains the append-only broker ledger and execution-only handoff.
 
 The dashboard copies exact prompts for manually started agent sessions. It doesn't launch agents,
-schedule work, call Robinhood, or place an order. Scheduling is still deferred. The eventual
-public dashboard is a separate public-safe product and isn't part of this private implementation.
+schedule work, call Robinhood, or place an order. The separate persisted runtime now supports
+explicit authoring and scheduling through its CLI, but host activation remains deferred. The public
+dashboard is implemented as a separate read-only product. See `RUNTIME.md` and
+`../execution-assessment.md` for operating capabilities and remaining prerequisites.
 
 A live run keeps its initial account snapshot as an audit baseline, so research doesn't need to
 finish within five minutes. Immediately before submitting a decision, the assigned agent captures
@@ -91,8 +93,8 @@ an account profile is explicitly bound and enabled in the gitignored `ops/live.l
 policy-approved live intent exists for that same profile, and a fresh broker preflight produces an
 unexpired execution packet.
 
-Codex and Claude use separate profile IDs, account aliases, account fingerprints, order intents,
-packets, broker records, and lifecycle events. The example profiles use flexible funded capital
+Configured profiles use separate routing identities, order intents, packets, broker records and
+lifecycle events; model changes on the same account should retain one reporting history. The example profiles use flexible funded capital
 and a temporary $20 per-order brake. They record that the user has chosen no manual approval
 between a successful broker review and exact placement, but they don't enable either profile or
 contain a broker credential.
@@ -119,3 +121,10 @@ prompt from the Operate page.
 - The model didn't invent a source, ticker mapping, or market expectation.
 - A no-action conclusion still explains what evidence would have changed it.
 - Submission went through `app.reason.run submit`; no record or position was edited directly.
+
+
+Audit boundary update: a new broker preflight must include the exact `ticker` alongside its
+quote and account facts. Unbound legacy preflight JSON remains readable but cannot create a new
+packet. Packet creation and storage bind the decision action, final target and order intent;
+review/submission must occur after packet creation and before expiry. No numerical limit or
+per-trade approval setting changed. Existing packets remain readable.
