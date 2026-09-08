@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 import sqlite3
+from contextlib import closing
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
@@ -10,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 from app.prices.cache import PriceBar, get_daily_prices, refresh_ticker
 from app.storage.database import connect
+from app.x.calendar import completed_session, is_session
 
 _CASHTAG = re.compile(r"(?<![A-Za-z0-9_])\$([A-Za-z]{1,5})(?![A-Za-z0-9_])")
 _TICKER = re.compile(r"^[A-Z]{1,5}$")
@@ -157,17 +159,6 @@ def _adjusted_close(bar: PriceBar) -> float:
     return bar.adj_close if bar.adj_close is not None else bar.close
 
 
-def _entry_index(bars: list[PriceBar], available_at: datetime) -> int | None:
-    local = available_at.astimezone(_NEW_YORK)
-    may_use_same_day_open = local.time().replace(tzinfo=None) < _MARKET_OPEN
-    for index, bar in enumerate(bars):
-        if bar.bar_date > local.date():
-            return index
-        if bar.bar_date == local.date() and may_use_same_day_open:
-            return index
-    return None
-
-
 def evaluate_candidates(
     conn: sqlite3.Connection,
     candidates: list[ReplayCandidate],
@@ -177,7 +168,7 @@ def evaluate_candidates(
     if not horizons or any(horizon < 1 for horizon in horizons):
         raise ValueError("horizons must contain positive session counts")
 
-    evaluated_date = evaluated_at.astimezone(_NEW_YORK).date()
+    evaluated_date = completed_session(evaluated_at)
     benchmark = get_daily_prices(conn, _BENCHMARK, end=evaluated_date)
     benchmark_by_date = {bar.bar_date: bar for bar in benchmark}
     results: list[ReplayResult] = []
@@ -186,11 +177,17 @@ def evaluate_candidates(
     for candidate in candidates:
         for ticker in candidate.tickers:
             bars = get_daily_prices(conn, ticker, end=evaluated_date)
-            entry_index = _entry_index(bars, candidate.available_at)
-            if entry_index is None:
+            bars_by_date = {bar.bar_date: bar for bar in bars}
+            local = candidate.available_at.astimezone(_NEW_YORK)
+            entry_date = local.date()
+            if local.time().replace(tzinfo=None) >= _MARKET_OPEN:
+                entry_date += timedelta(days=1)
+            while not is_session(entry_date):
+                entry_date += timedelta(days=1)
+            entry_bar = bars_by_date.get(entry_date)
+            if entry_bar is None:
                 missing.add(ticker)
                 continue
-            entry_bar = bars[entry_index]
             entry_price = _adjusted_open(entry_bar)
             benchmark_entry = benchmark_by_date.get(entry_bar.bar_date)
             if benchmark_entry is None:
@@ -199,10 +196,17 @@ def evaluate_candidates(
             benchmark_entry_price = _adjusted_open(benchmark_entry)
 
             for horizon in horizons:
-                exit_index = entry_index + horizon - 1
-                if exit_index >= len(bars):
+                exit_date = entry_date
+                for _ in range(horizon - 1):
+                    exit_date += timedelta(days=1)
+                    while not is_session(exit_date):
+                        exit_date += timedelta(days=1)
+                if exit_date > evaluated_date:
                     continue
-                exit_bar = bars[exit_index]
+                exit_bar = bars_by_date.get(exit_date)
+                if exit_bar is None:
+                    missing.add(ticker)
+                    continue
                 benchmark_exit = benchmark_by_date.get(exit_bar.bar_date)
                 if benchmark_exit is None:
                     missing.add(_BENCHMARK)
@@ -261,7 +265,7 @@ def render_report(
         "- Availability is the latest of post, fetch, and route or capture time.",
         "- Tickers come from explicit cashtags or the ticker list saved with a captured signal.",
         "- A same-day open is allowed only when availability precedes 09:30 America/New_York. "
-        "Otherwise entry moves to the next recorded session.",
+        "Otherwise entry moves to the next eligible market session.",
         "- Horizons were fixed before viewing the results: 1, 5, and 20 sessions.",
         "",
         "## Coverage",
@@ -375,22 +379,22 @@ def main() -> None:
     render_parser.add_argument("--out")
 
     args = parser.parse_args()
-    conn = connect(args.db)
-    evaluated_at = (
-        _parse_datetime(args.as_of) if getattr(args, "as_of", None) else datetime.now(UTC)
-    )
-    if args.command == "refresh":
-        _refresh_prices(conn, evaluated_at, date.fromisoformat(args.through))
-        return
+    with closing(connect(args.db)) as conn:
+        evaluated_at = (
+            _parse_datetime(args.as_of) if getattr(args, "as_of", None) else datetime.now(UTC)
+        )
+        if args.command == "refresh":
+            _refresh_prices(conn, evaluated_at, date.fromisoformat(args.through))
+            return
 
-    report, payload = render_report(conn, evaluated_at)
-    out = Path(args.out or f"data/replays/x-point-in-time-{evaluated_at.date().isoformat()}.md")
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(report, encoding="utf-8")
-    out.with_suffix(".json").write_text(
-        json.dumps(payload, indent=2, default=str) + "\n", encoding="utf-8"
-    )
-    print(f"rendered {out} and {out.with_suffix('.json')}")
+        report, payload = render_report(conn, evaluated_at)
+        out = Path(args.out or f"data/replays/x-point-in-time-{evaluated_at.date().isoformat()}.md")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(report, encoding="utf-8")
+        out.with_suffix(".json").write_text(
+            json.dumps(payload, indent=2, default=str) + "\n", encoding="utf-8"
+        )
+        print(f"rendered {out} and {out.with_suffix('.json')}")
 
 
 if __name__ == "__main__":

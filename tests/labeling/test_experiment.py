@@ -377,3 +377,27 @@ def test_score_per_modality_split(tmp_path: Path) -> None:
 
     assert report["per_modality"]["media"]["total"] == 1
     assert report["per_modality"]["text_only"]["total"] == 1
+
+
+def test_export_refuses_stale_batches_without_deleting_them(tmp_path: Path) -> None:
+    conn = connect(":memory:")
+    export_batches(conn, tmp_path)
+    stale = tmp_path / "batch_999.jsonl"
+    stale.write_text("old batch", encoding="utf-8")
+    with pytest.raises(ValueError, match="previous generated batches"):
+        export_batches(conn, tmp_path)
+    assert stale.read_text(encoding="utf-8") == "old batch"
+    conn.close()
+
+
+def test_excluded_prediction_does_not_count_as_missing_label(tmp_path: Path) -> None:
+    conn = connect(":memory:")
+    insert_new_posts(conn, [make_post("1")])
+    mark_reviewed(conn, "1", "significant")
+    path = tmp_path / "predictions.jsonl"
+    path.write_text(json.dumps({"post_id": "1", "prediction": "significant"}), encoding="utf-8")
+    ingest_predictions(conn, "test", path)
+    result = score_predictor(conn, "test", exclude_post_ids=frozenset({"1"}))
+    assert result["total"] == 0
+    assert result["predictions_without_label"] == 0
+    conn.close()

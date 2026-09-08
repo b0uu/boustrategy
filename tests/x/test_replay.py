@@ -105,3 +105,16 @@ def test_report_discloses_missing_prices_and_excluded_labels() -> None:
     assert "Missing price series: NVDA" in report
     assert payload["excluded_untimestamped_human_labels"] == 1
     assert json.dumps(payload, default=str)
+
+
+def test_missing_first_session_bar_does_not_shift_replay_entry() -> None:
+    conn = connect(":memory:")
+    _route(conn, "2026-07-20T12:10:00+00:00")
+    upsert_daily_prices(
+        conn, [_bar("NVDA", date(2026, 7, 21), 100, 110), _bar("QQQ", date(2026, 7, 21), 400, 410)]
+    )
+    at = datetime(2026, 7, 22, tzinfo=UTC)
+    results, missing = evaluate_candidates(conn, load_candidates(conn, at), at, horizons=(1,))
+    assert results == []
+    assert missing == ["NVDA"]
+    conn.close()

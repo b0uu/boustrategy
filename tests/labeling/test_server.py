@@ -377,3 +377,30 @@ def test_flag_marks_thread_posts_significant(tmp_path: Path) -> None:
     statuses = {row[0] for row in conn.execute("SELECT review_status FROM x_posts").fetchall()}
     conn.close()
     assert statuses == {"significant"}
+
+
+def test_invalid_thread_member_leaves_anchor_unreviewed(tmp_path: Path) -> None:
+    path = tmp_path / "labeling.db"
+    seed(
+        path,
+        [
+            make_post("1", posted_at=datetime(2026, 7, 1, tzinfo=UTC), conversation_id="a"),
+            make_post("2", posted_at=datetime(2026, 7, 1, tzinfo=UTC), conversation_id="b"),
+        ],
+    )
+    client = TestClient(create_app(path))
+    response = client.post("/api/skip", json={"post_id": "1", "thread_post_ids": ["2"]})
+    assert response.status_code == 422
+    conn = connect(path)
+    assert conn.execute("SELECT DISTINCT review_status FROM x_posts").fetchall() == [
+        ("unreviewed",)
+    ]
+    conn.close()
+
+
+def test_adjudication_query_cannot_close_script(tmp_path: Path) -> None:
+    client = TestClient(create_app(tmp_path / "labeling.db"))
+    response = client.get("/adjudicate", params={"predictor": "</script><script>alert(1)</script>"})
+    assert response.status_code == 200
+    assert "</script><script>alert(1)</script>" not in response.text
+    assert r"\u003c/script" in response.text

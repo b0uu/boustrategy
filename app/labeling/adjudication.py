@@ -13,7 +13,7 @@ model prediction is reviewed exactly once here, with three verdicts:
 - borderline: the verdict is recorded, nothing flips; scoring reports
   agreement both including and excluding borderline-adjudicated posts.
 
-Every adjudication is an append-only row keyed by (post_id, predictor):
+The current adjudication is a replaceable row keyed by (post_id, predictor):
 re-adjudicating a post first restores label_before (undoing any prior
 flip) before applying the new verdict's effect, so repeated flip-flopping
 never drifts from the original label.

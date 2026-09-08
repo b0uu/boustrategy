@@ -6,6 +6,8 @@ lives here beyond rendering and request/response shaping.
 
 import argparse
 import json
+import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
@@ -17,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.labeling.adjudication import adjudicate, next_payload
 from app.storage.database import connect
+from app.storage.runtime import immediate
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
     mark_reviewed,
@@ -138,11 +141,18 @@ def _render_reply_context(payload: dict[str, Any]) -> str:
     )
 
 
+def _safe_url(value: object) -> str:
+    text = str(value)
+    return text if text.lower().startswith(("https://", "http://")) else ""
+
+
 def _render_media(media: list[dict[str, Any]]) -> str:
     if not media:
         return ""
     items = []
     for m in media:
+        if not str(m["url"]).lower().startswith(("https://", "http://")):
+            continue
         url = escape(str(m["url"]))
         media_type = str(m["media_type"])
         alt_text = escape(str(m.get("alt_text", "")))
@@ -181,7 +191,7 @@ def _render_post_block(payload: dict[str, Any]) -> str:
     handle = escape(str(payload["handle"]))
     posted_at = escape(str(payload["posted_at"]))
     text = escape(str(payload["text"]))
-    url = escape(str(payload["url"]))
+    url = escape(_safe_url(payload["url"]))
     reply_context = _render_reply_context(payload)
     media = _render_media(payload.get("media", []))
     thread = _render_thread(payload)
@@ -257,7 +267,7 @@ def _render_disagreement_block(payload: dict[str, Any]) -> str:
     handle = escape(str(item["handle"]))
     posted_at = escape(str(item["posted_at"]))
     text = escape(str(item["text"]))
-    url = escape(str(item["url"]))
+    url = escape(_safe_url(item["url"]))
     reply_context = _render_reply_context(item)
     media = _render_media(item.get("media", []))
     human_label = escape(str(item["human_label"]))
@@ -344,13 +354,27 @@ body {{ font-family: sans-serif; max-width: 720px; margin: 2rem auto; }}
 <script>
 var currentThreadPostIds = [];
 
+function safeUrl(value) {{
+  var text = String(value || '');
+  var lower = text.toLowerCase();
+  return lower.startsWith('https://') || lower.startsWith('http://') ? text : '';
+}}
+function escapeAttribute(value) {{
+  return String(value || '').replace(/[&<>"']/g, function(c) {{
+    return '&#' + c.charCodeAt(0) + ';';
+  }});
+}}
 function renderMedia(media) {{
   if (!media || !media.length) return '';
-  var items = media.map(function(m) {{
+  var items = media.filter(function(m) {{
+    var url = String(m.url).toLowerCase();
+    return url.startsWith("https://") || url.startsWith("http://");
+  }}).map(function(m) {{
     var badge = (m.media_type === 'video' || m.media_type === 'animated_gif')
       ? '<span class="media-badge">' + m.media_type + '</span>'
       : '';
-    return '<span class="media-item"><img src="' + m.url + '" alt="' + m.alt_text +
+    return '<span class="media-item"><img src="' + escapeAttribute(m.url) +
+      '" alt="' + escapeAttribute(m.alt_text) +
       '" loading="lazy">' + badge + '</span>';
   }}).join('');
   return '<div class="media">' + items + '</div>';
@@ -401,17 +425,19 @@ function renderPost(payload) {{
     var threadHtml = '';
     if (payload.thread && payload.thread.length) {{
       threadHtml = '<div id="thread">' + payload.thread.map(function(t) {{
-        return '<div class="thread-post" data-post-id="' + t.post_id +
+        return '<div class="thread-post" data-post-id="' + escapeAttribute(t.post_id) +
           '"><p class="thread-post-text"></p>' + renderMedia(t.media) + '</div>';
       }}).join('') + '</div>';
     }}
-    html = '<div id="post" data-post-id="' + payload.post_id + '">' +
+    html = '<div id="post" data-post-id="' + escapeAttribute(payload.post_id) + '">' +
       replyHtml +
-      '<p><strong>@' + payload.handle + '</strong> &mdash; ' + payload.posted_at + '</p>' +
+      '<p><strong>@' + escapeAttribute(payload.handle) + '</strong> &mdash; ' +
+      escapeAttribute(payload.posted_at) + '</p>' +
       '<p id="post-text"></p>' +
       renderMedia(payload.media) +
       threadHtml +
-      '<p><a href="' + payload.url + '" target="_blank" rel="noopener"></a></p></div>';
+      '<p><a href="' + escapeAttribute(safeUrl(payload.url)) +
+      '" target="_blank" rel="noopener"></a></p></div>';
   }}
   postDiv.outerHTML = html;
   if (!payload.empty) {{
@@ -424,7 +450,7 @@ function renderPost(payload) {{
       payload.thread.forEach(function(t, i) {{ threadTexts[i].textContent = t.text; }});
     }}
     var link = document.querySelector('#post a');
-    link.href = payload.url;
+    link.href = safeUrl(payload.url);
     link.textContent = payload.url;
   }}
   document.getElementById('stats').textContent =
@@ -581,13 +607,27 @@ table#comparison-table td:first-child, table#comparison-table th:first-child {{
 <script>
 var predictor = {predictor_json};
 
+function safeUrl(value) {{
+  var text = String(value || '');
+  var lower = text.toLowerCase();
+  return lower.startsWith('https://') || lower.startsWith('http://') ? text : '';
+}}
+function escapeAttribute(value) {{
+  return String(value || '').replace(/[&<>"']/g, function(c) {{
+    return '&#' + c.charCodeAt(0) + ';';
+  }});
+}}
 function renderMedia(media) {{
   if (!media || !media.length) return '';
-  var items = media.map(function(m) {{
+  var items = media.filter(function(m) {{
+    var url = String(m.url).toLowerCase();
+    return url.startsWith("https://") || url.startsWith("http://");
+  }}).map(function(m) {{
     var badge = (m.media_type === 'video' || m.media_type === 'animated_gif')
       ? '<span class="media-badge">' + m.media_type + '</span>'
       : '';
-    return '<span class="media-item"><img src="' + m.url + '" alt="' + m.alt_text +
+    return '<span class="media-item"><img src="' + escapeAttribute(m.url) +
+      '" alt="' + escapeAttribute(m.alt_text) +
       '" loading="lazy">' + badge + '</span>';
   }}).join('');
   return '<div class="media">' + items + '</div>';
@@ -660,12 +700,14 @@ function renderDisagreement(payload) {{
       ? '<p id="captured-flag">captured post: overturn will not auto-flip; ' +
         'flagged for manual review.</p>'
       : '';
-    html = '<div id="disagreement" data-post-id="' + item.post_id + '">' +
+    html = '<div id="disagreement" data-post-id="' + escapeAttribute(item.post_id) + '">' +
       replyHtml +
-      '<p><strong>@' + item.handle + '</strong> &mdash; ' + item.posted_at + '</p>' +
+      '<p><strong>@' + escapeAttribute(item.handle) + '</strong> &mdash; ' +
+      escapeAttribute(item.posted_at) + '</p>' +
       '<p id="disagreement-text"></p>' +
       renderMedia(item.media) +
-      '<p><a href="' + item.url + '" target="_blank" rel="noopener"></a></p>' +
+      '<p><a href="' + escapeAttribute(safeUrl(item.url)) +
+      '" target="_blank" rel="noopener"></a></p>' +
       capturedHtml +
       '<div class="label-compare">' +
       '<div><strong>YOUR LABEL</strong>: <span id="disagreement-human-label"></span></div>' +
@@ -679,7 +721,7 @@ function renderDisagreement(payload) {{
       document.querySelector('.reply-context-text').textContent = item.reply_context;
     }}
     var link = document.querySelector('#disagreement a');
-    link.href = item.url;
+    link.href = safeUrl(item.url);
     link.textContent = item.url;
     document.getElementById('disagreement-human-label').textContent = item.human_label;
     document.getElementById('disagreement-prediction').textContent = item.prediction;
@@ -731,25 +773,43 @@ document.addEventListener('keydown', function(e) {{
 def _render_adjudicate_page(predictor: str, payload: dict[str, Any]) -> str:
     return _ADJUDICATE_TEMPLATE.format(
         predictor=escape(predictor),
-        predictor_json=json.dumps(predictor),
+        predictor_json=json.dumps(predictor)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026"),
         comparison=_render_comparison(payload),
         disagreement_block=_render_disagreement_block(payload),
     )
+
+
+def _validate_thread(conn: sqlite3.Connection, post_id: str, thread_ids: list[str]) -> None:
+    anchor = conn.execute(
+        "SELECT handle, conversation_id FROM x_posts WHERE post_id=?", (post_id,)
+    ).fetchone()
+    if anchor is None:
+        raise HTTPException(404, "anchor post not found")
+    if len(set(thread_ids)) != len(thread_ids) or post_id in thread_ids:
+        raise HTTPException(422, "duplicate thread post")
+    for thread_id in thread_ids:
+        row = conn.execute(
+            "SELECT handle, conversation_id, review_status FROM x_posts WHERE post_id=?",
+            (thread_id,),
+        ).fetchone()
+        if row is None or not anchor[1] or row[:2] != anchor or row[2] != "unreviewed":
+            raise HTTPException(422, "thread post does not belong to the unreviewed conversation")
 
 
 def create_app(db_path: str | Path) -> FastAPI:
     app = FastAPI()
     app.state.db_path = str(db_path)
 
-    # Each request opens (and closes) its own sqlite3 connection rather than
-    # sharing one across requests. sqlite3 connections are thread-bound and
-    # FastAPI runs sync path functions in a threadpool, so a shared connection
-    # would either need check_same_thread=False (silently unsafe for
-    # concurrent writers) or a lock; per-request connections sidestep both and
-    # cost little since connect() only opens a local file and idempotently
-    # re-applies CREATE TABLE IF NOT EXISTS.
-    def get_conn() -> Any:
-        return connect(app.state.db_path)
+    with closing(connect(db_path)):
+        pass
+
+    def get_conn() -> sqlite3.Connection:
+        conn = sqlite3.connect(app.state.db_path)
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -772,10 +832,12 @@ def create_app(db_path: str | Path) -> FastAPI:
     def api_skip(body: SkipRequest) -> dict[str, Any]:
         conn = get_conn()
         try:
-            mark_reviewed(conn, body.post_id, "skipped")
-            for thread_post_id in body.thread_post_ids:
-                mark_reviewed(conn, thread_post_id, "skipped")
-            return _next_payload(conn)
+            with immediate(conn):
+                _validate_thread(conn, body.post_id, body.thread_post_ids)
+                mark_reviewed(conn, body.post_id, "skipped", commit=False)
+                for thread_post_id in body.thread_post_ids:
+                    mark_reviewed(conn, thread_post_id, "skipped", commit=False)
+                return _next_payload(conn)
         finally:
             conn.close()
 
@@ -783,10 +845,12 @@ def create_app(db_path: str | Path) -> FastAPI:
     def api_flag(body: SkipRequest) -> dict[str, Any]:
         conn = get_conn()
         try:
-            mark_reviewed(conn, body.post_id, "significant")
-            for thread_post_id in body.thread_post_ids:
-                mark_reviewed(conn, thread_post_id, "significant")
-            return _next_payload(conn)
+            with immediate(conn):
+                _validate_thread(conn, body.post_id, body.thread_post_ids)
+                mark_reviewed(conn, body.post_id, "significant", commit=False)
+                for thread_post_id in body.thread_post_ids:
+                    mark_reviewed(conn, thread_post_id, "significant", commit=False)
+                return _next_payload(conn)
         finally:
             conn.close()
 
@@ -794,57 +858,59 @@ def create_app(db_path: str | Path) -> FastAPI:
     def api_capture(body: CaptureRequest) -> dict[str, Any]:
         conn = get_conn()
         try:
-            row = conn.execute(
-                "SELECT handle, posted_at, url FROM x_posts WHERE post_id = ?",
-                (body.post_id,),
-            ).fetchone()
-            if row is None:
-                raise HTTPException(status_code=404, detail=f"post {body.post_id} not found")
-            handle, posted_at, url = row
-
-            entry_id = f"xs_{body.post_id}"
-            # Reuse the original captured_at on a re-capture of the same post
-            # so identical resubmissions produce byte-identical signal JSON —
-            # otherwise a fresh now() on every call would make save_signal's
-            # idempotency check (exact JSON match) never succeed.
-            existing = conn.execute(
-                "SELECT signal_json FROM x_signals WHERE entry_id = ?",
-                (entry_id,),
-            ).fetchone()
-            captured_at = (
-                CapturedSignal.model_validate_json(existing[0]).captured_at
-                if existing is not None
-                else datetime.now(UTC)
-            )
-
-            signal = CapturedSignal(
-                entry_id=entry_id,
-                post_id=body.post_id,
-                captured_at=captured_at,
-                post_url=url,
-                handle=handle,
-                posted_at=posted_at,
-                primary_theme_id=body.primary_theme_id,
-                tickers=body.tickers,
-                claim=body.claim,
-                claim_type=body.claim_type,
-                stance=body.stance,
-                horizon=body.horizon,
-                scrutiny_verdict=body.scrutiny_verdict,
-                why_it_matters=body.why_it_matters,
-            )
-            save_signal(conn, signal)
-            # One signal is captured against the anchor; the rest of the same
-            # thread is consolidated into this single review action, so those
-            # posts are marked captured without separate signal rows.
-            for thread_post_id in body.thread_post_ids:
-                thread_row = conn.execute(
-                    "SELECT review_status FROM x_posts WHERE post_id = ?",
-                    (thread_post_id,),
+            with immediate(conn):
+                _validate_thread(conn, body.post_id, body.thread_post_ids)
+                row = conn.execute(
+                    "SELECT handle, posted_at, url FROM x_posts WHERE post_id = ?",
+                    (body.post_id,),
                 ).fetchone()
-                if thread_row is not None and thread_row[0] == "unreviewed":
-                    mark_reviewed(conn, thread_post_id, "captured")
-            return _next_payload(conn)
+                if row is None:
+                    raise HTTPException(status_code=404, detail=f"post {body.post_id} not found")
+                handle, posted_at, url = row
+
+                entry_id = f"xs_{body.post_id}"
+                # Reuse the original captured_at on a re-capture of the same post
+                # so identical resubmissions produce byte-identical signal JSON —
+                # otherwise a fresh now() on every call would make save_signal's
+                # idempotency check (exact JSON match) never succeed.
+                existing = conn.execute(
+                    "SELECT signal_json FROM x_signals WHERE entry_id = ?",
+                    (entry_id,),
+                ).fetchone()
+                captured_at = (
+                    CapturedSignal.model_validate_json(existing[0]).captured_at
+                    if existing is not None
+                    else datetime.now(UTC)
+                )
+
+                signal = CapturedSignal(
+                    entry_id=entry_id,
+                    post_id=body.post_id,
+                    captured_at=captured_at,
+                    post_url=url,
+                    handle=handle,
+                    posted_at=posted_at,
+                    primary_theme_id=body.primary_theme_id,
+                    tickers=body.tickers,
+                    claim=body.claim,
+                    claim_type=body.claim_type,
+                    stance=body.stance,
+                    horizon=body.horizon,
+                    scrutiny_verdict=body.scrutiny_verdict,
+                    why_it_matters=body.why_it_matters,
+                )
+                save_signal(conn, signal, commit=False)
+                # One signal is captured against the anchor; the rest of the same
+                # thread is consolidated into this single review action, so those
+                # posts are marked captured without separate signal rows.
+                for thread_post_id in body.thread_post_ids:
+                    thread_row = conn.execute(
+                        "SELECT review_status FROM x_posts WHERE post_id = ?",
+                        (thread_post_id,),
+                    ).fetchone()
+                    if thread_row is not None and thread_row[0] == "unreviewed":
+                        mark_reviewed(conn, thread_post_id, "captured", commit=False)
+                return _next_payload(conn)
         finally:
             conn.close()
 

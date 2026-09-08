@@ -13,6 +13,7 @@ predictions and human labels are joined.
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,9 +46,16 @@ When torn, skip. Output one JSON line per post:
 PREDICTION_VALUES = ("significant", "skip")
 
 
-def export_batches(conn: Any, out_dir: str | Path, batch_size: int = 50) -> tuple[int, int]:
+def export_batches(
+    conn: sqlite3.Connection, out_dir: str | Path, batch_size: int = 50
+) -> tuple[int, int]:
+    if batch_size < 1:
+        raise ValueError("batch_size must be positive")
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+
+    if any(out.glob("batch_*.jsonl")):
+        raise ValueError("export requires a directory without previous generated batches")
 
     rows = conn.execute(
         """
@@ -92,12 +100,12 @@ def export_batches(conn: Any, out_dir: str | Path, batch_size: int = 50) -> tupl
     return batch_count, post_count
 
 
-def ingest_predictions(conn: Any, predictor: str, in_path: str | Path) -> int:
+def ingest_predictions(conn: sqlite3.Connection, predictor: str, in_path: str | Path) -> int:
     path = Path(in_path)
     files = sorted(path.glob("*.jsonl")) if path.is_dir() else [path]
 
     predicted_at = datetime.now(UTC).isoformat()
-    ingested = 0
+    pending: list[tuple[str, str, str, str, str]] = []
     for file in files:
         for line in file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -114,17 +122,14 @@ def ingest_predictions(conn: Any, predictor: str, in_path: str | Path) -> int:
             if exists is None:
                 raise ValueError(f"unknown post_id {post_id!r} not present in x_posts")
 
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO x_gate_predictions
-                    (post_id, predictor, prediction, reason, predicted_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                (post_id, predictor, prediction, reason, predicted_at),
-            )
-            ingested += 1
+            pending.append((post_id, predictor, prediction, reason, predicted_at))
+    conn.executemany(
+        "INSERT OR REPLACE INTO x_gate_predictions "
+        "(post_id, predictor, prediction, reason, predicted_at) VALUES (?, ?, ?, ?, ?)",
+        pending,
+    )
     conn.commit()
-    return ingested
+    return len(pending)
 
 
 def _human_label(review_status: str) -> str | None:
@@ -136,7 +141,7 @@ def _human_label(review_status: str) -> str | None:
 
 
 def score_predictor(
-    conn: Any, predictor: str, *, exclude_post_ids: frozenset[str] = frozenset()
+    conn: sqlite3.Connection, predictor: str, *, exclude_post_ids: frozenset[str] = frozenset()
 ) -> dict[str, Any]:
     """Score a predictor against human labels.
 
@@ -195,7 +200,11 @@ def score_predictor(
             fn += 1
             disagreements.append({"post_id": post_id, "kind": "fn", "text": text, "handle": handle})
 
-    predictions_without_label = sum(1 for post_id in predictions if post_id not in matched_post_ids)
+    predictions_without_label = sum(
+        1
+        for post_id in predictions
+        if post_id not in matched_post_ids and post_id not in exclude_post_ids
+    )
 
     total = tp + fp + tn + fn
     agreement_pct = ((tp + tn) / total * 100) if total else 0.0
