@@ -2,7 +2,7 @@
 name = "boustrategy"
 version = "0.1.0"
 description = "Investment decision harness for BouStrategy."
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",
     "yfinance>=0.2",
@@ -34,6 +34,8 @@ filterwarnings = [
     "error::DeprecationWarning",
     "error::PendingDeprecationWarning",
     "error::FutureWarning",
+    # Starlette 1.6 imports a deprecated anyio alias at import time; upstream, not ours.
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
     # Starlette's httpx test-client shim is deprecated upstream; tracked for the httpx2 migration.
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
 ]
@@ -42,7 +44,7 @@ filterwarnings = [
 include = ["app*"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.format]
@@ -52,7 +54,7 @@ exclude = ["*.md"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 plugins = ["pydantic.mypy"]
 strict = true
 explicit_package_bases = true

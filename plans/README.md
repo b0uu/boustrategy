@@ -371,6 +371,19 @@ Remaining size items after 037 are ordinary refactors already in the backlog
 below (inline HTML templates in `app/dashboard/views.py`, `publish()` length,
 `table_exists` placement, schema DDL split).
 
+### CI first run, 2026-09-08
+
+The first GitHub Actions run after the push failed on both Python legs.
+Python 3.11 could not install the lockfile (`numpy==2.5.3` requires 3.12+),
+so the declared floor was never installable: `requires-python`, ruff and mypy
+targets and the CI matrix now say 3.12. Python 3.14 failed at collection
+because Starlette 1.6.0 (the locked version; the host's global env still had
+1.3.1) imports a deprecated anyio alias, which the new deprecation filter
+correctly treated as an error; it is upstream, not ours, and is now an explicit
+ignore next to the httpx-shim one. Lesson recorded: run the gates from the
+lockfile venv (`python -m venv .venv; .venv\Scripts\python -m pip install -r requirements.lock -e .`),
+not the host's global site-packages, or local and CI results diverge.
+
 ### Vetted backlog (real, not yet planned)
 
 Ordered by leverage. Evidence was confirmed by the advisor against the code.
