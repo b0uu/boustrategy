@@ -124,6 +124,7 @@ def test_broker_cli_builds_packet_without_placing_order(
                 "account_equity": 100.0,
                 "buying_power": 100.0,
                 "current_position_value": 0.0,
+                "ticker": "NVDA",
                 "bid": 199.9,
                 "ask": 200.1,
                 "quote_at": datetime.now(UTC).isoformat(),

@@ -163,3 +163,13 @@ def test_expiry_boundary_and_mark_validation(tmp_path: Path) -> None:
     mark_triggers(conn, [item], "consumed")
     with pytest.raises(ValueError, match="cannot transition"):
         mark_triggers(conn, [item], "expired")
+
+
+def test_zero_volume_baseline_is_skipped(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    bars = [bar.model_copy(update={"volume": 0}) for bar in _bars(21)]
+    upsert_daily_prices(conn, bars)
+    result = evaluate_triggers(conn, ["NVDA"], bars[-1].bar_date)
+    assert result["volume_spike"] == 0
+    assert result["volume_spike_skipped"] == 1
+    conn.close()

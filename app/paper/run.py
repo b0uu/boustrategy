@@ -1,4 +1,5 @@
 import argparse
+from contextlib import closing
 from datetime import date
 
 from app.paper.broker import STARTING_CASH, cash_balance, settle
@@ -12,37 +13,37 @@ def main() -> None:
     parser.add_argument("--db", default="data/boustrategy.db")
     parser.add_argument("--date")
     args = parser.parse_args()
-    conn = connect(args.db)
-    if args.command == "settle":
-        through_date = date.fromisoformat(args.date) if args.date else None
-        fills, awaiting = settle(conn, through_date)
-        print(f"fills={fills} awaiting={awaiting} skips=0")
-        return
-    today = date.today()
-    rows = conn.execute(
-        "SELECT ticker, shares, avg_cost, primary_theme_id FROM paper_positions ORDER BY ticker"
-    ).fetchall()
-    positions_value = 0.0
-    for ticker, shares, avg_cost, theme in rows:
-        close = _latest_close(conn, ticker, today)
-        value = shares * close
-        positions_value += value
-        if args.command == "positions":
-            equity = cash_balance(conn, today) + sum(
-                item[1] * _latest_close(conn, item[0], today) for item in rows
-            )
+    with closing(connect(args.db)) as conn:
+        if args.command == "settle":
+            through_date = date.fromisoformat(args.date) if args.date else None
+            fills, awaiting = settle(conn, through_date)
+            print(f"fills={fills} awaiting={awaiting} skips=0")
+            return
+        today = date.today()
+        rows = conn.execute(
+            "SELECT ticker, shares, avg_cost, primary_theme_id FROM paper_positions ORDER BY ticker"
+        ).fetchall()
+        positions_value = 0.0
+        for ticker, shares, avg_cost, theme in rows:
+            close = _latest_close(conn, ticker, today)
+            value = shares * close
+            positions_value += value
+            if args.command == "positions":
+                equity = cash_balance(conn, today) + sum(
+                    item[1] * _latest_close(conn, item[0], today) for item in rows
+                )
+                print(
+                    f"{ticker} shares={shares:.6f} avg_cost={avg_cost:.2f} close={close:.2f} "
+                    f"value={value:.2f} weight={value / equity:.4f} theme={theme} "
+                    f"unrealized_pl={(close - avg_cost) * shares:.2f}"
+                )
+        if args.command == "equity":
+            cash = cash_balance(conn, today)
+            total = cash + positions_value
             print(
-                f"{ticker} shares={shares:.6f} avg_cost={avg_cost:.2f} close={close:.2f} "
-                f"value={value:.2f} weight={value / equity:.4f} theme={theme} "
-                f"unrealized_pl={(close - avg_cost) * shares:.2f}"
+                f"cash={cash:.2f} positions={positions_value:.2f} total={total:.2f} "
+                f"vs_start={total - STARTING_CASH:.2f} frictionless=true"
             )
-    if args.command == "equity":
-        cash = cash_balance(conn, today)
-        total = cash + positions_value
-        print(
-            f"cash={cash:.2f} positions={positions_value:.2f} total={total:.2f} "
-            f"vs_start={total - STARTING_CASH:.2f} frictionless=true"
-        )
 
 
 if __name__ == "__main__":

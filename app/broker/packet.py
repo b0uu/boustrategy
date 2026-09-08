@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+from app.orders.create_order_intent import INTENT_SIDES
 from app.schemas.decision_record import AssetType, InvestmentDecisionRecord
 from app.schemas.live_execution import BrokerPreflight, ExecutionProfile, LiveExecutionPacket
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide, OrderType
@@ -30,6 +31,11 @@ def build_execution_packet(
         reasons.append("broker_account_mismatch")
     if intent.decision_id != decision.decision_id or intent.ticker != decision.ticker:
         reasons.append("decision_intent_mismatch")
+    expected_side = INTENT_SIDES.get(decision.decision)
+    if intent.side != expected_side or intent.target_weight != decision.final_target_weight:
+        reasons.append("decision_intent_mismatch")
+    if preflight.ticker != intent.ticker:
+        reasons.append("preflight_ticker_mismatch")
     if decision.asset_type != AssetType.EQUITY:
         reasons.append("live_asset_type_not_allowed")
     if intent.order_type != OrderType.LIMIT:

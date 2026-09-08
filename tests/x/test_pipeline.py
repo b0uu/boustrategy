@@ -190,7 +190,8 @@ def test_cycle_auto_routes_only_link_only_posts(tmp_path: Path) -> None:
                 ),
                 _post(
                     "3",
-                    "This sentence contains substantially more than forty characters after its link https://example.com/b",
+                    "This sentence contains substantially more than forty characters "
+                    "after its link https://example.com/b",
                 ),
             ],
         )

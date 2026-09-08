@@ -1,5 +1,7 @@
 import hashlib
 import json
+import re
+import shutil
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +31,20 @@ def _source_title(name: str) -> tuple[str, str]:
     else:
         source, title = "unknown", stem
         print(f"warning: {name} has no source--title separator; using unknown")
+    if (
+        not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_. -]*", source)
+        or source.endswith((".", " "))
+        or source.split(".")[0].upper()
+        in {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            *[f"COM{i}" for i in range(1, 10)],
+            *[f"LPT{i}" for i in range(1, 10)],
+        }
+    ):
+        raise ValueError("invalid newsletter source path component")
     return source, title
 
 
@@ -66,6 +82,8 @@ def ingest(conn: sqlite3.Connection, root: str | Path) -> tuple[int, int]:
     duplicates = 0
 
     for archived in sorted(path for path in archive.glob("*/*") if path.is_file()):
+        if not archived.resolve().is_relative_to(archive.resolve()):
+            raise ValueError("newsletter archive path escapes archive")
         doc_id, _, original = archived.name.partition("-")
         if len(doc_id) != 16 or not original:
             continue
@@ -80,16 +98,38 @@ def ingest(conn: sqlite3.Connection, root: str | Path) -> tuple[int, int]:
             "SELECT archive_path FROM newsletter_docs WHERE doc_id = ?", (doc_id,)
         ).fetchone()
         if existing is not None:
-            path.unlink()
-            duplicates += 1
-            continue
+            archived = Path(existing[0]).resolve()
+            if not archived.is_relative_to(archive.resolve()):
+                raise ValueError("newsletter archive path escapes archive")
+            if (
+                archived.is_file()
+                and hashlib.sha256(archived.read_bytes()).hexdigest()[:16] == doc_id
+            ):
+                path.unlink()
+                duplicates += 1
+                continue
         destination_dir = archive / source
         destination_dir.mkdir(parents=True, exist_ok=True)
         destination = destination_dir / f"{doc_id}-{path.name}"
+        if not destination.resolve().is_relative_to(archive.resolve()):
+            raise ValueError("newsletter destination escapes archive")
         if not destination.exists():
-            path.replace(destination)
+            with destination.open("xb") as output, path.open("rb") as input_file:
+                shutil.copyfileobj(input_file, output)
+        if hashlib.sha256(destination.read_bytes()).hexdigest()[:16] != doc_id:
+            raise ValueError("newsletter archive content mismatch")
+        if existing is not None:
+            conn.execute(
+                "UPDATE newsletter_docs SET archive_path=? WHERE doc_id=?",
+                (str(destination), doc_id),
+            )
+            conn.commit()
+            path.unlink()
+            duplicates += 1
+            continue
         if _insert_doc(conn, destination, source, title):
             inserted += 1
+        path.unlink()
     return inserted, duplicates
 
 
@@ -103,6 +143,7 @@ def annotate(conn: sqlite3.Connection, doc_id: str, claims_path: str | Path) -> 
     ]
     annotated_at = datetime.now(UTC).isoformat()
     inserted = 0
+    pending: list[tuple[object, ...]] = []
     for index, claim in enumerate(claims, 1):
         claim_id = f"nl_{doc_id}_{index}"
         values = (
@@ -128,16 +169,14 @@ def annotate(conn: sqlite3.Connection, doc_id: str, claims_path: str | Path) -> 
             if existing != values:
                 raise ValueError(f"claim {claim_id} already exists with different content")
             continue
-        conn.execute(
-            """
-            INSERT INTO newsletter_claims
-                (claim_id, doc_id, claim, claim_type, stance, horizon, tickers,
-                 primary_theme_id, why_it_matters, annotated_by, annotated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (claim_id, *values, annotated_at),
-        )
-        inserted += 1
+        pending.append((claim_id, *values, annotated_at))
+    conn.executemany(
+        "INSERT INTO newsletter_claims "
+        "(claim_id, doc_id, claim, claim_type, stance, horizon, tickers, primary_theme_id, "
+        "why_it_matters, annotated_by, annotated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        pending,
+    )
+    inserted = len(pending)
     conn.commit()
     return inserted
 

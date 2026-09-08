@@ -6,7 +6,7 @@ from app.policy.decision_policy import PolicyResult
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide
 
-_INTENT_SIDES = {
+INTENT_SIDES = {
     Decision.BUY: OrderSide.BUY,
     Decision.ADD: OrderSide.BUY,
     Decision.TRIM: OrderSide.SELL,
@@ -24,7 +24,7 @@ def create_order_intent(
     if not policy_result.approved:
         raise ValueError("cannot create an order intent from a rejected decision")
 
-    side = _INTENT_SIDES.get(record.decision)
+    side = INTENT_SIDES.get(record.decision)
     if side is None:
         raise ValueError(
             f"decision {record.decision} is not actionable and cannot produce an order intent"

@@ -1,6 +1,7 @@
 import argparse
 import getpass
 import json
+from contextlib import closing
 from pathlib import Path
 
 from app.broker.config import account_fingerprint, get_live_profile, load_live_profiles
@@ -45,55 +46,55 @@ def main() -> None:
         identifier = getpass.getpass("Robinhood account identifier: ")
         print(account_fingerprint(identifier))
         return
-    conn = connect(args.db)
-    if args.command == "snapshot":
-        snapshot = LivePortfolioSnapshot.model_validate_json(
-            Path(args.input_path).read_text(encoding="utf-8")
-        )
-        config = load_live_profiles(args.profiles)
-        profile = get_live_profile(config, snapshot.execution_profile_id)
-        created = save_live_portfolio_snapshot(conn, snapshot, profile)
-        print(
-            json.dumps(
-                {
-                    "created": created,
-                    "portfolio_snapshot_id": snapshot.portfolio_snapshot_id,
-                    "execution_profile_id": snapshot.execution_profile_id,
-                }
+    with closing(connect(args.db)) as conn:
+        if args.command == "snapshot":
+            snapshot = LivePortfolioSnapshot.model_validate_json(
+                Path(args.input_path).read_text(encoding="utf-8")
             )
-        )
-    elif args.command == "record":
-        payload = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
-        record = BrokerExecutionRecord.model_validate(payload)
-        created = save_broker_execution_record(conn, record)
-        print(
-            json.dumps(
-                {
-                    "created": created,
-                    "broker_execution_record_id": record.broker_execution_record_id,
-                }
+            config = load_live_profiles(args.profiles)
+            profile = get_live_profile(config, snapshot.execution_profile_id)
+            created = save_live_portfolio_snapshot(conn, snapshot, profile)
+            print(
+                json.dumps(
+                    {
+                        "created": created,
+                        "portfolio_snapshot_id": snapshot.portfolio_snapshot_id,
+                        "execution_profile_id": snapshot.execution_profile_id,
+                    }
+                )
             )
-        )
-    elif args.command == "event":
-        payload = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
-        event = BrokerExecutionEvent.model_validate(payload)
-        created = append_execution_event(conn, event)
-        print(json.dumps({"created": created, "broker_event_id": event.broker_event_id}))
-    else:
-        intent = get_order_intent(conn, args.intent_id)
-        if intent is None:
-            raise ValueError(f"missing order intent {args.intent_id}")
-        decision = get_decision_record(conn, intent.decision_id)
-        if decision is None:
-            raise ValueError(f"missing decision record {intent.decision_id}")
-        config = load_live_profiles(args.profiles)
-        profile = get_live_profile(config, intent.execution_profile_id)
-        preflight = BrokerPreflight.model_validate_json(
-            Path(args.preflight).read_text(encoding="utf-8")
-        )
-        packet = build_execution_packet(intent, decision, profile, preflight)
-        created = save_execution_packet(conn, packet)
-        print(json.dumps({"created": created, "packet": packet.model_dump(mode="json")}))
+        elif args.command == "record":
+            payload = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
+            record = BrokerExecutionRecord.model_validate(payload)
+            created = save_broker_execution_record(conn, record)
+            print(
+                json.dumps(
+                    {
+                        "created": created,
+                        "broker_execution_record_id": record.broker_execution_record_id,
+                    }
+                )
+            )
+        elif args.command == "event":
+            payload = json.loads(Path(args.input_path).read_text(encoding="utf-8"))
+            event = BrokerExecutionEvent.model_validate(payload)
+            created = append_execution_event(conn, event)
+            print(json.dumps({"created": created, "broker_event_id": event.broker_event_id}))
+        else:
+            intent = get_order_intent(conn, args.intent_id)
+            if intent is None:
+                raise ValueError(f"missing order intent {args.intent_id}")
+            decision = get_decision_record(conn, intent.decision_id)
+            if decision is None:
+                raise ValueError(f"missing decision record {intent.decision_id}")
+            config = load_live_profiles(args.profiles)
+            profile = get_live_profile(config, intent.execution_profile_id)
+            preflight = BrokerPreflight.model_validate_json(
+                Path(args.preflight).read_text(encoding="utf-8")
+            )
+            packet = build_execution_packet(intent, decision, profile, preflight)
+            created = save_execution_packet(conn, packet)
+            print(json.dumps({"created": created, "packet": packet.model_dump(mode="json")}))
 
 
 if __name__ == "__main__":

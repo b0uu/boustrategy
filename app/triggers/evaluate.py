@@ -49,7 +49,7 @@ def evaluate_triggers(
             if len(bars) >= 21:
                 average = sum(bar.volume for bar in bars[-21:-1]) / 20
                 current = bars[-1]
-                multiple = current.volume / average
+                multiple = current.volume / average if average > 0 else 0.0
                 if multiple >= VOLUME_SPIKE_MULT and insert_trigger(
                     conn,
                     "volume_spike",

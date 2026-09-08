@@ -1,6 +1,7 @@
 import argparse
 import sqlite3
 from collections.abc import Callable
+from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -88,7 +89,7 @@ def _cmd_usage_sync(
 def _cmd_fetch(
     conn: sqlite3.Connection,
     resolve_ids: Callable[[list[str]], dict[str, str]] = resolve_user_ids,
-    fetch_posts: Callable[[str, str, str | None, datetime | None], FetchResult] = fetch_user_posts,
+    fetch_posts: Callable[..., FetchResult] = fetch_user_posts,
     now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> None:
     accounts = list_active_accounts(conn)
@@ -131,9 +132,38 @@ def _cmd_fetch(
         since_id = str(max_post_id) if max_post_id is not None and use_since_id else None
         start_time = None if use_since_id else recovery_start
 
-        result = fetch_posts(account.user_id, account.handle, since_id, start_time)
-        new_count = insert_new_posts(conn, result.posts)
+        checkpoint = conn.execute(
+            "SELECT since_id, start_time, next_token FROM x_fetch_checkpoints WHERE handle=?",
+            (account.handle,),
+        ).fetchone()
+        token = None
+        if checkpoint:
+            since_id, start_text, token = checkpoint
+            start_time = datetime.fromisoformat(start_text) if start_text else None
+        else:
+            conn.execute(
+                "INSERT INTO x_fetch_checkpoints VALUES (?, ?, ?, NULL)",
+                (account.handle, since_id, start_time.isoformat() if start_time else None),
+            )
+            conn.commit()
+        result = (
+            fetch_posts(
+                account.user_id, account.handle, since_id, start_time, pagination_token=token
+            )
+            if token
+            else fetch_posts(account.user_id, account.handle, since_id, start_time)
+        )
         record_post_reads(conn, result.billed_reads)
+        new_count = insert_new_posts(conn, result.posts)
+        if result.next_token:
+            conn.execute(
+                "UPDATE x_fetch_checkpoints SET next_token=? WHERE handle=?",
+                (result.next_token, account.handle),
+            )
+            print(f"{account.handle}: pagination incomplete; continuation saved")
+        else:
+            conn.execute("DELETE FROM x_fetch_checkpoints WHERE handle=?", (account.handle,))
+        conn.commit()
         print(f"{account.handle}: {new_count} new posts, {reads_remaining(conn)} reads remaining")
 
 
@@ -286,49 +316,49 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    conn = connect(args.db)
-    handlers: dict[str, Callable[[sqlite3.Connection], None]] = {
-        "seed": _cmd_seed,
-        "fetch": _cmd_fetch,
-        "review": _cmd_review,
-        "status": _cmd_status,
-        "usage-sync": _cmd_usage_sync,
-        "rehydrate": _cmd_rehydrate,
-    }
-    if args.command in handlers:
-        handlers[args.command](conn)
-    elif args.command == "cycle":
-        run_date = (
-            date.fromisoformat(args.run_date)
-            if args.run_date
-            else datetime.now(ZoneInfo("America/New_York")).date()
-        )
-        run_id = f"{run_date.isoformat()}-{args.slot}"
-        out = args.out or f"data/x_runs/{run_id}"
-        cycle(conn, args.slot, run_date, out, _cmd_fetch)
-    elif args.command == "route":
-        route_predictions(conn, args.run_id, args.predictor, args.in_path)
-    elif args.command == "note":
-        synthesis = Path(args.in_path).read_text(encoding="utf-8")
-        store_note(conn, date.fromisoformat(args.note_date), args.slot, args.author, synthesis)
-        print(f"stored note for {args.note_date}-{args.slot}")
-    elif args.command == "digest-render":
-        digest_date = date.fromisoformat(args.digest_date)
-        out = args.out or f"data/digests/{digest_date.isoformat()}.md"
-        render_digest(conn, digest_date, out)
-        print(f"rendered {out}")
-    elif args.command == "weekly-render":
-        weekly_date = date.fromisoformat(args.weekly_date)
-        out = args.out or f"data/digests/weekly-{weekly_date.isoformat()}.md"
-        render_weekly(conn, weekly_date, out)
-        print(f"rendered {out}")
-    elif args.command == "verify":
-        run_date = (
-            date.fromisoformat(args.run_date)
-            if args.run_date
-            else datetime.now(ZoneInfo("America/New_York")).date()
-        )
-        _cmd_verify(conn, args.slot, run_date)
+    with closing(connect(args.db)) as conn:
+        handlers: dict[str, Callable[[sqlite3.Connection], None]] = {
+            "seed": _cmd_seed,
+            "fetch": _cmd_fetch,
+            "review": _cmd_review,
+            "status": _cmd_status,
+            "usage-sync": _cmd_usage_sync,
+            "rehydrate": _cmd_rehydrate,
+        }
+        if args.command in handlers:
+            handlers[args.command](conn)
+        elif args.command == "cycle":
+            run_date = (
+                date.fromisoformat(args.run_date)
+                if args.run_date
+                else datetime.now(ZoneInfo("America/New_York")).date()
+            )
+            run_id = f"{run_date.isoformat()}-{args.slot}"
+            out = args.out or f"data/x_runs/{run_id}"
+            cycle(conn, args.slot, run_date, out, _cmd_fetch)
+        elif args.command == "route":
+            route_predictions(conn, args.run_id, args.predictor, args.in_path)
+        elif args.command == "note":
+            synthesis = Path(args.in_path).read_text(encoding="utf-8")
+            store_note(conn, date.fromisoformat(args.note_date), args.slot, args.author, synthesis)
+            print(f"stored note for {args.note_date}-{args.slot}")
+        elif args.command == "digest-render":
+            digest_date = date.fromisoformat(args.digest_date)
+            out = args.out or f"data/digests/{digest_date.isoformat()}.md"
+            render_digest(conn, digest_date, out)
+            print(f"rendered {out}")
+        elif args.command == "weekly-render":
+            weekly_date = date.fromisoformat(args.weekly_date)
+            out = args.out or f"data/digests/weekly-{weekly_date.isoformat()}.md"
+            render_weekly(conn, weekly_date, out)
+            print(f"rendered {out}")
+        elif args.command == "verify":
+            run_date = (
+                date.fromisoformat(args.run_date)
+                if args.run_date
+                else datetime.now(ZoneInfo("America/New_York")).date()
+            )
+            _cmd_verify(conn, args.slot, run_date)
 
 
 if __name__ == "__main__":

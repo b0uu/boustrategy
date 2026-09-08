@@ -2,6 +2,77 @@ import sqlite3
 from pathlib import Path
 
 _SCHEMA = """
+CREATE TABLE IF NOT EXISTS runtime_runs (
+    run_id TEXT PRIMARY KEY, public_id TEXT NOT NULL UNIQUE, scope_key TEXT NOT NULL,
+    mode TEXT NOT NULL, account_id TEXT NOT NULL, execution_profile_id TEXT NOT NULL,
+    session_date TEXT NOT NULL, slot TEXT NOT NULL, prepared_at TEXT NOT NULL,
+    reasoning_run_id TEXT, occurrence_id TEXT UNIQUE, run_json TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS runtime_legacy_identity ON runtime_runs(reasoning_run_id)
+    WHERE reasoning_run_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS runtime_attempts (
+    attempt_id TEXT PRIMARY KEY, public_id TEXT NOT NULL UNIQUE,
+    run_id TEXT NOT NULL REFERENCES runtime_runs(run_id),
+    attempt_number INTEGER NOT NULL, fence INTEGER NOT NULL, status TEXT NOT NULL,
+    stage TEXT NOT NULL, model TEXT NOT NULL, observed_model TEXT, started_at TEXT NOT NULL,
+    heartbeat_at TEXT NOT NULL, finished_at TEXT, reason TEXT, public_summary TEXT,
+    UNIQUE(run_id, attempt_number)
+);
+CREATE TABLE IF NOT EXISTS runtime_leases (
+    scope_key TEXT PRIMARY KEY, fence INTEGER NOT NULL, attempt_id TEXT, expires_at TEXT
+);
+CREATE TABLE IF NOT EXISTS schedule_revisions (
+    schedule_id TEXT NOT NULL, revision INTEGER NOT NULL, scope_key TEXT NOT NULL,
+    record_json TEXT NOT NULL, PRIMARY KEY(schedule_id, revision)
+);
+CREATE TABLE IF NOT EXISTS scheduler_observations (
+    schedule_id TEXT PRIMARY KEY, revision INTEGER NOT NULL, observed_at TEXT NOT NULL,
+    record_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS schedule_occurrences (
+    occurrence_id TEXT PRIMARY KEY, public_id TEXT NOT NULL UNIQUE, schedule_id TEXT NOT NULL,
+    revision INTEGER NOT NULL, session_date TEXT NOT NULL, due_at TEXT NOT NULL,
+    status TEXT NOT NULL, reason TEXT, observed_at TEXT NOT NULL,
+    UNIQUE(schedule_id, session_date)
+);
+
+CREATE TABLE IF NOT EXISTS public_source_records (
+    revision_id TEXT PRIMARY KEY, source_ref TEXT NOT NULL, public_id TEXT NOT NULL,
+    supersedes TEXT UNIQUE REFERENCES public_source_records(revision_id),
+    record_json TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS source_root ON public_source_records(source_ref)
+    WHERE supersedes IS NULL;
+CREATE TABLE IF NOT EXISTS thesis_reviews (
+    review_id TEXT PRIMARY KEY, mode TEXT NOT NULL, account_id TEXT NOT NULL,
+    episode_id TEXT NOT NULL, reviewed_at TEXT NOT NULL, record_json TEXT NOT NULL,
+    UNIQUE(mode, account_id, episode_id, reviewed_at)
+);
+
+CREATE TABLE IF NOT EXISTS policy_evaluations (
+    decision_id TEXT PRIMARY KEY REFERENCES decision_records(decision_id),
+    evaluated_at TEXT NOT NULL,
+    policy_version TEXT NOT NULL,
+    evaluation_json TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS reporting_observations (
+    observation_id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    external_event_id TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    supersedes TEXT UNIQUE REFERENCES reporting_observations(observation_id),
+    voided INTEGER NOT NULL,
+    observation_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reporting_account_time ON reporting_observations
+    (mode, account_id, occurred_at, observation_id);
+CREATE UNIQUE INDEX IF NOT EXISTS reporting_external_event ON reporting_observations
+    (mode, account_id, kind, external_event_id) WHERE supersedes IS NULL;
+
 CREATE TABLE IF NOT EXISTS decision_records (
     decision_id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
@@ -239,6 +310,13 @@ CREATE TABLE IF NOT EXISTS paper_positions (
     opened_at TEXT NOT NULL,
     primary_theme_id TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS x_fetch_checkpoints (
+    handle TEXT PRIMARY KEY,
+    since_id TEXT,
+    start_time TEXT,
+    next_token TEXT
+);
+
 CREATE TABLE IF NOT EXISTS newsletter_docs (
     doc_id TEXT PRIMARY KEY,
     source TEXT NOT NULL,
@@ -270,52 +348,67 @@ def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
-def connect(db_path: str | Path) -> sqlite3.Connection:
+def connect(db_path: str | Path, *, wal: bool = False) -> sqlite3.Connection:
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.executescript(_SCHEMA)
-    # Live trial database predates these columns; additive ALTER TABLE keeps
-    # existing rows intact (they get empty-string context, which is correct —
-    # we never backfill context for posts fetched before this migration).
-    _ensure_columns(
-        conn,
-        "x_posts",
-        {
-            "conversation_id": "TEXT NOT NULL DEFAULT ''",
-            "reply_context": "TEXT NOT NULL DEFAULT ''",
-            "media_json": "TEXT NOT NULL DEFAULT '[]'",
-        },
-    )
-    _ensure_columns(
-        conn,
-        "order_intents",
-        {
-            "execution_mode": "TEXT NOT NULL DEFAULT 'PAPER'",
-            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
-        },
-    )
-    _ensure_columns(
-        conn,
-        "broker_execution_records",
-        {
-            "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
-            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
-            "account_alias": "TEXT NOT NULL DEFAULT ''",
-        },
-    )
-    _ensure_columns(
-        conn,
-        "broker_execution_events",
-        {
-            "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
-            "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
-        },
-    )
-    _ensure_columns(
-        conn,
-        "reasoning_run_decisions",
-        {"submission_snapshot_id": "TEXT NOT NULL DEFAULT ''"},
-    )
-    conn.commit()
+    try:
+        if wal:
+            conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.executescript(_SCHEMA)
+        # Live trial database predates these columns; additive ALTER TABLE keeps
+        # existing rows intact (they get empty-string context, which is correct —
+        # we never backfill context for posts fetched before this migration).
+        _ensure_columns(
+            conn,
+            "x_posts",
+            {
+                "conversation_id": "TEXT NOT NULL DEFAULT ''",
+                "reply_context": "TEXT NOT NULL DEFAULT ''",
+                "media_json": "TEXT NOT NULL DEFAULT '[]'",
+            },
+        )
+        _ensure_columns(
+            conn,
+            "order_intents",
+            {
+                "execution_mode": "TEXT NOT NULL DEFAULT 'PAPER'",
+                "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+            },
+        )
+        _ensure_columns(
+            conn,
+            "broker_execution_records",
+            {
+                "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
+                "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+                "account_alias": "TEXT NOT NULL DEFAULT ''",
+            },
+        )
+        _ensure_columns(
+            conn,
+            "broker_execution_events",
+            {
+                "execution_packet_id": "TEXT NOT NULL DEFAULT ''",
+                "execution_profile_id": "TEXT NOT NULL DEFAULT ''",
+            },
+        )
+        _ensure_columns(
+            conn,
+            "reasoning_run_decisions",
+            {"submission_snapshot_id": "TEXT NOT NULL DEFAULT ''"},
+        )
+        _ensure_columns(
+            conn, "paper_fills", {"simulation_version": "TEXT NOT NULL DEFAULT 'legacy_close_v1'"}
+        )
+        _ensure_columns(
+            conn, "decision_records", {"runtime_attempt_id": "TEXT NOT NULL DEFAULT ''"}
+        )
+        from app.storage.publication_changes import initialize_changes
+
+        initialize_changes(conn)
+        conn.commit()
+    except BaseException:
+        conn.close()
+        raise
     return conn

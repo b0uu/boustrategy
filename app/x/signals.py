@@ -55,7 +55,7 @@ class CapturedSignal(BaseModel):
     why_it_matters: str
 
 
-def save_signal(conn: sqlite3.Connection, signal: CapturedSignal) -> bool:
+def save_signal(conn: sqlite3.Connection, signal: CapturedSignal, *, commit: bool = True) -> bool:
     signal_json = signal.model_dump_json()
     existing = conn.execute(
         "SELECT signal_json FROM x_signals WHERE entry_id = ?",
@@ -79,13 +79,14 @@ def save_signal(conn: sqlite3.Connection, signal: CapturedSignal) -> bool:
             signal.captured_at.isoformat(),
         ),
     )
-    conn.commit()
 
     post_row = conn.execute(
         "SELECT review_status FROM x_posts WHERE post_id = ?",
         (signal.post_id,),
     ).fetchone()
     if post_row is not None and post_row[0] == "unreviewed":
-        mark_reviewed(conn, signal.post_id, "captured")
+        mark_reviewed(conn, signal.post_id, "captured", commit=False)
 
+    if commit:
+        conn.commit()
     return True

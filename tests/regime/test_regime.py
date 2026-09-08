@@ -106,3 +106,15 @@ def test_backtest_renders_changes_without_writing_snapshots(
     assert f"- {start + timedelta(days=2)}: RED" in text
     assert "## Score time series" in text
     assert conn.execute("SELECT COUNT(*) FROM regime_snapshots").fetchone()[0] == 0
+
+
+def test_historical_regime_replay_ignores_future_rows() -> None:
+    conn = connect(":memory:")
+    first = _score(RegimeState.GREEN, 1)
+    original = save_snapshot(conn, date(2026, 7, 20), first)
+    save_snapshot(conn, date(2026, 7, 22), _score(RegimeState.RED, -4))
+    assert save_snapshot(conn, date(2026, 7, 20), first) == original
+    with pytest.raises(ValueError, match="future snapshots"):
+        save_snapshot(conn, date(2026, 7, 21), first)
+    assert conn.execute("SELECT COUNT(*) FROM regime_snapshots").fetchone()[0] == 2
+    conn.close()

@@ -185,3 +185,16 @@ def test_true_regime_state_flows_through() -> None:
 
     assert outcome.final_status == DecisionStatus.POLICY_REJECTED
     assert "regime_state_mismatch" in outcome.policy_reasons
+
+
+def test_replay_cannot_change_execution_scope() -> None:
+    conn = connect(":memory:")
+    data = valid_decision_record_data()
+    first = process_decision(conn, data)
+    with pytest.raises(ValueError, match="scope mismatch"):
+        process_decision(
+            conn, data, execution_mode=ExecutionMode.LIVE, execution_profile_id="codex"
+        )
+    assert process_decision(conn, data) == first
+    assert not conn.in_transaction
+    conn.close()

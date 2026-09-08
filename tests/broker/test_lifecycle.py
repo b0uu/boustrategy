@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -15,6 +16,7 @@ from app.schemas.order_intent import ExecutionMode, OrderIntent
 from app.storage.database import connect
 from app.storage.records import (
     save_broker_execution_record,
+    save_decision_record,
     save_execution_packet,
     save_order_intent,
 )
@@ -29,6 +31,7 @@ def _live_intent(conn: sqlite3.Connection) -> OrderIntent:
         execution_mode=ExecutionMode.LIVE,
         execution_profile_id="codex",
     )
+    save_decision_record(conn, valid_decision_record())
     save_order_intent(conn, intent)
     return intent
 
@@ -120,10 +123,10 @@ def test_execution_event_time_cannot_move_backward() -> None:
     conn = connect(":memory:")
     intent = _live_intent(conn)
     save_execution_packet(conn, live_execution_packet(intent))
-    append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 2, "review"))
+    append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 1, "review"))
 
     with pytest.raises(ValueError, match="cannot move backward"):
-        append_execution_event(conn, _event(intent.order_intent_id, "FAILED", 1, "failure"))
+        append_execution_event(conn, _event(intent.order_intent_id, "FAILED", 0, "failure"))
 
 
 def test_review_requires_current_execution_packet() -> None:
@@ -145,3 +148,71 @@ def test_review_requires_current_execution_packet() -> None:
     )
     with pytest.raises(ValueError, match="expired before broker review"):
         append_execution_event(conn, expired_review)
+
+
+def test_cancel_reviewed_packet_without_order_and_after_expiry() -> None:
+    conn = connect(":memory:")
+    intent = _live_intent(conn)
+    save_execution_packet(conn, live_execution_packet(intent))
+    append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 0, "review"))
+    assert append_execution_event(conn, _event(intent.order_intent_id, "CANCELED", 5, "cancel"))
+    assert latest_execution_status(conn, "be_001") == BrokerExecutionStatus.CANCELED
+    conn.close()
+
+
+def test_review_cannot_precede_packet() -> None:
+    conn = connect(":memory:")
+    intent = _live_intent(conn)
+    save_execution_packet(conn, live_execution_packet(intent))
+    with pytest.raises(ValueError, match="precedes packet"):
+        append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", -1, "review"))
+    assert not conn.in_transaction
+    conn.close()
+
+
+def test_terminal_events_are_serialized_across_connections(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    path = tmp_path / "broker.db"
+    conn = connect(path)
+    intent = _live_intent(conn)
+    save_execution_packet(conn, live_execution_packet(intent))
+    append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 0, "review"))
+    conn.close()
+    barrier = Barrier(2)
+
+    def append(status):
+        connection = sqlite3.connect(path)
+        barrier.wait()
+        try:
+            return append_execution_event(
+                connection, _event(intent.order_intent_id, status, 1, status)
+            )
+        except ValueError as error:
+            assert "illegal broker transition" in str(error)
+            return False
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(append, ["CANCELED", "FAILED"]))
+    assert sorted(results) == [False, True]
+
+
+def test_legacy_offset_timestamps_sort_by_instant() -> None:
+    from datetime import timezone
+
+    conn = connect(":memory:")
+    intent = _live_intent(conn)
+    _save_submitted_record(conn, intent)
+    append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 0, "review"))
+    append_execution_event(conn, _event(intent.order_intent_id, "SUBMITTED", 1, "submit"))
+    older_offset = datetime(2026, 8, 26, 15, 0, tzinfo=timezone(timedelta(hours=1)))
+    conn.execute(
+        "UPDATE broker_execution_events SET occurred_at=? WHERE broker_event_id='review'",
+        (older_offset.isoformat(),),
+    )
+    conn.commit()
+    assert latest_execution_status(conn, "be_001") == BrokerExecutionStatus.SUBMITTED
+    conn.close()

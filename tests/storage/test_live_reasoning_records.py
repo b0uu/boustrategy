@@ -64,6 +64,15 @@ def test_snapshot_store_is_idempotent_and_profile_bound() -> None:
         save_live_portfolio_snapshot(conn, _snapshot("claude"), _profile())
 
 
+def test_snapshot_can_be_saved_before_profile_is_enabled() -> None:
+    conn = connect(":memory:")
+    profile = _profile().model_copy(update={"enabled": False})
+    snapshot = _snapshot()
+
+    assert save_live_portfolio_snapshot(conn, snapshot, profile) is True
+    assert get_live_portfolio_snapshot(conn, snapshot.portfolio_snapshot_id) == snapshot
+
+
 def test_reasoning_run_store_and_terminal_transition_are_append_only() -> None:
     conn = connect(":memory:")
     run = _run()
@@ -108,3 +117,27 @@ def test_authored_run_completion_requires_exact_linked_decisions() -> None:
     )
 
     assert complete_reasoning_run(conn, completed) == completed
+
+
+def test_optional_snapshot_reporting_enters_immutable_ledger() -> None:
+    from app.schemas.reporting import ValuationObservation
+
+    conn = connect(":memory:")
+    base = _snapshot()
+    report = ValuationObservation(
+        observation_id="report",
+        external_event_id="report",
+        mode="live",
+        account_id=base.broker_account_fingerprint,
+        occurred_at=base.captured_at,
+        recorded_at=base.captured_at,
+        equity="100",
+        cash="100",
+        positions=[],
+        complete=True,
+    )
+    snapshot = LivePortfolioSnapshot.model_validate({**base.model_dump(), "reporting": report})
+    assert save_live_portfolio_snapshot(conn, snapshot, _profile())
+    assert conn.execute("SELECT COUNT(*) FROM reporting_observations").fetchone()[0] == 1
+    assert not save_live_portfolio_snapshot(conn, snapshot, _profile())
+    assert conn.execute("SELECT COUNT(*) FROM reporting_observations").fetchone()[0] == 1

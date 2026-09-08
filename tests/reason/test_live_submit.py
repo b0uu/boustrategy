@@ -1,12 +1,14 @@
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app.reason.run import submit_decision
 from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
-from app.schemas.reasoning_run import ReasoningRun
+from app.schemas.reasoning_run import ReasoningRun, ReasoningRunResult
 from app.storage.database import connect
 from app.storage.records import save_live_portfolio_snapshot, save_reasoning_run
 from tests.fixtures.decision_records import valid_decision_record_data
@@ -52,6 +54,11 @@ def _prepare_live_boundary(conn: sqlite3.Connection, *, captured_at: datetime) -
             started_at=captured_at,
         ),
     )
+    conn.execute(
+        "INSERT OR IGNORE INTO regime_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+        ("2026-06-09", "GREEN", "GREEN", 5, "{}", "2026-06-09T20:00:00+00:00"),
+    )
+    conn.commit()
 
 
 def _record() -> dict[str, object]:
@@ -282,3 +289,73 @@ def test_live_submit_preserves_initial_snapshot_and_links_fresh_submission_snaps
     ).fetchone()
     assert outcome.order_intent_id == f"oi_{RUN_ID}_dec_001"
     assert linked == (RUN_ID, "snap_codex_submit")
+
+
+@pytest.mark.parametrize("mode", ["missing", "future_only", "valid_and_premature"])
+def test_live_regime_binding_uses_only_completed_session(mode: str) -> None:
+    conn = connect(":memory:")
+    _prepare_live_boundary(conn, captured_at=SUBMITTED_AT)
+    if mode != "valid_and_premature":
+        conn.execute("DELETE FROM regime_snapshots")
+    if mode != "missing":
+        conn.execute(
+            "INSERT INTO regime_snapshots VALUES (?, ?, ?, ?, ?, ?)",
+            ("2026-06-10", "GREEN", "GREEN", 5, "{}", SUBMITTED_AT.isoformat()),
+        )
+    conn.commit()
+    kwargs: dict[str, Any] = dict(
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+        reasoning_run_id=RUN_ID,
+        execution_profile=_profile(),
+        submission_snapshot_id="snap_codex",
+        submitted_at=SUBMITTED_AT,
+    )
+    if mode == "valid_and_premature":
+        outcome = submit_decision(conn, _record(), date(2026, 6, 10), **kwargs)
+        assert outcome.order_intent_id
+        raw = conn.execute("SELECT evaluation_json FROM policy_evaluations").fetchone()[0]
+        assert '"regime_snapshot_id":"2026-06-09"' in raw
+    else:
+        with pytest.raises(ValueError, match="regime_missing"):
+            submit_decision(conn, _record(), date(2026, 6, 10), **kwargs)
+        assert conn.execute("SELECT COUNT(*) FROM order_intents").fetchone()[0] == 0
+    conn.close()
+
+
+def test_complete_live_real_parser_does_not_require_date_and_closes_connection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from app.reason import run
+    from app.storage.records import get_reasoning_run
+
+    source = tmp_path / "source.db"
+    conn = connect(source)
+    _prepare_live_boundary(conn, captured_at=SUBMITTED_AT)
+    prepared = get_reasoning_run(conn, RUN_ID)
+    assert prepared
+    completed = prepared.model_copy(
+        update={
+            "result": ReasoningRunResult.NO_ACTION,
+            "completed_at": SUBMITTED_AT,
+            "public_summary": "No action after review.",
+        }
+    )
+    path = tmp_path / "complete.json"
+    path.write_text(completed.model_dump_json(), encoding="utf-8")
+    conn.close()
+    opened: list[sqlite3.Connection] = []
+
+    def tracked(path: str) -> sqlite3.Connection:
+        db = connect(path)
+        opened.append(db)
+        return db
+
+    monkeypatch.setattr(run, "connect", tracked)
+    monkeypatch.setattr(
+        "sys.argv", ["reason", "--db", str(source), "complete-live", "--in", str(path)]
+    )
+    run.main()
+    assert '"result": "NO_ACTION"' in capsys.readouterr().out
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        opened[0].execute("SELECT 1")

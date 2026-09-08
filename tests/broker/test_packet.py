@@ -43,6 +43,7 @@ def _preflight(**updates: object) -> BrokerPreflight:
         "account_equity": 100.0,
         "buying_power": 100.0,
         "current_position_value": 0.0,
+        "ticker": "NVDA",
         "bid": 199.9,
         "ask": 200.1,
         "quote_at": NOW - timedelta(seconds=2),
@@ -148,3 +149,35 @@ def test_execution_packet_rejects_inconsistent_times() -> None:
 
     with pytest.raises(ValidationError, match="expires_at must be after created_at"):
         LiveExecutionPacket.model_validate(invalid)
+
+
+@pytest.mark.parametrize("updates", [{"target_weight": 0.19}, {"side": "SELL"}])
+def test_packet_rejects_changed_approved_intent(updates: dict[str, object]) -> None:
+    intent = OrderIntent.model_validate({**_live_intent().model_dump(), **updates})
+    with pytest.raises(ValueError, match="decision_intent_mismatch"):
+        build_execution_packet(
+            intent,
+            valid_decision_record(),
+            _profile(),
+            _preflight(current_position_value=30),
+            created_at=NOW,
+        )
+
+
+@pytest.mark.parametrize("ticker", ["", "AAPL"])
+def test_packet_requires_quote_instrument(ticker: str) -> None:
+    with pytest.raises(ValueError, match="preflight_ticker_mismatch"):
+        build_execution_packet(
+            _live_intent(),
+            valid_decision_record(),
+            _profile(),
+            _preflight(ticker=ticker),
+            created_at=NOW,
+        )
+
+
+@pytest.mark.parametrize("field", ["account_equity", "buying_power", "bid", "ask"])
+@pytest.mark.parametrize("value", [float("inf"), float("nan"), -float("inf")])
+def test_preflight_rejects_nonfinite_financial_inputs(field: str, value: float) -> None:
+    with pytest.raises(ValidationError):
+        _preflight(**{field: value})

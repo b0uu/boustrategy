@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.public_authoring import PublicNarrative
+
 TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.\-]{0,11}$")
 
 
@@ -92,6 +94,8 @@ class InvestmentDecisionRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision_id: str = Field(min_length=1)
+    schema_version: str | None = None
+    public_narrative: PublicNarrative | None = None
     created_at: AwareDatetime
 
     ticker: str = Field(min_length=1, max_length=12)
@@ -141,6 +145,16 @@ class InvestmentDecisionRecord(BaseModel):
                 "ticker must be 1-12 characters of A-Z, digits, '.' or '-', starting with a letter"
             )
         return normalized
+
+    @model_validator(mode="after")
+    def public_stage_times(self) -> "InvestmentDecisionRecord":
+        if self.public_narrative:
+            for stage in self.public_narrative.stages:
+                if any(
+                    at and at > self.created_at for at in (stage.started_at, stage.completed_at)
+                ):
+                    raise ValueError("public stage cannot follow decision creation")
+        return self
 
     @model_validator(mode="after")
     def validate_local_consistency(self) -> "InvestmentDecisionRecord":

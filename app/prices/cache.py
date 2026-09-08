@@ -2,20 +2,20 @@ import sqlite3
 from collections.abc import Callable
 from datetime import date
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 
 class PriceBar(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     ticker: str
     bar_date: date
-    open: float
-    high: float
-    low: float
-    close: float
-    adj_close: float | None
-    volume: int
+    open: float = Field(gt=0)
+    high: float = Field(gt=0)
+    low: float = Field(gt=0)
+    close: float = Field(gt=0)
+    adj_close: float | None = Field(gt=0)
+    volume: int = Field(ge=0)
     source: str
     fetched_at: AwareDatetime
 

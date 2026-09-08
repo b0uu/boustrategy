@@ -1,9 +1,11 @@
+from decimal import Decimal
 from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.decision_record import TICKER_PATTERN
 from app.schemas.order_intent import OrderSide, OrderType
+from app.schemas.reporting import ValuationObservation
 
 
 class AgentProvider(StrEnum):
@@ -12,7 +14,7 @@ class AgentProvider(StrEnum):
 
 
 class ExecutionProfile(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     execution_profile_id: str = Field(min_length=1)
     agent_provider: AgentProvider
@@ -32,7 +34,7 @@ class ExecutionProfile(BaseModel):
 
 
 class LiveProfilesConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     profiles: list[ExecutionProfile] = Field(min_length=1)
 
@@ -55,7 +57,7 @@ class LiveProfilesConfig(BaseModel):
 
 
 class LivePosition(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     ticker: str = Field(min_length=1, max_length=12)
     market_value: float = Field(ge=0.0)
@@ -70,7 +72,7 @@ class LivePosition(BaseModel):
 
 
 class LivePortfolioSnapshot(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     portfolio_snapshot_id: str = Field(min_length=1)
     execution_profile_id: str = Field(min_length=1)
@@ -79,9 +81,25 @@ class LivePortfolioSnapshot(BaseModel):
     account_equity: float = Field(gt=0.0)
     buying_power: float = Field(ge=0.0)
     positions: list[LivePosition] = Field(default_factory=list)
+    reporting: ValuationObservation | None = None
 
     @model_validator(mode="after")
     def require_unique_positions(self) -> "LivePortfolioSnapshot":
+        if self.reporting is not None:
+            report = self.reporting
+            if (
+                report.mode != "live"
+                or report.account_id != self.broker_account_fingerprint
+                or report.occurred_at != self.captured_at
+                or report.equity != Decimal(str(self.account_equity))
+            ):
+                raise ValueError(
+                    "reporting valuation must match execution snapshot identity and equity"
+                )
+            if report.positions is not None and {
+                p.ticker: p.market_value for p in report.positions
+            } != {p.ticker: Decimal(str(p.market_value)) for p in self.positions}:
+                raise ValueError("reporting holdings must match execution snapshot holdings")
         tickers = [position.ticker for position in self.positions]
         if len(tickers) != len(set(tickers)):
             raise ValueError("position tickers must be unique")
@@ -89,12 +107,13 @@ class LivePortfolioSnapshot(BaseModel):
 
 
 class BrokerPreflight(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     execution_profile_id: str = Field(min_length=1)
     broker_account_fingerprint: str = Field(pattern=r"^[a-f0-9]{16}$")
     account_equity: float = Field(gt=0.0)
     buying_power: float = Field(ge=0.0)
+    ticker: str = Field(default="", max_length=12)
     current_position_value: float = Field(ge=0.0)
     bid: float = Field(gt=0.0)
     ask: float = Field(gt=0.0)
@@ -111,7 +130,7 @@ class BrokerPreflight(BaseModel):
 
 
 class LiveExecutionPacket(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     execution_packet_id: str = Field(min_length=1)
     order_intent_id: str = Field(min_length=1)

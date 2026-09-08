@@ -9,6 +9,8 @@ from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult, PortfolioContext, evaluate_decision_policy
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord, RegimeState
 from app.schemas.order_intent import ExecutionMode
+from app.schemas.policy_reporting import PolicyEvaluationRecord, PolicyInputIdentity
+from app.storage.policy_records import save_policy_evaluation
 from app.storage.records import (
     get_decision_record,
     get_order_intent,
@@ -70,6 +72,7 @@ def append_status(
     detail: str = "",
     *,
     commit: bool = True,
+    occurred_at: datetime | None = None,
 ) -> bool:
     rows = conn.execute(
         """
@@ -95,24 +98,25 @@ def append_status(
         INSERT INTO status_events (subject_type, subject_id, status, occurred_at, detail)
         VALUES ('decision', ?, ?, ?, ?)
         """,
-        (subject_id, status.value, datetime.now(UTC).isoformat(), detail),
+        (subject_id, status.value, (occurred_at or datetime.now(UTC)).isoformat(), detail),
     )
     if commit:
         conn.commit()
     return True
 
 
-def process_decision(
+def _process_decision(
     conn: sqlite3.Connection,
     record_data: dict[str, Any],
     portfolio: PortfolioContext | None = None,
     true_regime_state: RegimeState | None = None,
     *,
     received_at: datetime | None = None,
+    input_identity: PolicyInputIdentity | None = None,
     execution_mode: ExecutionMode = ExecutionMode.PAPER,
     execution_profile_id: str = "",
-    commit: bool = True,
 ) -> ProcessOutcome:
+    processing_time = received_at or datetime.now(UTC)
     try:
         record = InvestmentDecisionRecord.model_validate(record_data)
     except ValidationError as error:
@@ -126,13 +130,25 @@ def process_decision(
                 decision_id,
                 DecisionStatus.SCHEMA_FAILED,
                 detail=str(error)[:500],
-                commit=commit,
+                commit=False,
+                occurred_at=processing_time,
             )
         return ProcessOutcome(decision_id=decision_id, final_status=DecisionStatus.SCHEMA_FAILED)
 
     existing_record = get_decision_record(conn, record.decision_id)
     current_status = latest_status(conn, record.decision_id)
     if existing_record is not None:
+        prior = conn.execute(
+            "SELECT evaluation_json FROM policy_evaluations WHERE decision_id=?",
+            (record.decision_id,),
+        ).fetchone()
+        if prior:
+            evaluation = PolicyEvaluationRecord.model_validate_json(prior[0])
+            if (
+                evaluation.execution_mode != execution_mode
+                or evaluation.execution_profile_id != execution_profile_id
+            ):
+                raise ValueError("decision replay execution scope mismatch")
         if existing_record != record:
             raise ValueError(
                 f"decision record {record.decision_id} already exists with different content"
@@ -143,6 +159,11 @@ def process_decision(
                 raise ValueError(
                     f"decision {record.decision_id} reached order_intent_created without an intent"
                 )
+            if (
+                intent.execution_mode != execution_mode
+                or intent.execution_profile_id != execution_profile_id
+            ):
+                raise ValueError("decision replay execution scope mismatch")
             return ProcessOutcome(
                 decision_id=record.decision_id,
                 final_status=current_status,
@@ -174,12 +195,17 @@ def process_decision(
                 intent = create_order_intent(
                     record,
                     PolicyResult(approved=True),
+                    created_at=processing_time,
                     execution_mode=execution_mode,
                     execution_profile_id=execution_profile_id,
                 )
-                save_order_intent(conn, intent, commit=commit)
+                save_order_intent(conn, intent, commit=False)
             append_status(
-                conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED, commit=commit
+                conn,
+                record.decision_id,
+                DecisionStatus.ORDER_INTENT_CREATED,
+                commit=False,
+                occurred_at=processing_time,
             )
             return ProcessOutcome(
                 decision_id=record.decision_id,
@@ -187,32 +213,56 @@ def process_decision(
                 order_intent_id=intent.order_intent_id,
             )
 
-    processing_time = received_at or datetime.now(UTC)
     if record.created_at > processing_time:
         append_status(
             conn,
             record.decision_id,
             DecisionStatus.SCHEMA_FAILED,
             detail="created_at_cannot_be_in_future",
-            commit=commit,
+            commit=False,
+            occurred_at=processing_time,
         )
         return ProcessOutcome(
             decision_id=record.decision_id,
             final_status=DecisionStatus.SCHEMA_FAILED,
         )
 
-    save_decision_record(conn, record, commit=commit)
-    append_status(conn, record.decision_id, DecisionStatus.DECISION_RECORD_CREATED, commit=commit)
-    append_status(conn, record.decision_id, DecisionStatus.SCHEMA_VALIDATED, commit=commit)
+    save_decision_record(conn, record, commit=False)
+    append_status(
+        conn,
+        record.decision_id,
+        DecisionStatus.DECISION_RECORD_CREATED,
+        commit=False,
+        occurred_at=processing_time,
+    )
+    append_status(
+        conn,
+        record.decision_id,
+        DecisionStatus.SCHEMA_VALIDATED,
+        commit=False,
+        occurred_at=processing_time,
+    )
 
     policy_result = evaluate_decision_policy(record, portfolio, true_regime_state)
+    save_policy_evaluation(
+        conn,
+        record,
+        policy_result,
+        portfolio,
+        true_regime_state,
+        processing_time,
+        input_identity,
+        execution_mode,
+        execution_profile_id,
+    )
     if not policy_result.approved:
         append_status(
             conn,
             record.decision_id,
             DecisionStatus.POLICY_REJECTED,
             detail=", ".join(policy_result.reasons),
-            commit=commit,
+            commit=False,
+            occurred_at=processing_time,
         )
         return ProcessOutcome(
             decision_id=record.decision_id,
@@ -220,7 +270,13 @@ def process_decision(
             policy_reasons=policy_result.reasons,
         )
 
-    append_status(conn, record.decision_id, DecisionStatus.POLICY_APPROVED, commit=commit)
+    append_status(
+        conn,
+        record.decision_id,
+        DecisionStatus.POLICY_APPROVED,
+        commit=False,
+        occurred_at=processing_time,
+    )
 
     if record.decision not in _ACTIONABLE_DECISIONS:
         return ProcessOutcome(
@@ -234,15 +290,61 @@ def process_decision(
         intent = create_order_intent(
             record,
             policy_result,
+            created_at=processing_time,
             execution_mode=execution_mode,
             execution_profile_id=execution_profile_id,
         )
-        save_order_intent(conn, intent, commit=commit)
+        save_order_intent(conn, intent, commit=False)
 
-    append_status(conn, record.decision_id, DecisionStatus.ORDER_INTENT_CREATED, commit=commit)
+    append_status(
+        conn,
+        record.decision_id,
+        DecisionStatus.ORDER_INTENT_CREATED,
+        commit=False,
+        occurred_at=processing_time,
+    )
 
     return ProcessOutcome(
         decision_id=record.decision_id,
         final_status=DecisionStatus.ORDER_INTENT_CREATED,
         order_intent_id=intent.order_intent_id,
     )
+
+
+def process_decision(
+    conn: sqlite3.Connection,
+    record_data: dict[str, Any],
+    portfolio: PortfolioContext | None = None,
+    true_regime_state: RegimeState | None = None,
+    *,
+    received_at: datetime | None = None,
+    input_identity: PolicyInputIdentity | None = None,
+    execution_mode: ExecutionMode = ExecutionMode.PAPER,
+    execution_profile_id: str = "",
+    commit: bool = True,
+) -> ProcessOutcome:
+    started_transaction = not conn.in_transaction
+    if started_transaction:
+        conn.execute("BEGIN")
+    conn.execute("SAVEPOINT decision_processing")
+    try:
+        result = _process_decision(
+            conn,
+            record_data,
+            portfolio,
+            true_regime_state,
+            received_at=received_at,
+            input_identity=input_identity,
+            execution_mode=execution_mode,
+            execution_profile_id=execution_profile_id,
+        )
+    except BaseException:
+        conn.execute("ROLLBACK TO decision_processing")
+        conn.execute("RELEASE decision_processing")
+        if started_transaction:
+            conn.rollback()
+        raise
+    conn.execute("RELEASE decision_processing")
+    if commit:
+        conn.commit()
+    return result

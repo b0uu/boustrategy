@@ -101,6 +101,7 @@ def test_broker_execution_requires_live_intent_and_round_trips() -> None:
         execution_profile_id="codex",
     )
     save_order_intent(conn, intent)
+    save_decision_record(conn, valid_decision_record())
     save_execution_packet(conn, live_execution_packet(intent))
     record = BrokerExecutionRecord(
         broker_execution_record_id="be_001",
@@ -213,6 +214,7 @@ def test_execution_packet_round_trips_for_matching_live_profile() -> None:
         require_human_approval=False,
     )
 
+    save_decision_record(conn, valid_decision_record())
     assert save_execution_packet(conn, packet) is True
     assert save_execution_packet(conn, packet) is False
     assert get_execution_packet(conn, packet.execution_packet_id) == packet

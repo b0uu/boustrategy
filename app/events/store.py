@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from app.events.fetch import fetch_earnings_dates, fomc_dates
+from app.events.fetch import FOMC_TENTATIVE_FROM, fetch_earnings_dates, fomc_dates
 
 _TICKER_PATTERN = re.compile(r"^[A-Z.]{1,12}$")
 
@@ -27,7 +27,10 @@ def write_watchlist_suggestions(conn: sqlite3.Connection, path: str | Path) -> N
     counts: Counter[str] = Counter()
     for (signal_json,) in conn.execute("SELECT signal_json FROM x_signals"):
         counts.update(json.loads(signal_json).get("tickers", []))
-    lines = [
+    target = Path(path)
+    approved = set(parse_watchlist(target)) if target.exists() else set()
+    existing = target.read_text(encoding="utf-8").splitlines() if target.exists() else []
+    lines = existing or [
         "# Event watchlist",
         "",
         "Approved entries use `- TICKER \N{EM DASH} reason`; suggestions use `*` and are ignored.",
@@ -35,6 +38,8 @@ def write_watchlist_suggestions(conn: sqlite3.Connection, path: str | Path) -> N
         "",
     ]
     for ticker, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+        if ticker in approved or any(line.startswith(f"* {ticker} ") for line in existing):
+            continue
         lines.append(f"* {ticker} \N{EM DASH} appeared in {count} captured signals")
     Path(path).write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
@@ -51,7 +56,12 @@ def sync_fomc(conn: sqlite3.Connection, through: date) -> int:
                 (event_type, ticker, event_date, label, source, fetched_at)
             VALUES ('fomc', '', ?, ?, 'federalreserve.gov', ?)
             """,
-            (meeting_date.isoformat(), f"FOMC meeting day {day}", fetched_at),
+            (
+                meeting_date.isoformat(),
+                f"FOMC meeting day {day}"
+                + (" (tentative)" if meeting_date >= FOMC_TENTATIVE_FROM else ""),
+                fetched_at,
+            ),
         )
     conn.commit()
     return len(dates)

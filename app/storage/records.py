@@ -1,5 +1,7 @@
 import sqlite3
 
+from app.orders.create_order_intent import INTENT_SIDES
+from app.performance.storage import ingest
 from app.schemas.broker_execution import BrokerExecutionRecord, BrokerExecutionStatus
 from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.live_execution import (
@@ -16,8 +18,6 @@ def save_live_portfolio_snapshot(
     snapshot: LivePortfolioSnapshot,
     profile: ExecutionProfile,
 ) -> bool:
-    if not profile.enabled:
-        raise ValueError("execution profile is disabled")
     if snapshot.execution_profile_id != profile.execution_profile_id:
         raise ValueError("snapshot profile does not match execution profile")
     if snapshot.broker_account_fingerprint != profile.broker_account_fingerprint:
@@ -31,6 +31,8 @@ def save_live_portfolio_snapshot(
         if LivePortfolioSnapshot.model_validate_json(existing[0]) == snapshot:
             return False
         raise ValueError("portfolio snapshot already exists with different content")
+    if snapshot.reporting is not None:
+        ingest(conn, snapshot.reporting)
     conn.execute(
         """
         INSERT INTO live_portfolio_snapshots
@@ -109,7 +111,9 @@ def get_reasoning_run(conn: sqlite3.Connection, reasoning_run_id: str) -> Reason
     return ReasoningRun.model_validate_json(row[0]) if row else None
 
 
-def complete_reasoning_run(conn: sqlite3.Connection, completed_run: ReasoningRun) -> ReasoningRun:
+def complete_reasoning_run(
+    conn: sqlite3.Connection, completed_run: ReasoningRun, *, commit: bool = True
+) -> ReasoningRun:
     existing = get_reasoning_run(conn, completed_run.reasoning_run_id)
     if existing is None:
         raise ValueError("missing reasoning run")
@@ -152,7 +156,8 @@ def complete_reasoning_run(conn: sqlite3.Connection, completed_run: ReasoningRun
             completed_run.reasoning_run_id,
         ),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     return completed_run
 
 
@@ -168,7 +173,7 @@ def save_decision_record(
         (record.decision_id,),
     ).fetchone()
     if existing is not None:
-        if existing[0] == record_json:
+        if InvestmentDecisionRecord.model_validate_json(existing[0]) == record:
             return False
         raise ValueError(
             f"decision record {record.decision_id} already exists with different content"
@@ -294,7 +299,9 @@ def save_broker_execution_record(
         raise ValueError("broker execution does not match its execution packet")
     if packet.limit_price != record.limit_price:
         raise ValueError("broker execution limit price does not match its execution packet")
-    if record.submitted_at > packet.expires_at:
+    if record.submitted_at < packet.created_at:
+        raise ValueError("broker submission precedes packet creation")
+    if record.submitted_at >= packet.expires_at:
         raise ValueError("broker execution packet expired before submission")
 
     record_json = record.model_dump_json()
@@ -366,8 +373,24 @@ def save_execution_packet(conn: sqlite3.Connection, packet: LiveExecutionPacket)
         raise ValueError(f"order intent {packet.order_intent_id} is not live")
     if intent.execution_profile_id != packet.execution_profile_id:
         raise ValueError("execution packet profile does not match its order intent")
-    if intent.ticker != packet.ticker or intent.side != packet.side:
+    if (
+        intent.ticker != packet.ticker
+        or intent.side != packet.side
+        or intent.decision_id != packet.decision_id
+        or intent.target_weight != packet.target_weight
+        or intent.order_type != packet.order_type
+    ):
         raise ValueError("execution packet does not match its order intent")
+
+    decision = get_decision_record(conn, packet.decision_id)
+    if decision is None:
+        raise ValueError("execution packet requires its persisted decision")
+    if (
+        decision.ticker != packet.ticker
+        or decision.final_target_weight != packet.target_weight
+        or INTENT_SIDES.get(decision.decision) != packet.side
+    ):
+        raise ValueError("execution packet does not match its decision")
 
     packet_json = packet.model_dump_json()
     existing = conn.execute(

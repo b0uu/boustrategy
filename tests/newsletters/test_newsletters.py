@@ -127,3 +127,32 @@ def test_newsletter_archive_paths_are_gitignored() -> None:
     )
 
     assert result.returncode == 0
+
+
+@pytest.mark.parametrize("source", ["..", "CON", "semi."])
+def test_unsafe_source_does_not_move_inbox(tmp_path: Path, source: str) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    root = tmp_path / "newsletters"
+    original = _drop(root, source + "--title.txt")
+    with pytest.raises(ValueError, match="source path"):
+        ingest(conn, root)
+    assert original.read_bytes() == b"private content"
+    assert conn.execute("SELECT COUNT(*) FROM newsletter_docs").fetchone()[0] == 0
+    conn.close()
+
+
+def test_missing_duplicate_archive_is_restored_before_inbox_removal(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    root = tmp_path / "newsletters"
+    _drop(root, "semi--chips.txt")
+    ingest(conn, root)
+    archive = Path(conn.execute("SELECT archive_path FROM newsletter_docs").fetchone()[0])
+    archive.rename(archive.with_suffix(".backup"))
+    conn.execute("UPDATE newsletter_docs SET archive_path=?", (str(root / "archive" / "missing"),))
+    conn.commit()
+    duplicate = _drop(root, "semi--duplicate.txt")
+    ingest(conn, root)
+    saved = Path(conn.execute("SELECT archive_path FROM newsletter_docs").fetchone()[0])
+    assert saved.read_bytes() == b"private content"
+    assert not duplicate.exists()
+    conn.close()

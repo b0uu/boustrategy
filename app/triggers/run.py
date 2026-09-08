@@ -1,5 +1,6 @@
 import argparse
 import json
+from contextlib import closing
 from datetime import date, timedelta
 
 from app.events.store import parse_watchlist
@@ -19,41 +20,41 @@ def main() -> None:
     parser.add_argument("--status", default="pending")
     parser.add_argument("--ids")
     args = parser.parse_args()
-    conn = connect(args.db)
-    if args.command == "evaluate":
-        refresh_through = date.fromisoformat(args.date) if args.date else date.today()
-        tickers = sorted(set(parse_watchlist(args.watchlist)) | set(position_tickers(conn)))
-        for ticker in tickers:
-            refresh_ticker(
-                conn,
-                ticker,
-                refresh_through - timedelta(days=35),
-                refresh_through + timedelta(days=1),
+    with closing(connect(args.db)) as conn:
+        if args.command == "evaluate":
+            refresh_through = date.fromisoformat(args.date) if args.date else date.today()
+            tickers = sorted(set(parse_watchlist(args.watchlist)) | set(position_tickers(conn)))
+            for ticker in tickers:
+                refresh_ticker(
+                    conn,
+                    ticker,
+                    refresh_through - timedelta(days=35),
+                    refresh_through + timedelta(days=1),
+                )
+            latest = conn.execute("SELECT MAX(bar_date) FROM daily_prices").fetchone()[0]
+            evaluation_date = (
+                date.fromisoformat(args.date)
+                if args.date
+                else date.fromisoformat(latest)
+                if latest is not None
+                else date.today()
             )
-        latest = conn.execute("SELECT MAX(bar_date) FROM daily_prices").fetchone()[0]
-        evaluation_date = (
-            date.fromisoformat(args.date)
-            if args.date
-            else date.fromisoformat(latest)
-            if latest is not None
-            else date.today()
-        )
-        counts = evaluate_triggers(conn, tickers, evaluation_date)
-        print(" ".join(f"{key}={value}" for key, value in counts.items()))
-    elif args.command == "list":
-        rows = conn.execute(
-            """
-            SELECT trigger_id, fired_at, details_json FROM trigger_events
-            WHERE status = ? ORDER BY fired_at, trigger_id
-            """,
-            (args.status,),
-        ).fetchall()
-        for item, fired_at, details_json in rows:
-            print(f"{fired_at} {item} {json.loads(details_json)}")
-    else:
-        if not args.ids:
-            raise ValueError("mark requires --ids")
-        print(f"marked={mark_triggers(conn, args.ids.split(','), args.status)}")
+            counts = evaluate_triggers(conn, tickers, evaluation_date)
+            print(" ".join(f"{key}={value}" for key, value in counts.items()))
+        elif args.command == "list":
+            rows = conn.execute(
+                """
+                SELECT trigger_id, fired_at, details_json FROM trigger_events
+                WHERE status = ? ORDER BY fired_at, trigger_id
+                """,
+                (args.status,),
+            ).fetchall()
+            for item, fired_at, details_json in rows:
+                print(f"{fired_at} {item} {json.loads(details_json)}")
+        else:
+            if not args.ids:
+                raise ValueError("mark requires --ids")
+            print(f"marked={mark_triggers(conn, args.ids.split(','), args.status)}")
 
 
 if __name__ == "__main__":

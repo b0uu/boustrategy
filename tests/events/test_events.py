@@ -75,7 +75,7 @@ def test_fomc_sync_replaces_wholesale_and_checks_coverage(tmp_path: Path) -> Non
         == "FOMC meeting day 2"
     )
     with pytest.raises(FomcCoverageError):
-        sync_fomc(conn, date(2027, 1, 1))
+        sync_fomc(conn, date(2028, 1, 1))
 
 
 def test_earnings_refresh_replaces_future_only(tmp_path: Path) -> None:
@@ -116,3 +116,29 @@ def test_upcoming_uses_half_open_day_window(tmp_path: Path) -> None:
     rows = upcoming_events(conn, date(2026, 7, 20), 7)
 
     assert [row[0] for row in rows] == ["2026-07-20", "2026-07-26"]
+
+
+def test_fomc_2027_is_explicit_tentative_and_does_not_imply_2028(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+    assert sync_fomc(conn, date(2027, 12, 31)) == 32
+    assert (
+        "tentative"
+        in conn.execute(
+            "SELECT label FROM calendar_events WHERE event_date='2027-12-08'"
+        ).fetchone()[0]
+    )
+    assert not conn.execute(
+        "SELECT 1 FROM calendar_events WHERE event_date>='2028-01-01'"
+    ).fetchone()
+    conn.close()
+
+
+def test_suggestion_refresh_preserves_approved_entries_and_notes(tmp_path: Path) -> None:
+    conn = connect(":memory:")
+    path = tmp_path / "watchlist.md"
+    original = "# Watchlist\n- NVDA \N{EM DASH} approved reason\n\nMaintainer note\n"
+    path.write_text(original, encoding="utf-8")
+    write_watchlist_suggestions(conn, path)
+    assert path.read_text(encoding="utf-8") == original
+    assert parse_watchlist(path) == ["NVDA"]
+    conn.close()

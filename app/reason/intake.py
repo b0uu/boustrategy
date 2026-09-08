@@ -1,12 +1,13 @@
 import json
 import re
 import sqlite3
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from app.events.store import upcoming_events
 from app.paper.broker import cash_balance
 from app.paper.context import _latest_close, portfolio_context
+from app.x.calendar import completed_through
 
 _DAILY_DIGEST = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
 _RULES_BANNER = "RULES NOT YET SIGNED OFF"
@@ -39,13 +40,15 @@ def build_intake(
     output = Path(out_dir)
     output.mkdir(parents=True, exist_ok=True)
 
+    observed_at = datetime.now(UTC)
+    completed_date = completed_through(on_date, observed_at)
     regime = conn.execute(
         """
         SELECT snapshot_date, regime, raw_regime, score, components_json
-        FROM regime_snapshots WHERE snapshot_date <= ?
+        FROM regime_snapshots WHERE snapshot_date <= ? AND julianday(computed_at)<=julianday(?)
         ORDER BY snapshot_date DESC LIMIT 1
         """,
-        (on_date.isoformat(),),
+        (completed_date.isoformat(), observed_at.isoformat()),
     ).fetchone()
     triggers = [
         {
@@ -206,5 +209,8 @@ def build_intake(
         ]
     )
     bundle_path = output / ("shared_bundle.md" if live else "bundle.md")
-    bundle_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    bundle_text = "\n".join(lines).rstrip() + "\n"
+    if len(bundle_text.encode("utf-8")) > 512_000:
+        raise ValueError("intake_too_large")
+    bundle_path.write_text(bundle_text, encoding="utf-8")
     return bundle_path

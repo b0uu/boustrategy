@@ -1,5 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
+
 from app.prices.cache import (
     PriceBar,
     get_daily_prices,
@@ -119,3 +121,27 @@ def test_bars_for_different_tickers_do_not_collide():
 
     assert get_daily_prices(conn, "QQQ") == [qqq]
     assert get_daily_prices(conn, "SPY") == [spy]
+
+
+@pytest.mark.parametrize(
+    "field, value",
+    [("open", 0), ("close", -1), ("high", float("inf")), ("low", float("nan")), ("volume", -1)],
+)
+def test_price_bar_rejects_invalid_economic_inputs(field, value):
+    from pydantic import ValidationError
+
+    data = dict(
+        ticker="NVDA",
+        bar_date="2026-07-20",
+        open=100,
+        high=100,
+        low=100,
+        close=100,
+        adj_close=100,
+        volume=100,
+        source="test",
+        fetched_at="2026-07-21T00:00:00Z",
+    )
+    data[field] = value
+    with pytest.raises(ValidationError):
+        PriceBar.model_validate(data)

@@ -32,6 +32,8 @@ def _export_posts(conn: sqlite3.Connection, out_dir: Path, cutoff: str) -> tuple
         (cutoff,),
     ).fetchall()
     out_dir.mkdir(parents=True, exist_ok=True)
+    if any(out_dir.glob("batch_*.jsonl")):
+        raise ValueError("export requires a directory without previous generated batches")
     for batch_number, start in enumerate(range(0, len(rows), 50), 1):
         lines = []
         for post_id, handle, posted_at, text, reply_context, media_json, url in rows[

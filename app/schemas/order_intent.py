@@ -23,7 +23,7 @@ class ExecutionMode(StrEnum):
 
 
 class OrderIntent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     order_intent_id: str = Field(min_length=1)
     decision_id: str = Field(min_length=1)

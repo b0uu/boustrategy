@@ -1,11 +1,12 @@
 import sqlite3
 from datetime import date
 
-from app.paper.broker import cash_balance
+from app.paper.broker import cash_balance, validate_paper_ledger
 from app.policy.decision_policy import PortfolioContext
 
 
 def position_tickers(conn: sqlite3.Connection) -> list[str]:
+    validate_paper_ledger(conn)
     return [row[0] for row in conn.execute("SELECT ticker FROM paper_positions ORDER BY ticker")]
 
 
@@ -40,7 +41,7 @@ def portfolio_context(
         conn.execute(
             """
             SELECT side, COUNT(*) FROM order_intents
-            WHERE substr(created_at, 1, 10) = ? GROUP BY side
+            WHERE substr(created_at, 1, 10) = ? AND execution_mode = 'PAPER' GROUP BY side
             """,
             (on_date.isoformat(),),
         ).fetchall()

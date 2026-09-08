@@ -27,6 +27,7 @@ _REHYDRATE_HANDLE = "__rehydrate__"
 class FetchResult(NamedTuple):
     posts: list[XPost]
     billed_reads: int
+    next_token: str | None = None
 
 
 class UsageResult(NamedTuple):
@@ -163,7 +164,9 @@ def _parse_tweets_response(body: dict[str, Any], handle: str, fetched_at: dateti
     # Media objects are not posts and are not separately billed by the API —
     # only tweet-shaped objects (data + included tweets) count toward reads.
     billed_reads = len(data) + len(included_tweets)
-    return FetchResult(posts=posts, billed_reads=billed_reads)
+    return FetchResult(
+        posts=posts, billed_reads=billed_reads, next_token=body.get("meta", {}).get("next_token")
+    )
 
 
 def fetch_user_posts(
@@ -171,10 +174,13 @@ def fetch_user_posts(
     handle: str,
     since_id: str | None = None,
     start_time: datetime | None = None,
+    pagination_token: str | None = None,
 ) -> FetchResult:
     if since_id is not None and start_time is not None:
         raise ValueError("since_id and start_time are mutually exclusive")
     params: dict[str, str] = {"max_results": "100", **_TWEET_PARAMS}
+    if pagination_token is not None:
+        params["pagination_token"] = pagination_token
     if since_id is not None:
         params["since_id"] = since_id
     if start_time is not None:

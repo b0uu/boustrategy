@@ -1,8 +1,9 @@
 import sqlite3
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 
 from app.policy.decision_policy import PortfolioContext
 from app.schemas.live_execution import LivePortfolioSnapshot
+from app.x.calendar import NEW_YORK
 
 
 def live_portfolio_context(
@@ -29,15 +30,17 @@ def live_portfolio_context(
                 theme_weights.get(theme, 0.0) + position.market_value / snapshot.account_equity
             )
 
+    start = datetime.combine(on_date, time.min, NEW_YORK).astimezone(UTC)
+    end = datetime.combine(on_date + timedelta(days=1), time.min, NEW_YORK).astimezone(UTC)
     counts = dict(
         conn.execute(
             """
             SELECT side, COUNT(*) FROM order_intents
             WHERE execution_mode = 'LIVE' AND execution_profile_id = ?
-              AND substr(created_at, 1, 10) = ?
+              AND julianday(created_at) >= julianday(?) AND julianday(created_at) < julianday(?)
             GROUP BY side
             """,
-            (snapshot.execution_profile_id, on_date.isoformat()),
+            (snapshot.execution_profile_id, start.isoformat(), end.isoformat()),
         ).fetchall()
     )
     return PortfolioContext(

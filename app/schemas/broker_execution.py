@@ -15,7 +15,7 @@ class BrokerExecutionStatus(StrEnum):
 
 
 class BrokerExecutionRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     broker_execution_record_id: str = Field(min_length=1)
     order_intent_id: str = Field(min_length=1)
@@ -47,7 +47,7 @@ class BrokerExecutionRecord(BaseModel):
 
 
 class BrokerExecutionEvent(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     broker_event_id: str = Field(min_length=1)
     broker_execution_record_id: str = Field(min_length=1)

@@ -65,6 +65,8 @@ def insert_new_posts(conn: sqlite3.Connection, posts: list[XPost]) -> int:
 
 
 def record_post_reads(conn: sqlite3.Connection, count: int, month: str | None = None) -> None:
+    if count < 0:
+        raise ValueError("post read count must be nonnegative")
     if month is None:
         month = datetime.now(UTC).strftime("%Y-%m")
     conn.execute(
@@ -78,6 +80,8 @@ def record_post_reads(conn: sqlite3.Connection, count: int, month: str | None = 
 
 
 def set_post_reads(conn: sqlite3.Connection, count: int, month: str | None = None) -> None:
+    if count < 0:
+        raise ValueError("post read count must be nonnegative")
     if month is None:
         month = datetime.now(UTC).strftime("%Y-%m")
     conn.execute(
@@ -193,7 +197,9 @@ def update_post_enrichment(conn: sqlite3.Connection, post: XPost) -> bool:
     return cursor.rowcount > 0
 
 
-def mark_reviewed(conn: sqlite3.Connection, post_id: str, review_status: str) -> None:
+def mark_reviewed(
+    conn: sqlite3.Connection, post_id: str, review_status: str, *, commit: bool = True
+) -> None:
     # 'significant' is the one-click positive label: relevant enough for gate
     # training, but without a rich CapturedSignal (that tier is 'captured').
     if review_status not in ("captured", "skipped", "significant"):
@@ -203,6 +209,7 @@ def mark_reviewed(conn: sqlite3.Connection, post_id: str, review_status: str) ->
         "UPDATE x_posts SET review_status = ? WHERE post_id = ? AND review_status = 'unreviewed'",
         (review_status, post_id),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     if cursor.rowcount == 0:
         raise ValueError(f"post {post_id} is not currently unreviewed")
