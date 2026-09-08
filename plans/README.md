@@ -338,7 +338,7 @@ backlog so nobody re-audits them.
 | 032 | [Keep account identity out of the published store; never publish X-typed excerpts](032-close-public-trust-boundary.md) | P1 | S | 037 (DONE) | DONE |
 | 033 | [Scheduler survives ET-midnight grace windows; runner cleanup never masks or strands an attempt](033-scheduler-and-worker-failure-handling.md) | P1 | S | none | DONE |
 | 034 | [ET session date for paper fills, price refresh and source eligibility](034-et-session-dates-for-fills-and-source-eligibility.md) | P2 | S | none (bumps the same checkpoint version as 032; run after it) | DONE (2026-09-08; commit 5a680c8 on `advisor/034-et-session-dates`; checkpoint version 8 -> 9) |
-| 035 | [Operator view counts linked decisions for retried runs; remove dead retry bypass](035-operator-view-reports-attempt-truth.md) | P2 | S | none | TODO |
+| 035 | [Operator view counts linked decisions for retried runs; remove dead retry bypass](035-operator-view-reports-attempt-truth.md) | P2 | S | none | DONE (2026-09-08; commit 1d8b5ab on `advisor/035-operator-view-attempt-truth`) |
 | 036 | [CI workflow (Windows runner), Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | TODO (rewritten 2026-09-08: Windows runner, correct warning class) |
 | 037 | [Retire labeling, replay tool and public v1 behind an archive tag; archive completed plans](037-retire-finished-subsystems-and-archive-history.md) | P2 | M | none | DONE (2026-09-08; commits 579a724..0702ddd on `advisor/037-retire-finished-subsystems`; tag `archive/2026-09-retirements`) |
 
