@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.dashboard.queries import overview, x_data
-from app.dashboard.server import create_app, render_x_snippet
+from app.dashboard.server import create_app
 from app.reason.run import PreparationResult
 from app.schemas.decision_record import RegimeState
 from app.storage.database import connect
@@ -194,13 +194,6 @@ def test_operator_prepare_runs_and_unlocks_reasoning_prompt(tmp_path: Path) -> N
     assert called == [date(2026, 8, 25)]
     assert "Preparation completed." in response.text
     assert "data-copy='reasoning-prompt' disabled" not in response.text
-
-
-def test_x_snippet_public_switch_is_single_seam() -> None:
-    text = "x" * 300
-
-    assert len(render_x_snippet(text)) == 280
-    assert render_x_snippet(text, public=True) == "[private snippet hidden]"
 
 
 def test_overview_tiles_link_to_detail_pages(tmp_path: Path) -> None:

@@ -1,6 +1,7 @@
 import argparse
 import json
 import sqlite3
+from contextlib import closing
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from app.prices.cache import get_daily_prices, refresh_ticker
 from app.regime.rules import RegimeScore, publish_regime, score_regime
 from app.schemas.decision_record import RegimeState
 from app.storage.database import connect
+from app.x.calendar import completed_through
 
 
 def _components_json(score: RegimeScore) -> str:
@@ -20,20 +22,11 @@ def _components_json(score: RegimeScore) -> str:
     )
 
 
-def latest_published_regime(conn: sqlite3.Connection, on_date: date) -> RegimeState | None:
-    row = conn.execute(
-        """
-        SELECT regime FROM regime_snapshots WHERE snapshot_date <= ?
-        ORDER BY snapshot_date DESC LIMIT 1
-        """,
-        (on_date.isoformat(),),
-    ).fetchone()
-    return RegimeState(row[0]) if row is not None else None
-
-
 def save_snapshot(conn: sqlite3.Connection, snapshot_date: date, score: RegimeScore) -> RegimeState:
     rows = conn.execute(
-        "SELECT regime, raw_regime FROM regime_snapshots ORDER BY snapshot_date"
+        "SELECT regime, raw_regime FROM regime_snapshots WHERE snapshot_date < ? "
+        "ORDER BY snapshot_date",
+        (snapshot_date.isoformat(),),
     ).fetchall()
     previous = RegimeState(rows[-1][0]) if rows else None
     raw_history = [RegimeState(row[1]) for row in rows[-1:]] + [score.raw_regime]
@@ -51,6 +44,10 @@ def save_snapshot(conn: sqlite3.Connection, snapshot_date: date, score: RegimeSc
         if existing == values:
             return published
         raise ValueError(f"snapshot {snapshot_date} already exists with different rules output")
+    if conn.execute(
+        "SELECT 1 FROM regime_snapshots WHERE snapshot_date > ?", (snapshot_date.isoformat(),)
+    ).fetchone():
+        raise ValueError("cannot insert regime history before existing future snapshots")
     conn.execute(
         """
         INSERT INTO regime_snapshots
@@ -64,6 +61,7 @@ def save_snapshot(conn: sqlite3.Connection, snapshot_date: date, score: RegimeSc
 
 
 def score_date(conn: sqlite3.Connection, target: date) -> tuple[RegimeState, RegimeScore]:
+    target = completed_through(target, datetime.now(UTC))
     spy = get_daily_prices(conn, "SPY", end=target)
     qqq = get_daily_prices(conn, "QQQ", end=target)
     score = score_regime(spy, qqq)
@@ -133,19 +131,23 @@ def main() -> None:
     parser.add_argument("--end")
     parser.add_argument("--out")
     args = parser.parse_args()
-    conn = connect(args.db)
-    if args.command == "score":
-        target = date.fromisoformat(args.date) if args.date else date.today()
-        for ticker in ("SPY", "QQQ"):
-            refresh_ticker(conn, ticker, target - timedelta(days=760), target + timedelta(days=1))
-        published, score = score_date(conn, target)
-        print(f"regime={published.value} raw={score.raw_regime.value} score={score.score}")
-        print(_components_json(score))
-    else:
-        if not args.start or not args.end or not args.out:
-            raise ValueError("backtest requires --start, --end, and --out")
-        text = render_backtest(conn, date.fromisoformat(args.start), date.fromisoformat(args.end))
-        Path(args.out).write_text(text, encoding="utf-8")
+    with closing(connect(args.db)) as conn:
+        if args.command == "score":
+            target = date.fromisoformat(args.date) if args.date else date.today()
+            for ticker in ("SPY", "QQQ"):
+                refresh_ticker(
+                    conn, ticker, target - timedelta(days=760), target + timedelta(days=1)
+                )
+            published, score = score_date(conn, target)
+            print(f"regime={published.value} raw={score.raw_regime.value} score={score.score}")
+            print(_components_json(score))
+        else:
+            if not args.start or not args.end or not args.out:
+                raise ValueError("backtest requires --start, --end, and --out")
+            text = render_backtest(
+                conn, date.fromisoformat(args.start), date.fromisoformat(args.end)
+            )
+            Path(args.out).write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

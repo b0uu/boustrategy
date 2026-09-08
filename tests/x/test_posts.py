@@ -1,4 +1,5 @@
 import sqlite3
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -318,13 +319,8 @@ def test_usage_sync_accepts_provider_billing_cycle(capsys):
     assert "reset_day=15" in capsys.readouterr().out
 
 
-def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
-    """Offline proof that a reply's parent context survives fetch -> storage
-    -> review UI, closing the loop this plan exists to fix (plan 012)."""
-    from fastapi.testclient import TestClient
-
-    from app.labeling.server import create_app
-
+def test_end_to_end_fetch_stores_reply_context_readable_by_pipeline(tmp_path):
+    """A reply's parent context survives fetch for the pipeline read side."""
     db_path = tmp_path / "e2e.db"
     conn = connect(db_path)
     upsert_account(conn, Account(handle="core1", user_id="uid1", tier="core"))
@@ -351,21 +347,16 @@ def test_end_to_end_fetch_stores_reply_context_and_review_ui_shows_it(tmp_path):
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
     conn.close()
 
-    client = TestClient(create_app(db_path))
-    response = client.get("/api/next")
+    conn = connect(db_path)
+    posts = unreviewed_posts(conn)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["post_id"] == "42"
-    assert body["reply_context"] == "TSMC capacity is tight this quarter"
+    assert len(posts) == 1
+    assert posts[0].post_id == "42"
+    assert posts[0].reply_context == "TSMC capacity is tight this quarter"
 
 
-def test_end_to_end_fetch_stores_media_and_review_ui_shows_it(tmp_path):
-    """Offline proof that a photo attachment survives fetch (raw API payload
-    parsing via _map_tweet) -> storage -> review UI."""
-    from fastapi.testclient import TestClient
-
-    from app.labeling.server import create_app
+def test_end_to_end_fetch_stores_media_readable_by_pipeline(tmp_path):
+    """A fetched photo attachment survives for the pipeline read side."""
     from app.x.client import _map_tweet
 
     db_path = tmp_path / "e2e_media.db"
@@ -399,13 +390,12 @@ def test_end_to_end_fetch_stores_media_and_review_ui_shows_it(tmp_path):
     _cmd_fetch(conn, resolve_ids=fake_resolve, fetch_posts=fake_fetch)
     conn.close()
 
-    client = TestClient(create_app(db_path))
-    response = client.get("/api/next")
+    conn = connect(db_path)
+    posts = unreviewed_posts(conn)
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["post_id"] == "43"
-    assert body["media"] == [
+    assert len(posts) == 1
+    assert posts[0].post_id == "43"
+    assert [media.model_dump() for media in posts[0].media] == [
         {
             "url": "https://pbs.twimg.com/media/chart.jpg",
             "media_type": "photo",
@@ -502,3 +492,46 @@ def test_rehydrate_stops_before_fetching_when_budget_exhausted():
     _cmd_rehydrate(conn, fetch_by_ids=fake_fetch_by_ids)
 
     assert called is False
+
+
+def test_fetch_preserves_original_window_across_pages_and_failure() -> None:
+    conn = connect(":memory:")
+    upsert_account(conn, Account(handle="someone", user_id="uid", tier="core"))
+    windows = []
+
+    def first(user_id, handle, since_id, start_time):
+        windows.append((since_id, start_time))
+        return FetchResult([make_post("200")], 1, "page2")
+
+    _cmd_fetch(conn, fetch_posts=first)
+
+    def failed(user_id, handle, since_id, start_time, pagination_token):
+        assert (since_id, start_time) == windows[0]
+        assert pagination_token == "page2"
+        raise RuntimeError("network failed")
+
+    with pytest.raises(RuntimeError, match="network failed"):
+        _cmd_fetch(conn, fetch_posts=failed)
+    assert conn.execute("SELECT next_token FROM x_fetch_checkpoints").fetchone()[0] == "page2"
+
+    def second(user_id, handle, since_id, start_time, pagination_token):
+        assert (since_id, start_time) == windows[0]
+        assert pagination_token == "page2"
+        return FetchResult([make_post("100")], 1)
+
+    _cmd_fetch(conn, fetch_posts=second)
+    assert conn.execute("SELECT COUNT(*) FROM x_posts").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM x_fetch_checkpoints").fetchone()[0] == 0
+    conn.close()
+
+
+@pytest.mark.parametrize("mutation", [record_post_reads, set_post_reads])
+def test_negative_budget_mutations_leave_usage_unchanged(
+    mutation: Callable[[sqlite3.Connection, int], None],
+) -> None:
+    conn = connect(":memory:")
+    record_post_reads(conn, 10)
+    with pytest.raises(ValueError, match="nonnegative"):
+        mutation(conn, -100)
+    assert reads_remaining(conn) == MAX_MONTHLY_POST_READS - 10
+    conn.close()
