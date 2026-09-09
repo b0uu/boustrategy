@@ -53,6 +53,20 @@ function New-PollingTrigger {
     return $Trigger
 }
 
+# The single-review layout used three differently named tasks. Leaving them behind
+# would orphan triggers pointing at a wrapper whose parameters have changed.
+$Retired = @(
+    "boustrategy-review-prepare",
+    "boustrategy-review-prepare-halfday",
+    "boustrategy-review-poller"
+)
+foreach ($Name in $Retired) {
+    if (Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $Name -Confirm:$false
+        Write-Output "Removed retired task: $Name"
+    }
+}
+
 # Preparation runs 15 minutes before each review's due time. The close task carries
 # both the regular and the half-day trigger; the wrapper drops whichever is wrong.
 Register-BouTask -Name "boustrategy-review-prepare-midday" `
