@@ -57,6 +57,14 @@ def build_execution_packet(
     if spread_bps > profile.max_spread_bps:
         reasons.append("spread_too_wide")
 
+    if intent.side == OrderSide.BUY:
+        if decision.entry_price_max is None:
+            reasons.append("missing_entry_price_band")
+        elif preflight.ask > decision.entry_price_max:
+            reasons.append("price_above_entry_band")
+    elif decision.entry_price_min is not None and preflight.bid < decision.entry_price_min:
+        reasons.append("price_below_exit_band")
+
     target_value = intent.target_weight * preflight.account_equity
     delta_value = target_value - preflight.current_position_value
     if intent.side == OrderSide.BUY and delta_value <= 0:

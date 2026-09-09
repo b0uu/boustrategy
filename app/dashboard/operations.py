@@ -159,16 +159,34 @@ def agent_status(config: dict[str, str]) -> list[dict[str, str]]:
     ]
 
 
-def schedule_status(conn: sqlite3.Connection, schedule_id: str, now: datetime) -> dict[str, Any]:
-    schedule = (
-        latest_schedule(conn, schedule_id) if table_exists(conn, "schedule_revisions") else None
-    )
+def configured_schedules(conn: sqlite3.Connection) -> list[str]:
+    if not table_exists(conn, "schedule_revisions"):
+        return []
+    return [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT schedule_id FROM schedule_revisions ORDER BY schedule_id"
+        )
+    ]
+
+
+def schedule_status(conn: sqlite3.Connection, now: datetime) -> dict[str, Any]:
+    schedules = []
+    for schedule_id in configured_schedules(conn):
+        record = latest_schedule(conn, schedule_id)
+        if record is not None:
+            schedules.append(
+                {
+                    "schedule_id": schedule_id,
+                    "schedule": record.model_dump(mode="json"),
+                    "preview": planned_preview(record, now, limit=3)["items"],
+                }
+            )
     occurrences = (
         selected_rows(
             conn,
-            "SELECT occurrence_id, session_date, due_at, status, reason, observed_at "
-            "FROM schedule_occurrences WHERE schedule_id=? ORDER BY due_at DESC LIMIT 10",
-            (schedule_id,),
+            "SELECT schedule_id, session_date, due_at, status, reason, observed_at "
+            "FROM schedule_occurrences ORDER BY due_at DESC LIMIT 12",
         )
         if table_exists(conn, "schedule_occurrences")
         else None
@@ -194,9 +212,7 @@ def schedule_status(conn: sqlite3.Connection, schedule_id: str, now: datetime) -
         else []
     )
     return {
-        "schedule_id": schedule_id,
-        "schedule": schedule.model_dump(mode="json") if schedule else None,
-        "preview": planned_preview(schedule, now, limit=5)["items"] if schedule else [],
+        "schedules": schedules,
         "occurrences": occurrences,
         "attempts": attempts,
         "leases": leases,
@@ -342,7 +358,6 @@ def pipeline_health(
     tasks: list[dict[str, Any]] | None,
     *,
     digest_dir: Path,
-    reason_dir: Path,
 ) -> dict[str, Any]:
     """One-glance answer to "is today running smoothly?", derived only from recorded facts."""
     local = now.astimezone(NEW_YORK)
@@ -400,38 +415,36 @@ def pipeline_health(
     review_enabled = any(task["state"].casefold() != "disabled" for task in review_tasks)
     if not review_enabled:
         add(
-            "review chain",
-            "disabled",
-            "paper review tasks are off; enable them once digests are stable",
+            "review chain", "disabled", "review tasks are off; enable them after a clean digest day"
         )
     elif slots:
-        receipt = reason_dir / day / "preparation.json"
-        prepare_due = datetime.combine(today, slots[-1][1]) + timedelta(minutes=25)
-        if receipt.is_file():
-            add("preparation receipt", "done", str(receipt.relative_to(reason_dir.parent)))
-        elif now < prepare_due:
-            add("preparation receipt", "scheduled", f"expected after {prepare_due:%H:%M} ET")
-        else:
+        if table_exists(conn, "reasoning_runs"):
+            prepared = conn.execute(
+                "SELECT slot, result FROM reasoning_runs WHERE session_date=? ORDER BY slot",
+                (day,),
+            ).fetchall()
             add(
-                "preparation receipt", "failed", "missing after the close digest; check prepare log"
+                "prepared reviews",
+                "done" if prepared else "scheduled",
+                ", ".join(f"{slot} {result}" for slot, result in prepared)
+                if prepared
+                else "none prepared yet today",
             )
         if table_exists(conn, "schedule_occurrences"):
-            occurrence = conn.execute(
-                "SELECT status, reason FROM schedule_occurrences WHERE session_date=? "
-                "ORDER BY due_at DESC LIMIT 1",
+            for schedule_id, status, reason in conn.execute(
+                "SELECT schedule_id, status, reason FROM schedule_occurrences "
+                "WHERE session_date=? ORDER BY due_at",
                 (day,),
-            ).fetchone()
-            if occurrence:
-                add("review occurrence", str(occurrence[0]), str(occurrence[1] or ""))
+            ):
+                add(f"review {schedule_id}", str(status), str(reason or ""))
         if table_exists(conn, "runtime_attempts") and table_exists(conn, "runtime_runs"):
-            attempt = conn.execute(
-                "SELECT a.status, a.stage, a.reason FROM runtime_attempts a "
+            for status, stage, reason, slot in conn.execute(
+                "SELECT a.status, a.stage, a.reason, r.slot FROM runtime_attempts a "
                 "JOIN runtime_runs r ON r.run_id=a.run_id WHERE r.session_date=? "
-                "ORDER BY a.started_at DESC LIMIT 1",
+                "ORDER BY a.started_at DESC LIMIT 3",
                 (day,),
-            ).fetchone()
-            if attempt:
-                add("review attempt", str(attempt[0]), f"{attempt[1]} {attempt[2] or ''}".strip())
+            ):
+                add(f"attempt {slot}", str(status), f"{stage} {reason or ''}".strip())
 
     if table_exists(conn, "order_intents") and table_exists(conn, "broker_execution_records"):
         pending_intents = conn.execute(

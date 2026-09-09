@@ -8,6 +8,7 @@ from app.broker.config import get_live_profile, load_live_profiles
 from app.broker.packet import build_execution_packet
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
+from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.live_execution import (
     BrokerPreflight,
     ExecutionProfile,
@@ -15,7 +16,7 @@ from app.schemas.live_execution import (
     LiveProfilesConfig,
 )
 from app.schemas.order_intent import ExecutionMode, OrderIntent
-from tests.fixtures.decision_records import valid_decision_record
+from tests.fixtures.decision_records import valid_decision_record, valid_decision_record_data
 
 NOW = datetime(2026, 8, 27, 14, 0, tzinfo=UTC)
 
@@ -181,3 +182,61 @@ def test_packet_requires_quote_instrument(ticker: str) -> None:
 def test_preflight_rejects_nonfinite_financial_inputs(field: str, value: float) -> None:
     with pytest.raises(ValidationError):
         _preflight(**{field: value})
+
+
+def test_packet_refuses_a_buy_priced_above_its_entry_band() -> None:
+    record = valid_decision_record().model_copy(update={"entry_price_max": 199.0})
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+
+    with pytest.raises(ValueError, match="price_above_entry_band"):
+        build_execution_packet(intent, record, _profile(), _preflight(), created_at=NOW)
+
+    inside = record.model_copy(update={"entry_price_max": 201.0})
+    packet = build_execution_packet(intent, inside, _profile(), _preflight(), created_at=NOW)
+    assert packet.limit_price == 200.1
+
+
+def test_packet_requires_an_entry_band_on_every_live_buy() -> None:
+    record = valid_decision_record().model_copy(update={"entry_price_max": None})
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+
+    with pytest.raises(ValueError, match="missing_entry_price_band"):
+        build_execution_packet(intent, record, _profile(), _preflight(), created_at=NOW)
+
+
+def test_entry_band_bounds_must_be_ordered() -> None:
+    with pytest.raises(ValidationError, match="entry_price_min cannot exceed"):
+        InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "entry_price_min": 220.0, "entry_price_max": 200.0}
+        )
+
+
+def test_packet_refuses_a_sell_priced_below_its_exit_band() -> None:
+    record = valid_decision_record().model_copy(
+        update={"decision": "SELL", "final_target_weight": 0.0, "entry_price_min": 210.0}
+    )
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        created_at=NOW,
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+    preflight = _preflight(current_position_value=15.0)
+
+    with pytest.raises(ValueError, match="price_below_exit_band"):
+        build_execution_packet(intent, record, _profile(), preflight, created_at=NOW)
+
+    inside = record.model_copy(update={"entry_price_min": 199.0})
+    packet = build_execution_packet(intent, inside, _profile(), preflight, created_at=NOW)
+    assert packet.limit_price == 199.9

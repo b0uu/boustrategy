@@ -65,8 +65,10 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
 - **Packet.** `python -m app.broker.run packet --intent-id <intent> --preflight <file>` prints the
   packet with `execution_packet_id`, `notional`, `limit_price` and `expires_at`. If it raises
   `stale_quote`, refresh the preflight and rebuild, at most three times. Any other rejection
-  (`outside_regular_market_hours`, `spread_too_wide`, `insufficient_buying_power`, ...) ends the
-  session with outcome `blocked`.
+  (`outside_regular_market_hours`, `spread_too_wide`, `insufficient_buying_power`,
+  `price_above_entry_band`, ...) ends the session with outcome `blocked`. A price outside the
+  decision's entry band is a normal outcome, not a fault: the market has left the level the
+  thesis was priced at. Never widen a band, re-quote to chase one, or place around it.
 - **Review.** `review_equity_order` on the selected account with the packet's symbol, side, a
   limit order at exactly `limit_price`, `dollar_amount` equal to `notional`, good-for-day and
   regular hours only, using the tool's documented enumerations. If the response changes any of

@@ -3,14 +3,16 @@
 # then captures a fresh broker snapshot through the bot's Codex identity and
 # creates the PREPARED live reasoning run the scheduler consumes.
 #
-# -Window close   : normal sessions, run after the 17:45 digest.
-# -Window halfday : early-close sessions, run after the 14:45 digest.
+# One task per review slot; each may carry several triggers because the
+# schedule revision decides whether this slot is actually due today.
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("close", "halfday")]
-    [string]$Window
+    [ValidateSet("midday", "preclose", "close")]
+    [string]$Slot
 )
+
+$ScheduleId = "live-$Slot"
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
 $LocalConfigFile = Join-Path $RepoRoot "ops\digester.local.psd1"
@@ -18,7 +20,7 @@ $LocalConfigFile = Join-Path $RepoRoot "ops\digester.local.psd1"
 $LogDir = Join-Path $RepoRoot "data\logs\runtime"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $Timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
-$LogFile = Join-Path $LogDir "prepare-live-$Window-$Timestamp.log"
+$LogFile = Join-Path $LogDir "prepare-live-$Slot-$Timestamp.log"
 
 $DiscordWebhookUrl = ""
 $CodexHome = Join-Path $HOME ".codex-boustrategy"
@@ -51,18 +53,26 @@ function Send-DiscordNotification {
 }
 
 Set-Location $RepoRoot
-"=== $Timestamp prepare-live window=$Window profile=$Profile ===" | Out-File -FilePath $LogFile -Encoding utf8
+"=== $Timestamp prepare-live slot=$Slot schedule=$ScheduleId profile=$Profile ===" | Out-File -FilePath $LogFile -Encoding utf8
 
-$SessionInfo = & python -c "from datetime import datetime; from zoneinfo import ZoneInfo; from app.x.calendar import run_slots; d = datetime.now(ZoneInfo('America/New_York')).date(); s = run_slots(d); print(d.isoformat(), 'none' if not s else ('half' if len(s) == 2 else 'full'))"
+# The schedule revision in SQLite owns the due time, including half-day handling and
+# whether this slot runs at all. Asking it keeps one task able to carry several
+# triggers without preparing a session that is not actually due.
+$Lookup = & python -c "import sys; from datetime import datetime; from zoneinfo import ZoneInfo; from app.storage.database import connect; from app.storage.schedules import latest_schedule, due_at; c = connect('data/boustrategy.db'); s = latest_schedule(c, sys.argv[1]); d = datetime.now(ZoneInfo('America/New_York')).date(); due = due_at(s, d) if s else None; print(d.isoformat(), due.isoformat() if due else 'none')" $ScheduleId
 if ($LASTEXITCODE -ne 0) {
-    "calendar lookup failed" | Out-File -FilePath $LogFile -Append -Encoding utf8
-    Send-DiscordNotification "BouStrategy prepare-live FAILED: calendar lookup, log=$(Split-Path -Leaf $LogFile)"
+    "schedule lookup failed" | Out-File -FilePath $LogFile -Append -Encoding utf8
+    Send-DiscordNotification "BouStrategy prepare-live FAILED: schedule lookup, log=$(Split-Path -Leaf $LogFile)"
     exit 1
 }
-$SessionDate, $SessionKind = $SessionInfo.Trim().Split(" ")
-$Expected = if ($Window -eq "halfday") { "half" } else { "full" }
-if ($SessionKind -ne $Expected) {
-    "$SessionDate is $SessionKind; window=${Window}: calendar no-op" | Out-File -FilePath $LogFile -Append -Encoding utf8
+$SessionDate, $DueText = $Lookup.Trim().Split(" ")
+if ($DueText -eq "none") {
+    "$SessionDate has no ${ScheduleId} occurrence: calendar no-op" | Out-File -FilePath $LogFile -Append -Encoding utf8
+    exit 0
+}
+$Minutes = ([datetimeoffset]::Parse($DueText) - [datetimeoffset]::Now).TotalMinutes
+if ($Minutes -gt 45 -or $Minutes -lt -15) {
+    "$ScheduleId is due $DueText, {0:N0} minutes away: wrong trigger, no-op" -f $Minutes |
+        Out-File -FilePath $LogFile -Append -Encoding utf8
     exit 0
 }
 
@@ -79,10 +89,10 @@ if ($ExitCode -ne 0) {
 
 # Step 2: fresh broker snapshot plus the PREPARED live reasoning run.
 $env:CODEX_HOME = $CodexHome
-$LiveOut = "data/reason_runs/$SessionDate-live"
+$LiveOut = "data/reason_runs/$SessionDate-live-$Slot"
 $Output = @(
     & python -m app.broker.collector --profile $Profile --model $CollectorModel --codex-home $CodexHome `
-        prepare-live --slot close --model-label $ReviewModel --out $LiveOut --date $SessionDate 2>&1
+        prepare-live --slot $Slot --model-label $ReviewModel --out $LiveOut --date $SessionDate 2>&1
 )
 $ExitCode = $LASTEXITCODE
 $Output | Out-File -FilePath $LogFile -Append -Encoding utf8
@@ -90,9 +100,9 @@ $Output | Out-File -FilePath $LogFile -Append -Encoding utf8
 
 $LogName = Split-Path -Leaf $LogFile
 if ($ExitCode -ne 0) {
-    Send-DiscordNotification "BouStrategy prepare-live FAILED: date=$SessionDate exit=$ExitCode log=$LogName"
+    Send-DiscordNotification "BouStrategy prepare-live FAILED: slot=$Slot date=$SessionDate exit=$ExitCode log=$LogName"
 }
 else {
-    Send-DiscordNotification "BouStrategy prepare-live completed: date=$SessionDate $($Output[-1])"
+    Send-DiscordNotification "BouStrategy prepare-live completed: slot=$Slot date=$SessionDate $($Output[-1])"
 }
 exit $ExitCode

@@ -43,7 +43,6 @@ def create_app(
     local_config_path: str | Path = "ops/digester.local.psd1",
     host_runner: operations.HostRunner = operations.powershell,
     spawner: operations.Spawner = operations.spawn_detached,
-    review_schedule_id: str = "paper-close",
 ) -> FastAPI:
     app = FastAPI(title="BouStrategy dashboard")
     path = Path(db_path)
@@ -293,10 +292,8 @@ def create_app(
             payload = {
                 "agents": operations.agent_status(config),
                 "tasks": tasks,
-                "health": operations.pipeline_health(
-                    conn, now, tasks, digest_dir=digest_dir, reason_dir=reason_dir
-                ),
-                "schedule": operations.schedule_status(conn, review_schedule_id, now),
+                "health": operations.pipeline_health(conn, now, tasks, digest_dir=digest_dir),
+                "schedule": operations.schedule_status(conn, now),
                 "logs": operations.log_tails(logs_dir),
             }
         return HTMLResponse(
@@ -341,7 +338,7 @@ def create_app(
     @app.post("/operations/schedule", response_class=HTMLResponse)
     async def operations_schedule(request: Request) -> Response:
         form = await operations_form(request)
-        schedule_id = form.get("schedule_id", review_schedule_id)
+        schedule_id = form.get("schedule_id", "")
         action = form.get("action", "")
 
         def apply() -> dict[str, object]:

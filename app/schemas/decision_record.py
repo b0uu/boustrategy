@@ -127,6 +127,12 @@ class InvestmentDecisionRecord(BaseModel):
     proposed_target_weight: float = Field(ge=0.0, le=1.0)
     final_target_weight: float = Field(ge=0.0, le=1.0)
 
+    # The price range in which this thesis still holds. Live execution refuses a
+    # packet outside it, so a move between authoring and placement cannot turn a
+    # researched entry into chasing an already-priced-in move.
+    entry_price_max: float | None = Field(default=None, gt=0.0)
+    entry_price_min: float | None = Field(default=None, gt=0.0)
+
     source_claims: list[SourceClaim] = Field(default_factory=list)
     x_signal_usage: XSignalUsage = Field(default_factory=XSignalUsage)
 
@@ -135,6 +141,16 @@ class InvestmentDecisionRecord(BaseModel):
 
     order_intent_id: str | None = None
     broker_execution_record_id: str | None = None
+
+    @model_validator(mode="after")
+    def ordered_entry_band(self) -> "InvestmentDecisionRecord":
+        if (
+            self.entry_price_min is not None
+            and self.entry_price_max is not None
+            and self.entry_price_min > self.entry_price_max
+        ):
+            raise ValueError("entry_price_min cannot exceed entry_price_max")
+        return self
 
     @field_validator("ticker")
     @classmethod

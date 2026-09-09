@@ -12,14 +12,14 @@ reads, a stronger model for the investment review and for order execution. Task 
 host trigger. The deterministic policy gate, the $20 per-order cap, the 60-second quote age and
 the broker fingerprint checks are unchanged.
 
-Nine tasks exist across two installers:
+Twelve tasks exist across two installers:
 
 | Installer | Tasks | Trigger (ET, weekdays unless noted) | Worker |
 | --- | --- | --- | --- |
 | `install-digester-tasks.ps1` | `boustrategy-digester-morning`, `-midday`, `-close-halfday`, `-close`, `-weekly` | 08:45, 12:30, 14:45, 17:45, Sunday 18:00 | `run-digester-session.ps1`: headless Codex follows the X runbook, then `app.x.run verify` checks SQLite |
-| `install-runtime-tasks.ps1` | `boustrategy-review-prepare`, `-prepare-halfday` | 18:10, 15:10 | `run-live-prepare.ps1`: deterministic market preparation, then a broker snapshot and the PREPARED live run through `app.broker.collector prepare-live` |
-| `install-runtime-tasks.ps1` | `boustrategy-review-poller` | every minute 18:15 to 18:45 and 15:15 to 15:45 | `run-review-poller.ps1`: `app.reason.runtime scheduled --schedule live-close`; the worker refreshes the broker snapshot through the collector before authoring and again before submission |
-| `install-runtime-tasks.ps1` | `boustrategy-live-execute` | 09:35 and 12:15 | `run-live-execution.ps1`: `app.broker.executor` runs one bounded Codex broker session per pending intent following `docs/execution/EXECUTOR.md`, then verifies the ledger |
+| `install-runtime-tasks.ps1` | `boustrategy-review-prepare-midday`, `-preclose`, `-close` | 12:45, 14:45, and 18:10 plus 15:10 | `run-live-prepare.ps1 -Slot <slot>`: deterministic market preparation, then a broker snapshot and the PREPARED live run through `app.broker.collector prepare-live`. The schedule revision decides whether the slot is due, so one task can carry several triggers |
+| `install-runtime-tasks.ps1` | `boustrategy-review-poller-midday`, `-preclose`, `-close` | every minute for 30 minutes from 13:00, 15:00, and 18:15 or 15:15 | `run-review-poller.ps1 -Schedule live-<slot>`: the worker refreshes the broker snapshot through the collector before authoring and again before submission |
+| `install-runtime-tasks.ps1` | `boustrategy-live-execute` | every 15 minutes, 09:45 to 15:45 | `run-live-execution.ps1`: `app.broker.executor` runs one bounded Codex broker session per pending intent following `docs/execution/EXECUTOR.md`, then verifies the ledger. A tick with nothing pending starts no model session |
 
 The 14:45 and 15:xx triggers only do real work on NYSE half-days; every worker is calendar-aware
 and no-ops otherwise. Both installers leave tasks disabled unless given `-Enable`, and
@@ -81,21 +81,33 @@ python -m app.x.run status
 The `python` on PATH must import the project with its dependencies, since the tasks don't
 activate a virtual environment. Back up `data\boustrategy.db` before enabling anything.
 
-### 4. Live schedule revision
+### 4. Live schedule revisions
 
-The runtime only claims occurrences for an enabled `scheduled` revision. The live schedule is
-`live-close`: mode `live`, `account_id` equal to the profile's broker fingerprint,
-`execution_profile_id` `codex`. Write it to `ops/runtime.schedule.local.json` (gitignored) with
-`enabled` true, `schedule_mode` `"scheduled"` and a current `configured_at`, then:
+The runtime only claims occurrences for an enabled `scheduled` revision. Three live schedules run
+each session, all with mode `live`, `account_id` equal to the profile's broker fingerprint and
+`execution_profile_id` `codex`:
 
-Keep `due_local` at `18:15:00` and `early_close_due_local` at `15:15:00` with the 1,800-second
-grace. The runtime claims an occurrence only between the due time and the end of grace, and the
-poller task ticks from 18:15 to 18:45 (15:15 to 15:45 on half-days), so the two windows must
-coincide. An earlier due time would expire before the first tick.
+| Schedule | Slot | Due (ET) | Half-day | Purpose |
+| --- | --- | --- | --- | --- |
+| `live-midday` | `midday` | 13:00 | none | acts on the morning and midday digests while the session is open |
+| `live-preclose` | `preclose` | 15:00 | none | last intraday entry, an hour before the close |
+| `live-close` | `close` | 18:15 | 15:15 | after-hours review; its intents execute next session |
+
+Half sessions close at 13:00, so only the after-hours review runs on them and
+`early_close_due_local` is null for the other two. Every revision keeps the 1,800-second grace, and
+each poller ticks for exactly that window, so the due time and the tick window must coincide. An
+earlier due time would expire before the first tick.
+
+Both intraday reviews finish inside regular hours, so their approved intents are placed the same
+session. The daily quota is shared: two BUY or ADD intents per day across all three reviews, not
+per review. Pausing any live schedule stops new claims on the whole account, which makes pause an
+account-wide brake rather than a per-slot switch.
+
+Configure each schedule from its own file, then preview it:
 
 ```powershell
-python -m app.reason.runtime --db data/boustrategy.db --live-profiles ops/live.local.json configure --in ops/runtime.schedule.local.json
-python -m app.reason.runtime --db data/boustrategy.db preview --schedule live-close
+python -m app.reason.runtime --db data/boustrategy.db --live-profiles ops/live.local.json configure --in ops/live-midday.json
+python -m app.reason.runtime --db data/boustrategy.db preview --schedule live-midday
 ```
 
 Every later change is a new file with `revision` incremented by one. `pause` and `resume` exist
@@ -119,12 +131,19 @@ RDP rather than signing out, and sign back in after a reboot. Don't switch the t
 that account also has the Codex home, the repository, Python, and `X_BEARER_TOKEN`.
 
 Recommended order: enable the five digester tasks first and watch a clean weekday of
-`data\logs\digester\`. Then enable the four `boustrategy-review-*` and `boustrategy-live-execute`
-tasks together. The evening chain is: close digest 17:45, live preparation 18:10 (market data,
-broker snapshot, PREPARED run), review claimed at 18:15 with a fresh snapshot before authoring and
-again before submission. A policy-approved BUY becomes a LIVE intent that night and is placed at
-09:35 the next session through the execution task; the 12:15 trigger retries anything still
-pending. Intents older than 48 hours are never executed.
+`data\logs\digester\`. Then enable the six `boustrategy-review-*` tasks and
+`boustrategy-live-execute` together.
+
+Each review chain is the same three steps: preparation refreshes market data, captures a broker
+snapshot and writes the PREPARED run; fifteen minutes later the poller claims the occurrence and
+authors with a fresh snapshot taken before authoring and again before submission; the execution
+task then places approved intents. A midday review at 13:00 is usually placed by 13:30, a
+pre-close review by 15:30, and the after-hours review's intents the next morning.
+
+An intent is executable only in its own session or the next one, at most three times, at least
+fifteen minutes apart. Both bounds exist because the entry band is anchored to a price the model
+actually checked: an older intent needs a new review, and one whose band keeps failing should stop
+consuming execution sessions instead of waiting for the price to come back.
 
 ## What to watch
 

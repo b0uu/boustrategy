@@ -355,9 +355,7 @@ def test_pipeline_health_reports_each_slot_against_the_clock(tmp_path: Path) -> 
     )
     noon = datetime(2026, 9, 9, 12, 35, tzinfo=ZoneInfo("America/New_York"))
 
-    health = operations.pipeline_health(
-        conn, noon, tasks, digest_dir=tmp_path / "digests", reason_dir=tmp_path / "reason_runs"
-    )
+    health = operations.pipeline_health(conn, noon, tasks, digest_dir=tmp_path / "digests")
     by_item = {item["item"]: item for item in health["items"]}
 
     assert health["overall"] == "in_progress"
@@ -377,9 +375,7 @@ def test_pipeline_health_flags_missed_slot_and_failed_task(tmp_path: Path) -> No
     tasks[0]["last_run"] = "2026-09-09T08:45:45-04:00"
     late_morning = datetime(2026, 9, 9, 9, 30, tzinfo=ZoneInfo("America/New_York"))
 
-    health = operations.pipeline_health(
-        conn, late_morning, tasks, digest_dir=tmp_path, reason_dir=tmp_path
-    )
+    health = operations.pipeline_health(conn, late_morning, tasks, digest_dir=tmp_path)
     by_item = {item["item"]: item for item in health["items"]}
 
     assert health["overall"] == "attention"

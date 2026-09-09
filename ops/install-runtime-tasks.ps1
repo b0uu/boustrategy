@@ -18,8 +18,8 @@ param([switch]$Enable)
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
 $PrepareScript = Join-Path $RepoRoot "ops\run-live-prepare.ps1"
-$ExecuteScript = Join-Path $RepoRoot "ops\run-live-execution.ps1"
 $PollerScript = Join-Path $RepoRoot "ops\run-review-poller.ps1"
+$ExecuteScript = Join-Path $RepoRoot "ops\run-live-execution.ps1"
 $Weekdays = "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
 
 function Register-BouTask {
@@ -44,41 +44,67 @@ function Register-BouTask {
     Write-Output "Registered: $Name"
 }
 
-Register-BouTask -Name "boustrategy-review-prepare" `
-    -Arguments "-File `"$PrepareScript`" -Window close" `
-    -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:10)) `
-    -TimeLimitMinutes 20 `
-    -Description "boustrategy live review: market preparation, broker snapshot and prepared live run after the close digest"
-
-Register-BouTask -Name "boustrategy-review-prepare-halfday" `
-    -Arguments "-File `"$PrepareScript`" -Window halfday" `
-    -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 15:10)) `
-    -TimeLimitMinutes 20 `
-    -Description "boustrategy live review: preparation on NYSE half-days"
-
-$PollerTriggers = @(
-    (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:15),
-    (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 15:15)
-)
-foreach ($Trigger in $PollerTriggers) {
+function New-PollingTrigger {
+    param([string]$At, [int]$Minutes = 30)
+    $Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At $At
     $Trigger.Repetition = (New-ScheduledTaskTrigger -Once -At 00:00 `
         -RepetitionInterval (New-TimeSpan -Minutes 1) `
-        -RepetitionDuration (New-TimeSpan -Minutes 30)).Repetition
+        -RepetitionDuration (New-TimeSpan -Minutes $Minutes)).Repetition
+    return $Trigger
 }
-Register-BouTask -Name "boustrategy-review-poller" `
-    -Arguments "-File `"$PollerScript`" -Schedule live-close" `
-    -Triggers $PollerTriggers `
-    -TimeLimitMinutes 60 `
-    -Description "boustrategy live review: one-minute scheduler tick through the review window"
 
+# Preparation runs 15 minutes before each review's due time. The close task carries
+# both the regular and the half-day trigger; the wrapper drops whichever is wrong.
+Register-BouTask -Name "boustrategy-review-prepare-midday" `
+    -Arguments "-File `"$PrepareScript`" -Slot midday" `
+    -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:45)) `
+    -TimeLimitMinutes 20 `
+    -Description "boustrategy live review: midday preparation and broker snapshot"
+
+Register-BouTask -Name "boustrategy-review-prepare-preclose" `
+    -Arguments "-File `"$PrepareScript`" -Slot preclose" `
+    -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 14:45)) `
+    -TimeLimitMinutes 20 `
+    -Description "boustrategy live review: pre-close preparation and broker snapshot"
+
+Register-BouTask -Name "boustrategy-review-prepare-close" `
+    -Arguments "-File `"$PrepareScript`" -Slot close" `
+    -Triggers @(
+        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:10),
+        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 15:10)
+    ) `
+    -TimeLimitMinutes 20 `
+    -Description "boustrategy live review: after-hours preparation and broker snapshot"
+
+Register-BouTask -Name "boustrategy-review-poller-midday" `
+    -Arguments "-File `"$PollerScript`" -Schedule live-midday" `
+    -Triggers @((New-PollingTrigger -At 13:00)) `
+    -TimeLimitMinutes 45 `
+    -Description "boustrategy live review: midday scheduler tick"
+
+Register-BouTask -Name "boustrategy-review-poller-preclose" `
+    -Arguments "-File `"$PollerScript`" -Schedule live-preclose" `
+    -Triggers @((New-PollingTrigger -At 15:00)) `
+    -TimeLimitMinutes 45 `
+    -Description "boustrategy live review: pre-close scheduler tick"
+
+Register-BouTask -Name "boustrategy-review-poller-close" `
+    -Arguments "-File `"$PollerScript`" -Schedule live-close" `
+    -Triggers @((New-PollingTrigger -At 18:15), (New-PollingTrigger -At 15:15)) `
+    -TimeLimitMinutes 45 `
+    -Description "boustrategy live review: after-hours scheduler tick"
+
+# Execution ticks through regular hours. A tick with nothing pending starts no model
+# session, so the cadence costs a Python process and nothing else.
+$ExecuteTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:45
+$ExecuteTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At 00:00 `
+    -RepetitionInterval (New-TimeSpan -Minutes 15) `
+    -RepetitionDuration (New-TimeSpan -Hours 6)).Repetition
 Register-BouTask -Name "boustrategy-live-execute" `
     -Arguments "-File `"$ExecuteScript`"" `
-    -Triggers @(
-        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:35),
-        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:15)
-    ) `
-    -TimeLimitMinutes 50 `
-    -Description "boustrategy live execution: place pending policy-approved intents during regular hours"
+    -Triggers @($ExecuteTrigger) `
+    -TimeLimitMinutes 14 `
+    -Description "boustrategy live execution: place pending approved intents during regular hours"
 
-Write-Output "`nFour tasks registered. Verify with:"
-Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-review-*' | Select TaskName,State"
+Write-Output "`nSeven tasks registered. Verify with:"
+Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-review-*','boustrategy-live-*' | Select TaskName,State"

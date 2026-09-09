@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from app.broker.executor import (
+    MAX_ATTEMPTS_PER_INTENT,
     ExecutionReport,
     execute_pending,
     execution_prompt,
@@ -66,7 +67,7 @@ def _session_returning(payload: dict[str, Any], seen: dict[str, Any]) -> Any:
     return session
 
 
-def test_pending_intents_skip_executed_and_stale_ones(tmp_path: Path) -> None:
+def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
     now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
     intent = _live_intent(db_path, now - timedelta(hours=15))
@@ -145,7 +146,7 @@ def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_pat
         raise BrokerSessionFailure("session_timeout")
 
     failed = execute_pending(
-        db_path, _profile(), now=now, session=failing, codex_home=tmp_path, log_dir=tmp_path / "l"
+        db_path, _profile(), now=now, session=failing, codex_home=tmp_path, log_dir=tmp_path / "a"
     )
     clean = execute_pending(
         db_path,
@@ -156,7 +157,7 @@ def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_pat
             {},
         ),
         codex_home=tmp_path,
-        log_dir=tmp_path / "l",
+        log_dir=tmp_path / "b",
     )
 
     assert failed[0]["problems"] == ["session_failed"]
@@ -177,3 +178,58 @@ def test_verify_report_flags_intent_mismatch_and_unexpected_record(tmp_path: Pat
     assert mismatch == ["report_intent_mismatch"]
     assert "maximum order notional $20.00" in execution_prompt(intent, _profile())
     conn.close()
+
+
+def test_pending_intents_keep_an_overnight_intent_but_drop_a_day_old_one(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    # Thursday 09:40 ET; Wednesday's close is the staleness boundary.
+    now = datetime(2026, 9, 10, 13, 40, tzinfo=UTC)
+    overnight = _live_intent(db_path, datetime(2026, 9, 9, 22, 15, tzinfo=UTC))
+    conn = connect(db_path)
+
+    assert [item.order_intent_id for item in pending_live_intents(conn, _profile(), now=now)] == [
+        overnight.order_intent_id
+    ]
+    # The same intent one session later is anchored to a price nobody checked since.
+    friday = datetime(2026, 9, 11, 13, 40, tzinfo=UTC)
+    assert pending_live_intents(conn, _profile(), now=friday) == []
+    conn.close()
+
+
+def test_execution_attempts_back_off_and_stop_at_the_cap(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 14, 0, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(minutes=30))
+    blocked = {"order_intent_id": intent.order_intent_id, "outcome": "blocked", "notes": "band"}
+    sessions = 0
+
+    def counting(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        nonlocal sessions
+        sessions += 1
+        return schema.model_validate(blocked)
+
+    outcomes = []
+    for minute in range(0, 240, 20):
+        outcomes.append(
+            execute_pending(
+                db_path,
+                _profile(),
+                now=now + timedelta(minutes=minute),
+                session=counting,
+                codex_home=tmp_path,
+                log_dir=tmp_path / "logs",
+            )[0]
+        )
+
+    assert sessions == MAX_ATTEMPTS_PER_INTENT
+    assert outcomes[-1]["skipped"] == "attempt_cap_reached"
+    immediate_retry = execute_pending(
+        db_path,
+        _profile(),
+        now=now + timedelta(minutes=5),
+        session=counting,
+        codex_home=tmp_path,
+        log_dir=tmp_path / "logs",
+    )
+    assert immediate_retry[0]["skipped"] in {"retry_backoff", "attempt_cap_reached"}
+    assert sessions == MAX_ATTEMPTS_PER_INTENT

@@ -93,3 +93,40 @@ with exit code 1, and surfaced as attention.
   exercised by tests; the first execution session's log is the check.
 - If the Agentic account ever shows positions the ledger does not know about, stop the execute
   task and reconcile by hand.
+
+## Amendment, 2026-09-09: three reviews a session and an entry price band
+
+The maintainer's edge hypothesis is that curated X signal is most actionable while the
+session is open, before it is priced in. One after-hours review a day cannot act on that,
+and its intents were placed the next morning across an overnight gap.
+
+- **Three live schedules** replace the single evening one: `live-midday` (13:00 ET, after
+  the midday digest), `live-preclose` (15:00 ET) and `live-close` (18:15 ET, 15:15 on half
+  sessions). The intraday two do not run on half sessions. Each has its own slot, PREPARED
+  reasoning run, occurrence and poller task; they share one account lease, so an overrunning
+  review makes the next one record `overlap` rather than double-authoring. The BUY/ADD quota
+  of two per day is already counted per day, not per review, so frequency rose while the
+  trade budget did not.
+- **Execution moved to a market-hours cadence**, every 15 minutes from 09:45 to 15:45,
+  replacing two fixed morning runs. A tick with no pending intent starts no model session.
+  Intraday intents are now placed in the session that authored them.
+- **`entry_price_max` / `entry_price_min` on the decision record**, enforced in
+  `build_execution_packet`. A live BUY without a maximum is rejected `missing_entry_price_band`;
+  an ask above it is `price_above_entry_band`. This is what makes "enter before it is priced
+  in" enforceable rather than aspirational: if the move happened between authoring and
+  placement, the order does not go. The authoring contract requires the model to check the
+  current price before stating a bound; the approved thesis-chain prompt was deliberately
+  left unedited, so the maintainer may want to add a matching line there.
+- **Intent staleness is session-based**, replacing the 48-hour window: an intent is
+  executable only in its own session or the next one, at most three attempts, at least
+  fifteen minutes apart. A band anchored to a price nobody has rechecked should expire, and
+  a repeatedly failing band should stop consuming execution sessions.
+- **The Operations page lists every configured schedule** instead of one, and the Today
+  panel reports each slot's prepared run, occurrence and attempt.
+
+Verified: 490 tests, ruff and mypy green; the page rendered against the live database with
+all three live schedules enabled and the disabled paper schedule alongside.
+
+Open items: Robinhood's order-parameter enumerations are still unexercised, so the first
+execution session's log remains the check. Three reviews a day roughly triples review model
+spend, which is the main cost to watch on the bot's Codex plan.

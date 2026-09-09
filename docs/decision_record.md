@@ -51,6 +51,10 @@ This would be valid schema but rejected due to policy evaluation.
 - `exit_conditions`: when to sell
 - `proposed_target_weight`: proposed size
 - `final_target_weight`: final size
+- `entry_price_max`: highest price at which a BUY or ADD thesis still holds. Live execution
+  refuses the packet when the ask is above it, so an idea that gets priced in between
+  authoring and placement stops instead of being chased. Required on every live buy.
+- `entry_price_min`: the same bound for a SELL or TRIM, checked against the bid.
 - `source_claims`: specific claims tied to source IDs and timestamps
 - `x_signal_usage`: records whether X influenced the decision and whether it was confirmed outside X.
 - `public_summary`: summary for public dashboard

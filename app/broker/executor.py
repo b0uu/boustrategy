@@ -24,10 +24,16 @@ from app.broker.session import BrokerSessionFailure, run_broker_session
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import OrderIntent
 from app.storage.database import connect
+from app.x.calendar import completed_session, session_close
 
 DEFAULT_EXECUTION_MODEL = "gpt-5.6-sol"
-MAX_INTENT_AGE = timedelta(hours=48)
 PLACED_OUTCOMES = {"submitted", "partially_filled", "filled"}
+# An entry band is anchored to the price the model actually checked, so an intent is
+# executable only in its own session or the next one. Anything older needs a new review.
+# Attempts are capped because a packet that keeps failing its band would otherwise burn
+# one execution session on every tick of the market-hours schedule.
+MAX_ATTEMPTS_PER_INTENT = 3
+MIN_RETRY_INTERVAL = timedelta(minutes=15)
 
 
 class ExecutionReport(BaseModel):
@@ -50,6 +56,11 @@ class ExecutionReport(BaseModel):
     notes: str = Field(default="", max_length=2000)
 
 
+def session_boundary(now: datetime) -> datetime | None:
+    """Close of the last completed session: intents older than this are stale."""
+    return session_close(completed_session(now))
+
+
 def pending_live_intents(
     conn: sqlite3.Connection, profile: ExecutionProfile, *, now: datetime
 ) -> list[OrderIntent]:
@@ -63,7 +74,25 @@ def pending_live_intents(
         (profile.execution_profile_id,),
     ).fetchall()
     intents = [OrderIntent.model_validate_json(row[0]) for row in rows]
-    return [intent for intent in intents if now - intent.created_at <= MAX_INTENT_AGE]
+    boundary = session_boundary(now)
+    return [intent for intent in intents if boundary is None or intent.created_at >= boundary]
+
+
+def attempt_history(ledger: Path, since: datetime | None) -> dict[str, tuple[int, datetime]]:
+    if not ledger.is_file():
+        return {}
+    seen: dict[str, list[datetime]] = {}
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+            attempted_at = datetime.fromisoformat(row["attempted_at"])
+        except (ValueError, KeyError, TypeError):
+            continue
+        if since is None or attempted_at >= since:
+            seen.setdefault(str(row.get("order_intent_id", "")), []).append(attempted_at)
+    return {key: (len(values), max(values)) for key, values in seen.items()}
 
 
 def execution_prompt(intent: OrderIntent, profile: ExecutionProfile) -> str:
@@ -135,13 +164,24 @@ def execute_pending(
         intents = pending_live_intents(conn, profile, now=started)[:max_intents]
     results: list[dict[str, Any]] = []
     log_dir.mkdir(parents=True, exist_ok=True)
+    ledger_path = log_dir / "executions.jsonl"
+    history = attempt_history(ledger_path, session_boundary(started))
     for intent in intents:
+        attempts, last_attempt = history.get(intent.order_intent_id, (0, None))
+        if attempts >= MAX_ATTEMPTS_PER_INTENT:
+            results.append(
+                {"order_intent_id": intent.order_intent_id, "skipped": "attempt_cap_reached"}
+            )
+            continue
+        if last_attempt is not None and started - last_attempt < MIN_RETRY_INTERVAL:
+            results.append({"order_intent_id": intent.order_intent_id, "skipped": "retry_backoff"})
+            continue
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
         result: dict[str, Any] = {
             "order_intent_id": intent.order_intent_id,
             "ticker": intent.ticker,
             "side": intent.side.value,
-            "started_at": stamp,
+            "attempted_at": started.isoformat(),
         }
         try:
             report = session(
@@ -169,7 +209,7 @@ def execute_pending(
                 result["problems"] = [
                     "session_failed_after_submission" if row else "session_failed"
                 ]
-        with (log_dir / "executions.jsonl").open("a", encoding="utf-8") as ledger:
+        with ledger_path.open("a", encoding="utf-8") as ledger:
             ledger.write(json.dumps(result) + "\n")
         results.append(result)
     return results

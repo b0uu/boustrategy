@@ -1152,47 +1152,55 @@ def operations(
         )
 
     status = payload["schedule"]
-    schedule = status["schedule"]
-    if schedule is None:
-        schedule_html = (
-            "<p class='empty'>none yet · configure a schedule revision with the runtime CLI</p>"
-        )
-    else:
+    panels = []
+    for entry in status["schedules"]:
+        schedule = entry["schedule"]
         state = "paused" if schedule["paused"] else "enabled" if schedule["enabled"] else "disabled"
         toggle = action_form(
             "/operations/schedule",
             csrf_token,
             {
-                "schedule_id": status["schedule_id"],
+                "schedule_id": entry["schedule_id"],
                 "action": "resume" if schedule["paused"] else "pause",
             },
             "Resume claims" if schedule["paused"] else "Pause claims",
             secondary=not schedule["paused"],
         )
-        reconcile = action_form(
-            "/operations/schedule",
-            csrf_token,
-            {"schedule_id": status["schedule_id"], "action": "reconcile"},
-            "Reconcile leases",
-            secondary=True,
-        )
         preview = (
             "".join(
                 f"<div class='compact-row'><span>{escape(item['session_date'])}</span>"
                 f"<span class='mono'>{escape(item['due_at'])}</span>{status_badge(item['status'])}</div>"
-                for item in status["preview"]
+                for item in entry["preview"]
             )
             or "<p class='empty'>none planned inside calendar coverage</p>"
         )
-        schedule_html = (
-            f"<div class='split'><strong class='mono'>{escape(status['schedule_id'])} · revision {schedule['revision']}</strong>"
+        panels.append(
+            "<div class='panel'>"
+            f"<div class='split'><strong class='mono'>{escape(entry['schedule_id'])} · revision {schedule['revision']}</strong>"
             f"{status_badge(state)}</div>"
-            f"<p class='quiet' style='margin-top:6px'>{escape(schedule['mode'])} · {escape(schedule['schedule_mode'])} · due {escape(str(schedule['due_local']))} "
-            f"(half-day {escape(str(schedule['early_close_due_local']))}) · grace {schedule['grace_seconds']}s · configured {escape(str(schedule['configured_at']))}</p>"
-            f"<div class='controls' style='margin:12px 0'>{toggle}{reconcile}</div>"
-            "<div class='section-label'>Planned occurrences</div>"
-            f"<div class='compact-list'>{preview}</div>"
-            "<p class='quiet' style='margin-top:8px'>Planned, not observed. A countdown needs an enabled host task and a fresh worker observation.</p>"
+            f"<p class='quiet' style='margin-top:6px'>{escape(schedule['mode'])} · slot {escape(str(schedule['slot']))}"
+            f" · due {escape(str(schedule['due_local']))} ET (half-day "
+            f"{escape(str(schedule['early_close_due_local']))}) · grace {schedule['grace_seconds']}s</p>"
+            f"<div class='controls' style='margin:12px 0'>{toggle}</div>"
+            f"<div class='compact-list'>{preview}</div></div>"
+        )
+    if panels:
+        reconcile = action_form(
+            "/operations/schedule",
+            csrf_token,
+            {"schedule_id": status["schedules"][0]["schedule_id"], "action": "reconcile"},
+            "Reconcile leases",
+            secondary=True,
+        )
+        schedule_html = "".join(panels) + (
+            f"<div class='panel'>{reconcile}<p class='quiet' style='margin-top:8px'>Planned, not "
+            "observed. A countdown needs an enabled host task and a fresh worker observation. "
+            "Pausing any live schedule stops new claims on the whole account, not just that "
+            "slot.</p></div>"
+        )
+    else:
+        schedule_html = (
+            "<p class='empty'>none yet · configure a schedule revision with the runtime CLI</p>"
         )
 
     attempts = status["attempts"]
@@ -1269,7 +1277,7 @@ def operations(
         + "<div class='operator-grid'><section>"
         + health_html
         + f"<section class='section'><div class='section-label'>Scheduled tasks</div>{tasks_html}</section>"
-        f"<section class='section'><div class='section-label'>Review schedule</div><div class='panel'>{schedule_html}</div></section>"
+        f"<section class='section'><div class='section-label'>Review schedules</div>{schedule_html}</section>"
         f"<section class='section'><div class='section-label'>Occurrences</div>{table(status['occurrences'])}</section>"
         f"<section class='section'><div class='section-label'>Authoring attempts</div>{attempts_html}</section>"
         f"<section class='section'><div class='section-label'>Active leases</div>{table(status['leases'])}</section>"

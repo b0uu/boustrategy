@@ -29,6 +29,7 @@ def valid_decision_record_data() -> dict[str, Any]:
         "exit_conditions": ["Thesis is invalidated."],
         "proposed_target_weight": 0.12,
         "final_target_weight": 0.12,
+        "entry_price_max": 210.0,
         "source_claims": [
             {
                 "claim": "Company demand is linked to AI infrastructure spending.",
