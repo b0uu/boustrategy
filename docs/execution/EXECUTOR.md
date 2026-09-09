@@ -19,7 +19,10 @@ rebuild it from a new broker preflight quote. Never extend an existing packet's 
 For one packet, follow this order:
 
 1. Confirm the packet's `agent_provider` matches this worker and its account alias identifies the
-   dedicated Robinhood Agentic account connected to this worker. Stop on any mismatch.
+   dedicated Robinhood Agentic account connected to this worker. The broker grant may expose
+   several accounts, including personal ones; compute the SHA-256 fingerprint of each candidate
+   account identifier and use only the account whose first 16 hex characters equal the packet's
+   `broker_account_fingerprint`. Stop on any mismatch.
 2. Confirm the packet has not expired. Never place from an expired packet. Refresh broker state
    and build a new packet instead.
 3. Use Robinhood's account, position, quote, and tradability tools to verify that the packet still

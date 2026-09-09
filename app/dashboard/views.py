@@ -784,7 +784,8 @@ def live_reasoning_prompt(profile: dict[str, Any], shared: dict[str, Any]) -> st
         "on the other profile. Immediately before submitting a decision, capture and save a fresh "
         "snapshot for this same profile and pass its ID as --portfolio-snapshot. Submit every "
         "decision through the live run boundary, then complete the run with a public summary, "
-        "including when the result is no action."
+        "including when the result is no action. The broker grant exposes several accounts; read "
+        "only the account whose fingerprint matches this profile and never touch the others."
     )
 
 
@@ -793,7 +794,8 @@ def live_execution_prompt(execution_profile_id: str, execution_packet_id: str) -
         f"Follow docs/execution/EXECUTOR.md for exactly one packet {execution_packet_id} assigned "
         f"to execution profile {execution_profile_id}. Verify and reconcile only that current "
         "packet. Don't research, resize, substitute accounts, or continue to another packet. "
-        "Stop after one reconciled packet."
+        "The broker grant exposes several accounts; act only on the account whose fingerprint "
+        "matches the packet and stop on any mismatch. Stop after one reconciled packet."
     )
 
 
