@@ -50,11 +50,11 @@ class AccountObservation(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     broker_account_fingerprint: str = Field(pattern=r"^[a-f0-9]{16}$")
-    account_number_last4: str = Field(max_length=4)
+    account_number_last4: str | None = Field(default=None, max_length=4)
     account_equity: float = Field(gt=0.0)
     buying_power: float = Field(ge=0.0)
     positions: list[ObservedPosition] = Field(default_factory=list, max_length=50)
-    broker_reported_at: str = Field(default="", max_length=64)
+    broker_reported_at: str | None = Field(default=None, max_length=64)
 
 
 class QuoteObservation(BaseModel):
