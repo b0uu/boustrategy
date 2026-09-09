@@ -13,4 +13,5 @@ data/
 .env
 ops/digester.local.psd1
 ops/live.local.json
+ops/runtime.schedule.local.json
 .claude/settings.local.json

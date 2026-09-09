@@ -1,0 +1,24 @@
+# Template config.toml for the bot's dedicated Codex home
+# (default C:\Users\Administrator\.codex-boustrategy\config.toml).
+#
+# Authoring runs launched by app.reason.runtime pass --ignore-user-config,
+# so this file only shapes the digester sessions and any manual execution
+# session you start with CODEX_HOME pointed here.
+
+model = "gpt-5.6-luna"
+model_reasoning_effort = "low"
+
+[windows]
+sandbox = "elevated"
+
+[sandbox_workspace_write]
+# The digester's shell commands call the X API and download media.
+network_access = true
+
+[projects.'c:\users\administrator\documents\projects\boustrategy']
+trust_level = "trusted"
+
+# Registered here so execution-only sessions can reach the broker. The
+# digester wrapper disables it per invocation; authoring never loads it.
+[mcp_servers.robinhood-trading]
+url = "https://agent.robinhood.com/mcp/trading"

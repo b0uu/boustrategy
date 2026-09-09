@@ -1,8 +1,8 @@
 # Launches a single headless X-pipeline digester (or weekly) session for
-# Windows Task Scheduler. Scoped to the permission allowlist in
-# ops\headless-digester-settings.json (see plan 019's ops note) -- this
-# session never has a human to answer a permission prompt, so anything not
-# on that allowlist fails closed instead of hanging.
+# Windows Task Scheduler through the bot's own Codex identity. The session
+# never has a human to answer a prompt, so it runs with approvals disabled
+# inside Codex's workspace-write sandbox (network on, Robinhood MCP off) and
+# is judged only by the deterministic `verify` check afterwards.
 
 param(
     [Parameter(Mandatory = $true)]
@@ -11,23 +11,30 @@ param(
 )
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
-$ClaudeExe = "C:\Users\Administrator\AppData\Roaming\npm\claude.cmd"
-$SettingsFile = Join-Path $RepoRoot "ops\headless-digester-settings.json"
 $LocalConfigFile = Join-Path $RepoRoot "ops\digester.local.psd1"
-# Encodes model + rubric version so x_route_decisions predictors stay
-# analyzable across upgrades (plan 019's maintenance note).
-$PredictorName = "claude-fable5-rubric1"
 
 $LogDir = Join-Path $RepoRoot "data\logs\digester"
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $Timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 $LogFile = Join-Path $LogDir "$Slot-$Timestamp.log"
+$LastMessageFile = Join-Path $LogDir "$Slot-$Timestamp.last-message.txt"
 
 $DiscordWebhookUrl = ""
+$CodexExe = "codex"
+$CodexHome = Join-Path $HOME ".codex-boustrategy"
+$DigestModel = "gpt-5.6-luna"
+$DigestReasoningEffort = "low"
 if (Test-Path -LiteralPath $LocalConfigFile) {
     $LocalConfig = Import-PowerShellDataFile -LiteralPath $LocalConfigFile
-    $DiscordWebhookUrl = [string]$LocalConfig.DiscordWebhookUrl
+    if ($LocalConfig.DiscordWebhookUrl) { $DiscordWebhookUrl = [string]$LocalConfig.DiscordWebhookUrl }
+    if ($LocalConfig.CodexExe) { $CodexExe = [string]$LocalConfig.CodexExe }
+    if ($LocalConfig.CodexHome) { $CodexHome = [string]$LocalConfig.CodexHome }
+    if ($LocalConfig.DigestModel) { $DigestModel = [string]$LocalConfig.DigestModel }
+    if ($LocalConfig.DigestReasoningEffort) { $DigestReasoningEffort = [string]$LocalConfig.DigestReasoningEffort }
 }
+# Encodes model + rubric version so x_route_decisions predictors stay
+# analyzable across upgrades (plan 019's maintenance note).
+$PredictorName = "codex-$($DigestModel -replace '[^a-z0-9]', '')-rubric2"
 
 function Send-DiscordNotification {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -52,18 +59,32 @@ $Runbook = if ($Slot -eq "weekly") { "docs/x_pipeline/WEEKLY.md" } else { "docs/
 $Prompt = @"
 You are an unattended, non-interactive session launched by Windows Task Scheduler. No human will respond to prompts or approve actions this turn.
 
-Follow $Runbook exactly for slot=$Slot. Use predictor/session name '$PredictorName' wherever the runbook calls for one (e.g. the route --predictor argument).
+Follow $Runbook exactly for slot=$Slot. Use predictor/session name '$PredictorName' wherever the runbook calls for one (e.g. the route --predictor argument). Run repository commands with the `python` on PATH from the repository root.
 
 If the runbook's first step reports a calendar no-op, stop immediately -- that is a normal, expected outcome, not an error.
+
+The rubric requires judging images. To view one, download the media URL into a `media` folder inside the run's export directory and open the downloaded file with your image viewing tool. Never skip a post because its substance is in an image.
+
+Hard limits for this session: write only under data/. Never run git. Never edit docs/, app/, ops/, plans/, or the roster. Never use a broker or trading tool. Never continue into investment reasoning.
 
 Do not ask the user any questions, do not wait for confirmation, and do not attempt anything outside the runbook's steps. Complete every applicable step or stop and clearly state what blocked you.
 "@
 
 Set-Location $RepoRoot
-"=== $Timestamp slot=$Slot ===" | Out-File -FilePath $LogFile -Encoding utf8
+"=== $Timestamp slot=$Slot model=$DigestModel predictor=$PredictorName ===" | Out-File -FilePath $LogFile -Encoding utf8
 
+$env:CODEX_HOME = $CodexHome
 $SessionOutput = @(
-    $Prompt | & $ClaudeExe -p --settings $SettingsFile 2>&1
+    $Prompt | & $CodexExe exec `
+        --sandbox workspace-write `
+        -C $RepoRoot `
+        -m $DigestModel `
+        -c "model_reasoning_effort=$DigestReasoningEffort" `
+        -c "sandbox_workspace_write.network_access=true" `
+        -c "mcp_servers.robinhood-trading.enabled=false" `
+        --color never `
+        --output-last-message $LastMessageFile `
+        - 2>&1
 )
 $ExitCode = $LASTEXITCODE
 $SessionOutput | Out-File -FilePath $LogFile -Append -Encoding utf8

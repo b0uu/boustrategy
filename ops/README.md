@@ -1,132 +1,140 @@
-# Scheduled digester operations
+# Scheduled operations
 
 Public dashboard publication, serving, read-only smoke, and recovery are documented separately in
-[`docs/public-release.md`](../docs/public-release.md). Those steps don't enable these digester tasks.
+[`docs/public-release.md`](../docs/public-release.md). Those steps don't enable any task here.
 
-## Current status: intentionally disabled
+## Current status: paper automation being activated
 
-As verified read-only on September 8, 2026, all five `boustrategy-digester-*` tasks are disabled. BouStrategy is in a
-manual operating phase while ingestion, reasoning, paper execution, and evaluation are refined.
-This prevents unattended API spending and makes each run easy to inspect.
-
-The planned promotion order is:
-
-1. Run and review the complete paper process manually.
-2. Use the implemented dashboards to inspect inputs, decisions, policy results, positions, and errors.
-3. Re-enable unattended ingestion and reasoning in paper mode.
-4. Consider live execution only after unattended paper operation has produced enough evidence for
-   a separate human activation decision.
-
-The task definitions haven't been deleted. The instructions below are retained for the later
-automation phase and shouldn't be run during manual development unless the operating decision is
-explicitly changed.
-
-The task installer creates or replaces five Windows Task Scheduler entries. Each entry launches
-`run-digester-session.ps1`, which starts a restricted Claude session, follows the X pipeline
-runbook, writes a local log, and verifies that the expected database run actually completed.
-
-## Optional Discord notifications
-
-1. Create a webhook in the Discord channel's **Edit Channel > Integrations > Webhooks** screen.
-2. Copy `ops/digester.local.example.psd1` to `ops/digester.local.psd1`.
-3. Replace `REPLACE_ME` with the webhook URL. Never put the real URL in the example file.
-4. Test it from the repository root without printing the secret:
-
-   ```powershell
-   $config = Import-PowerShellDataFile .\ops\digester.local.psd1
-   $body = @{ content = "BouStrategy Discord notification test" } | ConvertTo-Json -Compress
-   Invoke-RestMethod -Uri $config.DiscordWebhookUrl -Method Post -ContentType "application/json" -Body $body
-   ```
-
-The local config is gitignored. Scheduled runs send a short message after a real completion or a
-failure. Calendar no-ops don't notify. A detected X budget warning is included in the completion
-message. Tweet content, prompts, credentials, and stack traces aren't sent to Discord.
-
-Treat the webhook URL as a password. Anyone who has it can post into the channel. If it appears in
-a commit, terminal transcript, screenshot, or public message, delete the webhook in Discord and
-create a new one.
-
-## Install or refresh the scheduled tasks
-
-1. Finish editing the approved `- @handle` lines in `docs/x_manual/README.md`.
-2. From the repository root, reconcile the edited roster into SQLite:
-
-   ```powershell
-   python -m app.x.run seed
-   python -m app.x.run status
-   ```
-
-3. Open PowerShell as Administrator. Task registration usually needs elevation.
-4. Move to the repository:
-
-   ```powershell
-   Set-Location C:\Users\Administrator\Documents\projects\boustrategy
-   ```
-
-5. Repair Claude authentication for this Windows account. The unattended task currently requires
-   a long-lived Claude subscription token:
-
-   ```powershell
-   & C:\Users\Administrator\AppData\Roaming\npm\claude.cmd setup-token
-   ```
-
-   Follow the interactive login instructions. Keep the resulting credential in Claude's own
-   credential store; don't paste it into this repository or the Discord config. Then verify
-   non-interactive authentication:
-
-   ```powershell
-   "Reply with AUTH_OK only." |
-       & C:\Users\Administrator\AppData\Roaming\npm\claude.cmd -p --tools ""
-   ```
-
-6. Confirm the scheduled account can find the required programs and user-level X token:
-
-   ```powershell
-   Get-Command python
-   Test-Path C:\Users\Administrator\AppData\Roaming\npm\claude.cmd
-   [bool][Environment]::GetEnvironmentVariable("X_BEARER_TOKEN", "User")
-   ```
-
-   The last command should print `True` and never prints the token itself.
-
-7. Register the tasks:
-
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\install-digester-tasks.ps1
-   ```
-
-   Registration replaces tasks with the same names and leaves them disabled by default.
-   The explicit `-Enable` switch permits activation after the separate operating decision.
-   Re-registering without that switch also disables previously enabled definitions.
-
-8. Verify the task definitions:
-
-   ```powershell
-   Get-ScheduledTask -TaskName "boustrategy-digester-*" |
-       Select-Object TaskName, State
-
-   Get-ScheduledTask -TaskName "boustrategy-digester-*" |
-       Get-ScheduledTaskInfo |
-       Select-Object TaskName, LastRunTime, LastTaskResult, NextRunTime
-   ```
-
-9. Open **Task Scheduler > Task Scheduler Library** and inspect the five `boustrategy-digester-*`
-   tasks. The script enables `StartWhenAvailable`, wake-to-run, battery operation, a 30-minute
-   limit, and one instance at a time.
-
-10. If the server may log out or reboot, open each task's **Properties > General**, choose **Run
-   whether user is logged on or not**, and enter the Windows password when prompted. Don't switch
-   to another account unless that account also has Claude authenticated, the repository and
-   Python available, and `X_BEARER_TOKEN` configured. Don't select **Do not store password** because
-   the task needs network access.
-
-11. After the next run, inspect `data/logs/digester/` and confirm the log ends with both a verified
-    database status and `exit code: 0`. A Discord success message is useful observability, but the
-    database verification remains the source of truth.
-
-
-Investment authoring now has a persisted runtime and CLI, described in
-[`docs/reasoning/RUNTIME.md`](../docs/reasoning/RUNTIME.md). It consumes completed intake;
-the digester does not launch investment reasoning. No runtime task was installed by Plan 031.
-The final control and activation recommendation is in
+As of September 8, 2026 the maintainer decided to run every unattended agent session through a
+dedicated Codex identity: a cheaper model for the high-volume X digests and a stronger model for
+the one-off investment reviews. Task Scheduler stays the host trigger for now. Live execution
+remains manual; see the staged activation recommendation in
 [`docs/execution-assessment.md`](../docs/execution-assessment.md).
+
+Eight tasks exist across two installers:
+
+| Installer | Tasks | Trigger (ET, weekdays unless noted) | Worker |
+| --- | --- | --- | --- |
+| `install-digester-tasks.ps1` | `boustrategy-digester-morning`, `-midday`, `-close-halfday`, `-close`, `-weekly` | 08:45, 12:30, 14:45, 17:45, Sunday 18:00 | `run-digester-session.ps1`: headless Codex follows the X runbook, then `app.x.run verify` checks SQLite |
+| `install-runtime-tasks.ps1` | `boustrategy-review-prepare`, `-prepare-halfday` | 18:10, 15:10 | `run-paper-prepare.ps1`: deterministic `app.reason.run prepare`, no model |
+| `install-runtime-tasks.ps1` | `boustrategy-review-poller` | every minute 18:15 to 18:45 and 15:15 to 15:45 | `run-review-poller.ps1`: `app.reason.runtime scheduled`, which launches Codex at most once per due occurrence |
+
+The 14:45 and 15:xx triggers only do real work on NYSE half-days; every worker is calendar-aware
+and no-ops otherwise. Both installers leave tasks disabled unless given `-Enable`, and
+re-registering without that switch disables previously enabled definitions.
+
+## One-time setup
+
+### 1. The bot's Codex identity
+
+Install the CLI so it is on PATH for scheduled tasks, then create a separate Codex home for the
+account that will run unattended. Your personal `~/.codex` and VS Code Codex stay untouched.
+
+```powershell
+npm i -g @openai/codex
+codex --version
+$env:CODEX_HOME = "C:\Users\Administrator\.codex-boustrategy"
+New-Item -ItemType Directory -Force $env:CODEX_HOME | Out-Null
+Copy-Item .\ops\codex-home.example.toml "$env:CODEX_HOME\config.toml"
+codex login
+codex mcp login robinhood-trading
+```
+
+Log in with the bot's ChatGPT account. The Robinhood grant is stored per Codex home, so the
+second login authorizes this identity against the Robinhood Agentic account. Run one interactive
+`codex` session from the repository afterwards so the Windows sandbox finishes its first-run
+setup with a human present. Then verify without spending much:
+
+```powershell
+"Reply with AUTH_OK only." | codex exec --sandbox read-only -m gpt-5.6-luna -
+codex exec --sandbox read-only "Using only robinhood-trading tools, report account equity and buying power as JSON. Place no orders."
+```
+
+Never set `CODEX_HOME` as a user-wide variable; every wrapper sets it per process.
+
+### 2. Local configuration
+
+Copy `ops/digester.local.example.psd1` to `ops/digester.local.psd1` and fill in the Discord
+webhook, the Codex home, and the two model IDs. The file is gitignored and read by every wrapper.
+Treat the webhook URL as a password; if it leaks, delete the webhook in Discord and create a new
+one. Notifications never include post content, prompts, credentials, or stack traces.
+
+Test the webhook without printing the secret:
+
+```powershell
+$config = Import-PowerShellDataFile .\ops\digester.local.psd1
+$body = @{ content = "BouStrategy Discord notification test" } | ConvertTo-Json -Compress
+Invoke-RestMethod -Uri $config.DiscordWebhookUrl -Method Post -ContentType "application/json" -Body $body
+```
+
+### 3. Host checks
+
+```powershell
+Get-Command python, codex
+[bool][Environment]::GetEnvironmentVariable("X_BEARER_TOKEN", "User")
+python -m app.x.run seed
+python -m app.x.run status
+```
+
+The `python` on PATH must import the project with its dependencies, since the tasks don't
+activate a virtual environment. Back up `data\boustrategy.db` before enabling anything.
+
+### 4. Paper schedule revision
+
+The runtime only claims occurrences for an enabled `scheduled` revision. Copy
+`ops/runtime.schedule.example.json` to `ops/runtime.schedule.local.json` (gitignored), set
+`enabled` to `true`, `schedule_mode` to `"scheduled"`, and a current `configured_at`, then:
+
+```powershell
+python -m app.reason.runtime --db data/boustrategy.db configure --in ops/runtime.schedule.local.json
+python -m app.reason.runtime --db data/boustrategy.db preview --schedule paper-close
+```
+
+Every later change is a new file with `revision` incremented by one. `pause` and `resume` exist
+for short stops without a new revision.
+
+## Register the tasks
+
+Open PowerShell as Administrator from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\install-digester-tasks.ps1 -Enable
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\install-runtime-tasks.ps1 -Enable
+Get-ScheduledTask -TaskName "boustrategy-*" | Select-Object TaskName, State
+```
+
+Then in **Task Scheduler > Task Scheduler Library**, open each `boustrategy-*` task's
+**Properties > General**, choose **Run whether user is logged on or not**, and enter the Windows
+password. Don't select **Do not store password**; the tasks need network access. Don't switch the
+task account unless that account also has the Codex home, the repository, Python, and
+`X_BEARER_TOKEN`.
+
+Recommended order: enable the five digester tasks first and watch two or three days of
+`data\logs\digester\`. A healthy log ends with a verified database status and `exit code: 0`.
+Enable the review tasks once digests land reliably.
+
+## What to watch
+
+- `data\logs\digester\<slot>-<timestamp>.log`: session output, then the verify line.
+- `data\logs\runtime\prepare-*.log`: the preparation receipt path or the reason it refused.
+- `data\logs\runtime\poller-<schedule>-<date>.log`: one block per minute. `waiting` with
+  `dependency_missing` means the digest or receipt isn't there yet; `skipped` after the grace
+  window means the day was missed and won't be replayed.
+- `data\runtime-logs\`: bounded Codex event logs per attempt.
+- The private dashboard (`start-boustrategy.cmd`) for decisions, policy outcomes, and fills.
+
+Discord receives digester completions and failures, prepare results, and poller ticks that
+claimed or refused an actual run. Calendar no-ops and idle ticks stay in the logs.
+
+## Recovery
+
+- A failed digester run can be rerun by starting its task manually; `cycle` resumes a failed
+  run and refuses to duplicate a completed one.
+- A failed attempt is retried explicitly with `python -m app.reason.runtime retry --run <id>`,
+  never by the poller.
+- `python -m app.reason.runtime reconcile` marks attempts whose lease expired without completion.
+- Registering either installer without `-Enable` disables its tasks; `pause` stops new claims
+  while an active attempt finishes.
+
+The persisted runtime is documented in [`docs/reasoning/RUNTIME.md`](../docs/reasoning/RUNTIME.md).
+The digester never launches investment reasoning; the poller never reads X or touches a broker.
