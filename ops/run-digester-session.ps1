@@ -7,7 +7,11 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("morning", "midday", "close", "weekly")]
-    [string]$Slot
+    [string]$Slot,
+    # The 14:45 trigger exists for NYSE half-days only. The pipeline's calendar
+    # check accepts the close slot at any time of day, so the wrapper must gate
+    # on the half-day itself or it would fetch the close digest three hours early.
+    [switch]$HalfDayOnly
 )
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
@@ -72,6 +76,14 @@ Do not ask the user any questions, do not wait for confirmation, and do not atte
 
 Set-Location $RepoRoot
 "=== $Timestamp slot=$Slot model=$DigestModel predictor=$PredictorName ===" | Out-File -FilePath $LogFile -Encoding utf8
+
+if ($HalfDayOnly) {
+    $SessionKind = & python -c "from datetime import datetime; from zoneinfo import ZoneInfo; from app.x.calendar import run_slots; s = run_slots(datetime.now(ZoneInfo('America/New_York')).date()); print('half' if len(s) == 2 else 'other')"
+    if ($SessionKind.Trim() -ne "half") {
+        "not a half-day session: calendar no-op" | Out-File -FilePath $LogFile -Append -Encoding utf8
+        exit 0
+    }
+}
 
 $env:CODEX_HOME = $CodexHome
 $SessionOutput = @(

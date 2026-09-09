@@ -25,10 +25,12 @@ function New-DigesterTask {
     param(
         [string]$Name,
         [string]$Slot,
-        [Microsoft.Management.Infrastructure.CimInstance]$Trigger
+        [Microsoft.Management.Infrastructure.CimInstance]$Trigger,
+        [switch]$HalfDayOnly
     )
+    $Extra = if ($HalfDayOnly) { " -HalfDayOnly" } else { "" }
     $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -Slot $Slot" `
+        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`" -Slot $Slot$Extra" `
         -WorkingDirectory $RepoRoot
     $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
         -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
@@ -49,7 +51,7 @@ New-DigesterTask -Name "boustrategy-digester-morning" -Slot "morning" `
 New-DigesterTask -Name "boustrategy-digester-midday" -Slot "midday" `
     -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:30)
 
-New-DigesterTask -Name "boustrategy-digester-close-halfday" -Slot "close" `
+New-DigesterTask -Name "boustrategy-digester-close-halfday" -Slot "close" -HalfDayOnly `
     -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 14:45)
 
 New-DigesterTask -Name "boustrategy-digester-close" -Slot "close" `
