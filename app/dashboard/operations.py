@@ -13,13 +13,15 @@ import sqlite3
 import subprocess
 import sys
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from app.dashboard.queries import selected_rows, table_exists
 from app.storage.runtime import expire, finish, get_attempt, get_run, immediate
 from app.storage.schedules import latest_schedule, planned_preview, save_schedule
+from app.x.calendar import NEW_YORK, run_slots
+from app.x.posts import MAX_MONTHLY_POST_READS, POST_READ_WARNING_THRESHOLD, reads_remaining
 
 TASK_NAME = re.compile(r"^boustrategy-[a-z0-9-]{1,80}$")
 TASK_COMMANDS = {
@@ -326,3 +328,146 @@ def log_tails(logs_dir: Path, *, files_per_kind: int = 3, lines: int = 25) -> li
                 }
             )
     return tails
+
+
+_DIGEST_DONE = {"digested", "routed"}
+_GRACE = timedelta(minutes=30)
+# Task Scheduler result codes that don't mean the last run failed.
+_NEUTRAL_TASK_RESULTS = {0, 267009, 267011, 267014}
+
+
+def pipeline_health(
+    conn: sqlite3.Connection,
+    now: datetime,
+    tasks: list[dict[str, Any]] | None,
+    *,
+    digest_dir: Path,
+    reason_dir: Path,
+) -> dict[str, Any]:
+    """One-glance answer to "is today running smoothly?", derived only from recorded facts."""
+    local = now.astimezone(NEW_YORK)
+    today = local.date()
+    day = today.isoformat()
+    task_state = {task["name"]: task for task in tasks or []}
+    items: list[dict[str, str]] = []
+
+    def add(item: str, status: str, detail: str) -> None:
+        items.append({"item": item, "status": status, "detail": detail})
+
+    runs: dict[str, str] = {}
+    if table_exists(conn, "x_runs"):
+        runs = dict(
+            conn.execute(
+                "SELECT run_id, status FROM x_runs WHERE run_id LIKE ?", (f"{day}-%",)
+            ).fetchall()
+        )
+    slots = run_slots(today)
+    for slot, due_time in slots:
+        due = datetime.combine(today, due_time)
+        run_id = f"{day}-{slot}"
+        status = runs.get(run_id)
+        task = task_state.get(f"boustrategy-digester-{slot}")
+        if status in _DIGEST_DONE:
+            add(f"{slot} digest", "done", f"{run_id} {status}")
+        elif task and task["state"].casefold() == "running":
+            add(f"{slot} digest", "running", f"{run_id} in progress")
+        elif tasks is not None and task and task["state"].casefold() == "disabled":
+            add(f"{slot} digest", "disabled", f"task disabled · due {due:%H:%M} ET")
+        elif now < due:
+            add(f"{slot} digest", "scheduled", f"due {due:%H:%M} ET")
+        elif status == "failed" or now > due + _GRACE:
+            add(
+                f"{slot} digest",
+                "failed",
+                f"{run_id} status {status or 'missing'} after {due:%H:%M} ET; check the log",
+            )
+        else:
+            add(f"{slot} digest", "pending", f"{run_id} status {status or 'missing'}, inside grace")
+    if not slots:
+        add("digests", "done", "no session today")
+
+    if any(runs.get(f"{day}-{slot}") in _DIGEST_DONE for slot, _ in slots):
+        digest_file = digest_dir / f"{day}.md"
+        add(
+            "digest file",
+            "done" if digest_file.is_file() else "failed",
+            digest_file.name if digest_file.is_file() else f"{digest_file.name} not rendered",
+        )
+
+    review_tasks = [
+        task for name, task in task_state.items() if name.startswith("boustrategy-review-")
+    ]
+    review_enabled = any(task["state"].casefold() != "disabled" for task in review_tasks)
+    if not review_enabled:
+        add(
+            "review chain",
+            "disabled",
+            "paper review tasks are off; enable them once digests are stable",
+        )
+    elif slots:
+        receipt = reason_dir / day / "preparation.json"
+        prepare_due = datetime.combine(today, slots[-1][1]) + timedelta(minutes=25)
+        if receipt.is_file():
+            add("preparation receipt", "done", str(receipt.relative_to(reason_dir.parent)))
+        elif now < prepare_due:
+            add("preparation receipt", "scheduled", f"expected after {prepare_due:%H:%M} ET")
+        else:
+            add(
+                "preparation receipt", "failed", "missing after the close digest; check prepare log"
+            )
+        if table_exists(conn, "schedule_occurrences"):
+            occurrence = conn.execute(
+                "SELECT status, reason FROM schedule_occurrences WHERE session_date=? "
+                "ORDER BY due_at DESC LIMIT 1",
+                (day,),
+            ).fetchone()
+            if occurrence:
+                add("review occurrence", str(occurrence[0]), str(occurrence[1] or ""))
+        if table_exists(conn, "runtime_attempts") and table_exists(conn, "runtime_runs"):
+            attempt = conn.execute(
+                "SELECT a.status, a.stage, a.reason FROM runtime_attempts a "
+                "JOIN runtime_runs r ON r.run_id=a.run_id WHERE r.session_date=? "
+                "ORDER BY a.started_at DESC LIMIT 1",
+                (day,),
+            ).fetchone()
+            if attempt:
+                add("review attempt", str(attempt[0]), f"{attempt[1]} {attempt[2] or ''}".strip())
+
+    if table_exists(conn, "x_post_reads"):
+        remaining = reads_remaining(conn)
+        used = MAX_MONTHLY_POST_READS - remaining
+        add(
+            "X read budget",
+            "failed"
+            if remaining <= 0
+            else "pending"
+            if used >= POST_READ_WARNING_THRESHOLD
+            else "done",
+            f"{remaining:,} reads left this month",
+        )
+
+    for task in tasks or []:
+        last_run = task.get("last_run") or ""
+        if (
+            task["state"].casefold() != "disabled"
+            and task.get("last_result") not in _NEUTRAL_TASK_RESULTS
+            and last_run.startswith(day)
+        ):
+            add(f"task {task['name']}", "failed", f"last result {task['last_result']}")
+    if tasks is None:
+        add("host tasks", "failed", "Task Scheduler couldn't be read")
+
+    statuses = {item["status"] for item in items}
+    overall = (
+        "attention"
+        if statuses & {"failed", "blocked", "timed_out", "expired", "skipped", "not_claimed"}
+        else "in_progress"
+        if statuses & {"running", "pending", "waiting", "claimed"}
+        else "good"
+    )
+    return {
+        "overall": overall,
+        "date": day,
+        "checked_at": local.isoformat(timespec="minutes"),
+        "items": items,
+    }

@@ -3,6 +3,7 @@ import json
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 
@@ -318,3 +319,84 @@ def test_log_tails_return_newest_files_per_kind(tmp_path: Path) -> None:
     assert len(tails) == 2
     assert all(item["kind"] == "digester" for item in tails)
     assert tails[0]["tail"] == "line 37\nline 38\nline 39"
+
+
+def _tasks(**states: str) -> list[dict[str, object]]:
+    return [
+        {
+            "name": name,
+            "state": state,
+            "last_run": None,
+            "last_result": 0,
+            "next_run": None,
+            "logon": "Interactive",
+        }
+        for name, state in states.items()
+    ]
+
+
+def test_pipeline_health_reports_each_slot_against_the_clock(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    conn.execute(
+        "INSERT INTO x_runs (run_id, slot, started_at, status) "
+        "VALUES ('2026-09-09-morning', 'morning', '2026-09-09T12:45:00+00:00', 'digested')"
+    )
+    conn.execute("INSERT INTO x_post_reads (month, post_reads) VALUES ('2026-09', 1099)")
+    conn.commit()
+    (tmp_path / "digests").mkdir()
+    (tmp_path / "digests" / "2026-09-09.md").write_text("# digest\n", encoding="utf-8")
+    tasks = _tasks(
+        **{
+            "boustrategy-digester-morning": "Ready",
+            "boustrategy-digester-midday": "Running",
+            "boustrategy-digester-close": "Ready",
+            "boustrategy-review-poller": "Disabled",
+        }
+    )
+    noon = datetime(2026, 9, 9, 12, 35, tzinfo=ZoneInfo("America/New_York"))
+
+    health = operations.pipeline_health(
+        conn, noon, tasks, digest_dir=tmp_path / "digests", reason_dir=tmp_path / "reason_runs"
+    )
+    by_item = {item["item"]: item for item in health["items"]}
+
+    assert health["overall"] == "in_progress"
+    assert by_item["morning digest"]["status"] == "done"
+    assert by_item["midday digest"]["status"] == "running"
+    assert by_item["close digest"]["status"] == "scheduled"
+    assert by_item["digest file"]["status"] == "done"
+    assert by_item["review chain"]["status"] == "disabled"
+    assert by_item["X read budget"]["status"] == "done"
+    assert "3,901 reads left" in by_item["X read budget"]["detail"]
+
+
+def test_pipeline_health_flags_missed_slot_and_failed_task(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    tasks = _tasks(**{"boustrategy-digester-morning": "Ready"})
+    tasks[0]["last_result"] = 1
+    tasks[0]["last_run"] = "2026-09-09T08:45:45-04:00"
+    late_morning = datetime(2026, 9, 9, 9, 30, tzinfo=ZoneInfo("America/New_York"))
+
+    health = operations.pipeline_health(
+        conn, late_morning, tasks, digest_dir=tmp_path, reason_dir=tmp_path
+    )
+    by_item = {item["item"]: item for item in health["items"]}
+
+    assert health["overall"] == "attention"
+    assert by_item["morning digest"]["status"] == "failed"
+    assert "missing" in by_item["morning digest"]["detail"]
+    assert by_item["task boustrategy-digester-morning"]["status"] == "failed"
+
+
+def test_operations_page_shows_today_health_strip(tmp_path: Path) -> None:
+    client = _client(tmp_path, lambda script: TASKS_JSON)
+
+    text = client.get("/operations").text
+
+    assert "<div class='section-label'>Today</div>" in text
+    assert (
+        "data-status='good'" in text
+        or "data-status='in_progress'" in text
+        or "data-status='attention'" in text
+    )
+    assert "X read budget" in text

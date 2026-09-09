@@ -13,7 +13,9 @@ _STATUS_GOOD = {
     "configured",
     "consumed",
     "decisions_authored",
+    "done",
     "enabled",
+    "good",
     "filled",
     "green",
     "order_intent_created",
@@ -31,6 +33,7 @@ _STATUS_WARN = {
     "claimed",
     "disabled",
     "exported",
+    "in_progress",
     "no_action",
     "partially_filled",
     "paused",
@@ -40,12 +43,14 @@ _STATUS_WARN = {
     "queued",
     "routed",
     "running",
+    "scheduled",
     "started",
     "waiting",
     "watchlist",
     "yellow",
 }
 _STATUS_BAD = {
+    "attention",
     "blocked",
     "canceled",
     "dismissed",
@@ -1241,6 +1246,20 @@ def operations(
         or "<p class='empty'>none yet</p>"
     )
 
+    health = payload["health"]
+    health_rows = "".join(
+        f"<div class='status-row'><span>{escape(item['item'])}<br>"
+        f"<span class='quiet'>{escape(item['detail'])}</span></span>{status_badge(item['status'])}</div>"
+        for item in health["items"]
+    )
+    health_html = (
+        "<section class='section'><div class='section-label'>Today</div><div class='panel'>"
+        f"<div class='split'><strong>{escape(health['date'])} · checked {escape(health['checked_at'])} ET</strong>"
+        f"{status_badge(health['overall'])}</div>"
+        f"<div class='status-list' style='margin-top:10px'>{health_rows}</div>"
+        "<p class='quiet' style='margin-top:8px'>Good means every expected step so far is recorded. "
+        "Attention names the step to look at; its log is in Recent logs below.</p></div></section>"
+    )
     return (
         "<div class='mode-strip'><strong>Operations</strong><span>Host tasks, the bot's agent "
         "identity, the persisted review schedule and its attempts. Every control here is the same "
@@ -1248,7 +1267,8 @@ def operations(
         + (f"<div class='notice'>{escape(notice)}</div>" if notice else "")
         + (f"<div class='error'>{escape(error)}</div>" if error else "")
         + "<div class='operator-grid'><section>"
-        f"<section class='section'><div class='section-label'>Scheduled tasks</div>{tasks_html}</section>"
+        + health_html
+        + f"<section class='section'><div class='section-label'>Scheduled tasks</div>{tasks_html}</section>"
         f"<section class='section'><div class='section-label'>Review schedule</div><div class='panel'>{schedule_html}</div></section>"
         f"<section class='section'><div class='section-label'>Occurrences</div>{table(status['occurrences'])}</section>"
         f"<section class='section'><div class='section-label'>Authoring attempts</div>{attempts_html}</section>"

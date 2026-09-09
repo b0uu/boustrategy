@@ -289,9 +289,13 @@ def create_app(
         config = operations.local_config(local_config_file)
         now = datetime.now(UTC)
         with closing(sqlite3.connect(path)) as conn:
+            tasks = operations.host_tasks(host_runner)
             payload = {
                 "agents": operations.agent_status(config),
-                "tasks": operations.host_tasks(host_runner),
+                "tasks": tasks,
+                "health": operations.pipeline_health(
+                    conn, now, tasks, digest_dir=digest_dir, reason_dir=reason_dir
+                ),
                 "schedule": operations.schedule_status(conn, review_schedule_id, now),
                 "logs": operations.log_tails(logs_dir),
             }
