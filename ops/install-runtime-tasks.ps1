@@ -10,6 +10,9 @@
 # authority on due times; these triggers only make sure a worker is
 # awake to look.
 
+# Same interactive, highest-privilege principal as the digester installer;
+# see the note there about Codex's sandbox runner.
+
 param([switch]$Enable)
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
@@ -32,8 +35,10 @@ function Register-BouTask {
         -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Minutes $TimeLimitMinutes) -MultipleInstances IgnoreNew `
         -Disable:(-not $Enable)
+    $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
+        -LogonType Interactive -RunLevel Highest
     Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Triggers `
-        -Settings $Settings -Description $Description -Force | Out-Null
+        -Settings $Settings -Description $Description -Principal $Principal -Force | Out-Null
     Write-Output "Registered: $Name"
 }
 

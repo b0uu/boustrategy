@@ -11,6 +11,11 @@
 # every-weekday schedule stay correct without special-casing specific
 # dates here.
 
+# Tasks run in the interactive Administrator session with highest privileges.
+# Codex's Windows sandbox runner cannot start under a non-interactive
+# (password/batch) logon: it times out connecting its runner pipe. Keep the
+# server session signed in (disconnect RDP, never sign out).
+
 param([switch]$Enable)
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
@@ -29,8 +34,10 @@ function New-DigesterTask {
         -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
         -ExecutionTimeLimit (New-TimeSpan -Minutes 30) -MultipleInstances IgnoreNew `
         -Disable:(-not $Enable)
+    $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
+        -LogonType Interactive -RunLevel Highest
     Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger `
-        -Settings $Settings -Description "boustrategy X pipeline: $Slot slot (plan 019)" -Force | Out-Null
+        -Settings $Settings -Description "boustrategy X pipeline: $Slot slot (plan 019)" -Principal $Principal -Force | Out-Null
     Write-Output "Registered: $Name"
 }
 

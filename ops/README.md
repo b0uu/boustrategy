@@ -103,11 +103,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\install-runtime-tasks.
 Get-ScheduledTask -TaskName "boustrategy-*" | Select-Object TaskName, State
 ```
 
-Then in **Task Scheduler > Task Scheduler Library**, open each `boustrategy-*` task's
-**Properties > General**, choose **Run whether user is logged on or not**, and enter the Windows
-password. Don't select **Do not store password**; the tasks need network access. Don't switch the
-task account unless that account also has the Codex home, the repository, Python, and
-`X_BEARER_TOKEN`.
+The installers register every task to run in the interactive Administrator session with highest
+privileges. Codex's Windows sandbox runner can't start under a non-interactive password or batch
+logon (it times out connecting its runner pipe, verified September 9, 2026), so **don't** switch
+the tasks to "Run whether user is logged on or not". Keep the server session signed in: disconnect
+RDP rather than signing out, and sign back in after a reboot. Don't switch the task account unless
+that account also has the Codex home, the repository, Python, and `X_BEARER_TOKEN`.
 
 Recommended order: enable the five digester tasks first and watch two or three days of
 `data\logs\digester\`. A healthy log ends with a verified database status and `exit code: 0`.
