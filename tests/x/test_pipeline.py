@@ -9,7 +9,14 @@ import pytest
 from app.storage.database import connect
 from app.x.accounts import Account, upsert_account
 from app.x.client import FetchResult
-from app.x.pipeline import cycle, render_digest, render_weekly, route_predictions, store_note
+from app.x.pipeline import (
+    cycle,
+    download_media,
+    render_digest,
+    render_weekly,
+    route_predictions,
+    store_note,
+)
 from app.x.posts import MediaItem, XPost, insert_new_posts, record_post_reads
 from app.x.run import _cmd_fetch, _cmd_verify
 
@@ -394,3 +401,39 @@ def test_default_digest_path_is_gitignored() -> None:
     )
 
     assert result.returncode == 0
+
+
+def test_download_media_writes_files_and_failure_markers(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    first_post = {
+        "post_id": "1",
+        "media": [
+            {"url": "https://pbs.twimg.com/media/a.jpg", "media_type": "photo"},
+            {"url": "https://pbs.twimg.com/media/b.png?name=large", "media_type": "photo"},
+            {"url": "https://video.twimg.com/clip", "media_type": "video"},
+        ],
+    }
+    (run_dir / "batch_001.jsonl").write_text(
+        json.dumps(first_post) + "\n" + json.dumps({"post_id": "2", "media": []}) + "\n",
+        encoding="utf-8",
+    )
+
+    def fetch(url: str) -> bytes:
+        if url.endswith("b.png?name=large"):
+            raise OSError("boom")
+        return b"bytes"
+
+    first = download_media(run_dir, fetch)
+    second = download_media(run_dir, fetch)
+
+    assert first == {"downloaded": 2, "cached": 0, "failed": 1}
+    assert (run_dir / "media" / "1_1.jpg").read_bytes() == b"bytes"
+    assert (run_dir / "media" / "1_3.jpg").exists()
+    assert "boom" in (run_dir / "media" / "1_2.png.failed").read_text(encoding="utf-8")
+    assert second == {"downloaded": 0, "cached": 2, "failed": 1}
+
+
+def test_download_media_requires_batches(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="no batch exports"):
+        download_media(tmp_path, lambda url: b"")

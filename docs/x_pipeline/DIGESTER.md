@@ -4,10 +4,17 @@ Run these steps in order for the schedule slot that launched this session.
 
 1. Run `python -m app.x.run usage-sync`, then run
    `python -m app.x.run cycle --slot <slot>`. If the cycle prints a calendar
-   no-op, stop; the session is done.
-2. Open the run export directory, read every `batch_*.jsonl`, judge every
-   record using `docs/x_pipeline/RUBRIC.md`, and write `predictions.jsonl`
-   alongside the batches.
+   no-op, stop; the session is done. If it reports the run is stuck with
+   status `exported`, an earlier session already exported the posts; continue
+   with step 2 on that run.
+2. Run `python -m app.x.run media --run <run_id>` to download every image
+   attachment into the run's `media/` folder. It prints downloaded, cached and
+   failed counts and leaves a `.failed` marker next to any URL it couldn't
+   fetch. Never download media with curl or Invoke-WebRequest; they have no
+   TLS credentials inside the sandbox. Then open the run export directory,
+   read every `batch_*.jsonl`, view the downloaded files for posts that carry
+   media, judge every record using `docs/x_pipeline/RUBRIC.md`, and write
+   `predictions.jsonl` alongside the batches.
 3. Run `python -m app.x.run route --run <run_id> --predictor <session-name>
    --in <predictions.jsonl>`. The session name should encode model and rubric
    version, such as `luna-rubric2`.

@@ -6,6 +6,8 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import httpx
+
 from app.events.store import upcoming_events
 from app.x.calendar import slot_should_run
 from app.x.posts import MAX_MONTHLY_POST_READS, reads_remaining
@@ -426,3 +428,59 @@ def render_weekly(conn: sqlite3.Connection, end_date: date, out_path: str | Path
     conn.execute("UPDATE x_runs SET status = 'digested' WHERE run_id = ?", (f"{end}-weekly",))
     conn.commit()
     return text
+
+
+_MEDIA_SUFFIXES = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4"}
+
+
+def _fetch_bytes(url: str) -> bytes:
+    response = httpx.get(url, follow_redirects=True, timeout=30.0)
+    response.raise_for_status()
+    return response.content
+
+
+def download_media(
+    run_dir: str | Path, fetch: Callable[[str], bytes] = _fetch_bytes
+) -> dict[str, int]:
+    """Fetch every media attachment referenced by a run export into ``<run>/media``.
+
+    Windows-native TLS (curl.exe, Invoke-WebRequest) has no credential store inside
+    Codex's restricted-token sandbox, while httpx carries its own CA bundle. The
+    judging session downloads through this command instead of improvising a shell.
+    """
+    folder = Path(run_dir)
+    batches = sorted(folder.glob("batch_*.jsonl"))
+    if not batches:
+        raise ValueError(f"no batch exports under {folder}")
+    media_dir = folder / "media"
+    media_dir.mkdir(exist_ok=True)
+    counts = {"downloaded": 0, "cached": 0, "failed": 0}
+    for batch in batches:
+        for line in batch.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            for index, item in enumerate(record.get("media", []), 1):
+                url = item.get("url", "")
+                if not url:
+                    continue
+                suffix = Path(url.split("?", 1)[0]).suffix.lower()
+                if suffix not in _MEDIA_SUFFIXES:
+                    suffix = ".jpg"
+                dest = media_dir / f"{record['post_id']}_{index}{suffix}"
+                if dest.exists():
+                    counts["cached"] += 1
+                    continue
+                try:
+                    dest.write_bytes(fetch(url))
+                    counts["downloaded"] += 1
+                except (httpx.HTTPError, OSError) as error:
+                    dest.with_suffix(dest.suffix + ".failed").write_text(
+                        f"{url}\n{type(error).__name__}: {error}\n", encoding="utf-8"
+                    )
+                    counts["failed"] += 1
+    print(
+        f"media: downloaded={counts['downloaded']} cached={counts['cached']} "
+        f"failed={counts['failed']} dir={media_dir}"
+    )
+    return counts

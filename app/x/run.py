@@ -17,7 +17,14 @@ from app.x.client import (
     fetch_user_posts,
     resolve_user_ids,
 )
-from app.x.pipeline import cycle, render_digest, render_weekly, route_predictions, store_note
+from app.x.pipeline import (
+    cycle,
+    download_media,
+    render_digest,
+    render_weekly,
+    route_predictions,
+    store_note,
+)
 from app.x.posts import (
     MAX_MONTHLY_POST_READS,
     POST_READ_WARNING_THRESHOLD,
@@ -305,6 +312,10 @@ def main() -> None:
     weekly_parser.add_argument("--date", dest="weekly_date", required=True)
     weekly_parser.add_argument("--out")
 
+    media_parser = subparsers.add_parser("media")
+    media_parser.add_argument("--run", dest="run_id", required=True)
+    media_parser.add_argument("--dir")
+
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument(
         "--slot", choices=("morning", "midday", "close", "weekly"), required=True
@@ -352,6 +363,8 @@ def main() -> None:
             out = args.out or f"data/digests/weekly-{weekly_date.isoformat()}.md"
             render_weekly(conn, weekly_date, out)
             print(f"rendered {out}")
+        elif args.command == "media":
+            download_media(args.dir or f"data/x_runs/{args.run_id}")
         elif args.command == "verify":
             run_date = (
                 date.fromisoformat(args.run_date)
