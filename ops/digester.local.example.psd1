@@ -17,4 +17,9 @@
     # reasoning effort comes from the Codex default because user config is
     # ignored during authoring.
     ReviewModel = "gpt-5.6-sol"
+
+    # Broker sessions: cheap account/quote reads, careful execution.
+    CollectorModel = "gpt-5.6-luna"
+    ExecutionModel = "gpt-5.6-sol"
+    LiveProfile = "codex"
 }

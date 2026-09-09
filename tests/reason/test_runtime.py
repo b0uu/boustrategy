@@ -544,3 +544,92 @@ def test_live_assembly_rejects_a_changed_prepared_bundle(tmp_path: Path) -> None
         assemble_intake(conn, changed, tmp_path / "out", _profile())
     assert conn.execute("SELECT COUNT(*) FROM runtime_runs").fetchone()[0] == 0
     conn.close()
+
+
+def test_live_attempt_refreshes_snapshot_through_collector(tmp_path: Path) -> None:
+    from typing import Any
+
+    from app.schemas.live_execution import LivePortfolioSnapshot
+    from app.storage.records import save_live_portfolio_snapshot
+    from tests.reason.test_live_submit import _profile
+
+    conn = connect(tmp_path / "source.db")
+    run = live_run(conn, tmp_path)
+    save_run(conn, run)
+    current = NOW + timedelta(minutes=10)
+    collected: list[str] = []
+
+    def collector() -> LivePortfolioSnapshot:
+        snapshot = LivePortfolioSnapshot(
+            portfolio_snapshot_id=f"collected-{len(collected) + 1}",
+            execution_profile_id="codex",
+            broker_account_fingerprint="0" * 16,
+            captured_at=current,
+            account_equity=100,
+            buying_power=100,
+        )
+        save_live_portfolio_snapshot(conn, snapshot, _profile())
+        collected.append(snapshot.portfolio_snapshot_id)
+        return snapshot
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        nonlocal current
+        for _ in range(12):
+            current += timedelta(seconds=30)
+            kwargs["pulse"]()
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        record = InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "decision_id": namespace + "one"}
+        )
+        return AuthoredOutput(decisions=[record], public_summary="Collected review.")
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: current,
+        log_root=tmp_path / "logs",
+        snapshot_collector=collector,
+    )
+
+    assert attempt.status == "completed"
+    assert collected == ["collected-1", "collected-2"]
+    assert conn.execute(
+        "SELECT submission_snapshot_id FROM reasoning_run_decisions"
+    ).fetchone() == ("collected-2",)
+    conn.close()
+
+
+def test_live_attempt_blocks_when_collector_fails(tmp_path: Path) -> None:
+    from app.broker.session import BrokerSessionFailure
+    from tests.reason.test_live_submit import _profile
+
+    conn = connect(tmp_path / "source.db")
+    run = live_run(conn, tmp_path)
+    save_run(conn, run)
+    current = NOW + timedelta(minutes=10)
+    authored: list[str] = []
+
+    def collector() -> None:
+        raise BrokerSessionFailure("session_timeout")
+
+    def author(prompt: str, **kwargs: object) -> AuthoredOutput:
+        authored.append(prompt)
+        return AuthoredOutput(public_summary="unreachable")
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: current,
+        log_root=tmp_path / "logs",
+        snapshot_collector=collector,
+    )
+
+    assert (attempt.status, attempt.reason) == ("blocked", "snapshot_stale")
+    assert authored == []
+    conn.close()

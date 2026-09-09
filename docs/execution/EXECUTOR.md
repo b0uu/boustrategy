@@ -45,3 +45,48 @@ For one packet, follow this order:
 The execution worker must not continue into another packet automatically. One fresh execution-only
 session handles one packet. Options, crypto, margin, shorts, market orders, extended-hours orders,
 transfers, and orders outside the packet are out of scope.
+
+## Tool and record mapping
+
+The unattended executor session runs from the repository root with the Robinhood MCP server
+connected. Use these exact mappings; the trusted CLI rejects anything that doesn't fit.
+
+- **Account selection.** Call `get_accounts`, then for each account number run
+  `python -c "import hashlib,sys; print(hashlib.sha256(sys.argv[1].strip().encode()).hexdigest()[:16])" <number>`
+  and use only the account whose result equals the packet's or intent's fingerprint. Never print a
+  full account number.
+- **Preflight.** `get_equity_quotes` for bid, ask and the broker quote timestamp;
+  `get_equity_tradability` for tradable and fractional eligibility; `get_portfolio` for
+  `account_equity` (total value including cash) and `buying_power`; `get_equity_positions` for
+  `current_position_value` in the ticker (0 if none). Write `data/broker/preflight_<intent>.json`:
+  `{"execution_profile_id","broker_account_fingerprint","account_equity","buying_power","ticker",
+  "current_position_value","bid","ask","quote_at","tradable","fractionable","regular_market_hours"}`
+  with `quote_at` as an ISO 8601 timestamp carrying a timezone offset.
+- **Packet.** `python -m app.broker.run packet --intent-id <intent> --preflight <file>` prints the
+  packet with `execution_packet_id`, `notional`, `limit_price` and `expires_at`. If it raises
+  `stale_quote`, refresh the preflight and rebuild, at most three times. Any other rejection
+  (`outside_regular_market_hours`, `spread_too_wide`, `insufficient_buying_power`, ...) ends the
+  session with outcome `blocked`.
+- **Review.** `review_equity_order` on the selected account with the packet's symbol, side, a
+  limit order at exactly `limit_price`, `dollar_amount` equal to `notional`, good-for-day and
+  regular hours only, using the tool's documented enumerations. If the response changes any of
+  those economics or warns, record a `FAILED` event and stop with outcome `review_rejected`.
+- **REVIEWED event.** `python -m app.broker.run event --in <file>` with
+  `{"broker_event_id":"bev_<packet>_reviewed","broker_execution_record_id":"ber_<packet>",
+  "order_intent_id","execution_packet_id","execution_profile_id","status":"REVIEWED",
+  "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`.
+- **Place once.** `place_equity_order` with the identical fields plus `ref_id` set to the
+  `execution_packet_id`. Never call it twice for one packet. On an ambiguous error or timeout,
+  call `get_equity_orders` for the account and look for that order before deciding anything.
+- **Record.** `python -m app.broker.run record --in <file>` with
+  `{"broker_execution_record_id":"ber_<packet>","order_intent_id","execution_packet_id",
+  "execution_profile_id","account_alias","ticker","side","order_type":"LIMIT",
+  "requested_notional":<notional>,"limit_price":<limit>,"submitted_at":<now>,
+  "status":"SUBMITTED","broker_order_id":<broker id>,"execution_price":0}`, then append the
+  `SUBMITTED` event (`bev_<packet>_submitted`).
+- **Reconcile.** Poll `get_equity_orders` by order id about every 20 seconds for up to five
+  minutes. Append `FILLED` (detail `execution_price=<average>`), `PARTIALLY_FILLED`, `CANCELED`
+  or `FAILED` events (`bev_<packet>_<status>`) with the broker's timestamps. An order still open
+  after five minutes stays `SUBMITTED`; report outcome `submitted`.
+- **Report.** Finish with the JSON object the session schema requires: the intent id, the
+  outcome, the packet id, the record id, the broker order id and short notes.

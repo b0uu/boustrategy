@@ -1,5 +1,6 @@
-# Registers the paper investment-review tasks: a preparation step after
-# each close digest and a one-minute poller through the review window.
+# Registers the live investment-review tasks: a preparation step after each
+# close digest, a one-minute poller through the review window, and the
+# next-morning execution run for policy-approved intents.
 # Run once, interactively, as the account that should own these tasks.
 # Re-running replaces each task (Register-ScheduledTask -Force).
 #
@@ -16,7 +17,8 @@
 param([switch]$Enable)
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
-$PrepareScript = Join-Path $RepoRoot "ops\run-paper-prepare.ps1"
+$PrepareScript = Join-Path $RepoRoot "ops\run-live-prepare.ps1"
+$ExecuteScript = Join-Path $RepoRoot "ops\run-live-execution.ps1"
 $PollerScript = Join-Path $RepoRoot "ops\run-review-poller.ps1"
 $Weekdays = "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
 
@@ -46,13 +48,13 @@ Register-BouTask -Name "boustrategy-review-prepare" `
     -Arguments "-File `"$PrepareScript`" -Window close" `
     -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:10)) `
     -TimeLimitMinutes 20 `
-    -Description "boustrategy paper review: preparation receipt after the close digest"
+    -Description "boustrategy live review: market preparation, broker snapshot and prepared live run after the close digest"
 
 Register-BouTask -Name "boustrategy-review-prepare-halfday" `
     -Arguments "-File `"$PrepareScript`" -Window halfday" `
     -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 15:10)) `
     -TimeLimitMinutes 20 `
-    -Description "boustrategy paper review: preparation receipt on NYSE half-days"
+    -Description "boustrategy live review: preparation on NYSE half-days"
 
 $PollerTriggers = @(
     (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:15),
@@ -64,10 +66,19 @@ foreach ($Trigger in $PollerTriggers) {
         -RepetitionDuration (New-TimeSpan -Minutes 30)).Repetition
 }
 Register-BouTask -Name "boustrategy-review-poller" `
-    -Arguments "-File `"$PollerScript`" -Schedule paper-close" `
+    -Arguments "-File `"$PollerScript`" -Schedule live-close" `
     -Triggers $PollerTriggers `
     -TimeLimitMinutes 60 `
-    -Description "boustrategy paper review: one-minute scheduler tick through the review window"
+    -Description "boustrategy live review: one-minute scheduler tick through the review window"
 
-Write-Output "`nThree tasks registered. Verify with:"
+Register-BouTask -Name "boustrategy-live-execute" `
+    -Arguments "-File `"$ExecuteScript`"" `
+    -Triggers @(
+        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:35),
+        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:15)
+    ) `
+    -TimeLimitMinutes 50 `
+    -Description "boustrategy live execution: place pending policy-approved intents during regular hours"
+
+Write-Output "`nFour tasks registered. Verify with:"
 Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-review-*' | Select TaskName,State"

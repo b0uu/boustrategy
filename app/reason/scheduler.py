@@ -32,6 +32,7 @@ def execute_due(
     profile: ExecutionProfile | None = None,
     runner: Any = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    snapshot_collector: Callable[[], object] | None = None,
 ) -> list[dict[str, Any]]:
     schedule = latest_schedule(conn, schedule_id)
     if schedule is None:
@@ -154,6 +155,7 @@ def execute_due(
                 log_root=log_root,
                 profile=profile,
                 clock=clock,
+                snapshot_collector=snapshot_collector,
                 **options,
             )
         except ValueError as error:

@@ -3,14 +3,19 @@
 import argparse
 import hashlib
 import json
+import sqlite3
+from collections.abc import Callable
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from uuid import uuid4
 
+from app.broker.collector import DEFAULT_COLLECTOR_MODEL, collect_snapshot, default_codex_home
 from app.broker.config import get_live_profile, load_live_profiles
 from app.public.database import open_readonly
 from app.reason.runtime_prepare import assemble_intake
 from app.reason.worker import execute_attempt
+from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.runtime import RuntimeRun, ScheduleRevision, SchedulerObservation
 from app.storage.database import connect
 from app.storage.records import get_reasoning_run
@@ -23,6 +28,21 @@ from app.storage.schedules import (
     save_schedule,
 )
 from app.x.calendar import NEW_YORK
+
+
+def _collector(
+    conn: sqlite3.Connection, profile: ExecutionProfile | None, model: str, logs: str
+) -> Callable[[], LivePortfolioSnapshot] | None:
+    if profile is None:
+        return None
+    return partial(
+        collect_snapshot,
+        conn,
+        profile,
+        model=model,
+        codex_home=default_codex_home(),
+        log_dir=Path(logs) / "collector",
+    )
 
 
 def main() -> None:
@@ -44,6 +64,7 @@ def main() -> None:
         runner.add_argument("--model", required=True)
         runner.add_argument("--logs", default="data/runtime-logs")
         runner.add_argument("--timeout", type=float, default=1800)
+        runner.add_argument("--collector-model", default=DEFAULT_COLLECTOR_MODEL)
     cancel = sub.add_parser("cancel")
     cancel.add_argument("--attempt", required=True)
     sub.add_parser("reconcile")
@@ -61,6 +82,7 @@ def main() -> None:
     scheduled.add_argument("--logs", default="data/runtime-logs")
     scheduled.add_argument("--digest-dir", default="data/digests")
     scheduled.add_argument("--paper-preparation")
+    scheduled.add_argument("--collector-model", default=DEFAULT_COLLECTOR_MODEL)
     args = parser.parse_args()
     now = datetime.now(UTC)
     if args.command == "preview":
@@ -129,6 +151,7 @@ def main() -> None:
                 profile=profile,
                 retry=args.command == "retry",
                 timeout_seconds=args.timeout,
+                snapshot_collector=_collector(conn, profile, args.collector_model, args.logs),
             )
             print(attempt.model_dump_json())
         elif args.command == "scheduled":
@@ -158,6 +181,9 @@ def main() -> None:
                         paper_intake=Path(args.paper_preparation)
                         if args.paper_preparation
                         else None,
+                        snapshot_collector=_collector(
+                            conn, profile, args.collector_model, args.logs
+                        ),
                     )
                 )
             )

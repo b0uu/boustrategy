@@ -341,6 +341,7 @@ backlog so nobody re-audits them.
 | 035 | [Operator view counts linked decisions for retried runs; remove dead retry bypass](035-operator-view-reports-attempt-truth.md) | P2 | S | none | DONE (2026-09-08; commit 1d8b5ab on `advisor/035-operator-view-attempt-truth`) |
 | 036 | [CI workflow (Windows runner), Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | DONE (2026-09-08; commit ac06eb0 on `advisor/036-ci-lockfile-warning-gates`; `public-ui/.gitignore` edited but left untracked with the rest of `public-ui/`) |
 | 037 | [Retire labeling, replay tool and public v1 behind an archive tag; archive completed plans](037-retire-finished-subsystems-and-archive-history.md) | P2 | M | none | DONE (2026-09-08; commits 579a724..0702ddd on `advisor/037-retire-finished-subsystems`; tag `archive/2026-09-retirements`) |
+| 038 | [Live collector and scheduled execution on the Agentic account](038-live-collector-and-scheduled-execution.md) | P0 | M | none | DONE (2026-09-09; built directly on `main`) |
 
 Recommended order: 032, 033, 034, 035, 036 (037 is done). All are independent
 except that 032 and 034 both bump the publication checkpoint version; each

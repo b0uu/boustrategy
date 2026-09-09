@@ -433,6 +433,37 @@ def pipeline_health(
             if attempt:
                 add("review attempt", str(attempt[0]), f"{attempt[1]} {attempt[2] or ''}".strip())
 
+    if table_exists(conn, "order_intents") and table_exists(conn, "broker_execution_records"):
+        pending_intents = conn.execute(
+            "SELECT COUNT(*) FROM order_intents WHERE execution_mode='LIVE' AND order_intent_id "
+            "NOT IN (SELECT order_intent_id FROM broker_execution_records) "
+            "AND julianday(created_at) >= julianday(?)",
+            ((now - timedelta(hours=48)).isoformat(),),
+        ).fetchone()[0]
+        executed_today = conn.execute(
+            "SELECT COUNT(*) FROM broker_execution_records WHERE substr(submitted_at, 1, 10) = ?",
+            (day,),
+        ).fetchone()[0]
+        add(
+            "live intents awaiting execution",
+            "pending" if pending_intents else "done",
+            f"{pending_intents} pending · {executed_today} executed today",
+        )
+    if table_exists(conn, "live_portfolio_snapshots"):
+        latest = conn.execute(
+            "SELECT snapshot_json FROM live_portfolio_snapshots "
+            "ORDER BY julianday(captured_at) DESC LIMIT 1"
+        ).fetchone()
+        if latest:
+            snapshot = json.loads(latest[0])
+            age = now - datetime.fromisoformat(snapshot["captured_at"])
+            add(
+                "broker snapshot",
+                "done",
+                f"{age.total_seconds() / 3600:.1f} h old · equity "
+                f"{snapshot['account_equity']:,.2f} · buying power {snapshot['buying_power']:,.2f}",
+            )
+
     if table_exists(conn, "x_post_reads"):
         remaining = reads_remaining(conn)
         used = MAX_MONTHLY_POST_READS - remaining

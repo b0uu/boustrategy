@@ -3,21 +3,23 @@
 Public dashboard publication, serving, read-only smoke, and recovery are documented separately in
 [`docs/public-release.md`](../docs/public-release.md). Those steps don't enable any task here.
 
-## Current status: paper automation being activated
+## Current status: live operation on the Agentic account
 
-As of September 8, 2026 the maintainer decided to run every unattended agent session through a
-dedicated Codex identity: a cheaper model for the high-volume X digests and a stronger model for
-the one-off investment reviews. Task Scheduler stays the host trigger for now. Live execution
-remains manual; see the staged activation recommendation in
-[`docs/execution-assessment.md`](../docs/execution-assessment.md).
+As of September 9, 2026 the maintainer decided to skip the paper phase and operate live on the
+dedicated Robinhood Agentic account with its small balance as the risk envelope. Every unattended
+agent session runs through a dedicated Codex identity: a cheaper model for X digests and broker
+reads, a stronger model for the investment review and for order execution. Task Scheduler is the
+host trigger. The deterministic policy gate, the $20 per-order cap, the 60-second quote age and
+the broker fingerprint checks are unchanged.
 
-Eight tasks exist across two installers:
+Nine tasks exist across two installers:
 
 | Installer | Tasks | Trigger (ET, weekdays unless noted) | Worker |
 | --- | --- | --- | --- |
 | `install-digester-tasks.ps1` | `boustrategy-digester-morning`, `-midday`, `-close-halfday`, `-close`, `-weekly` | 08:45, 12:30, 14:45, 17:45, Sunday 18:00 | `run-digester-session.ps1`: headless Codex follows the X runbook, then `app.x.run verify` checks SQLite |
-| `install-runtime-tasks.ps1` | `boustrategy-review-prepare`, `-prepare-halfday` | 18:10, 15:10 | `run-paper-prepare.ps1`: deterministic `app.reason.run prepare`, no model |
-| `install-runtime-tasks.ps1` | `boustrategy-review-poller` | every minute 18:15 to 18:45 and 15:15 to 15:45 | `run-review-poller.ps1`: `app.reason.runtime scheduled`, which launches Codex at most once per due occurrence |
+| `install-runtime-tasks.ps1` | `boustrategy-review-prepare`, `-prepare-halfday` | 18:10, 15:10 | `run-live-prepare.ps1`: deterministic market preparation, then a broker snapshot and the PREPARED live run through `app.broker.collector prepare-live` |
+| `install-runtime-tasks.ps1` | `boustrategy-review-poller` | every minute 18:15 to 18:45 and 15:15 to 15:45 | `run-review-poller.ps1`: `app.reason.runtime scheduled --schedule live-close`; the worker refreshes the broker snapshot through the collector before authoring and again before submission |
+| `install-runtime-tasks.ps1` | `boustrategy-live-execute` | 09:35 and 12:15 | `run-live-execution.ps1`: `app.broker.executor` runs one bounded Codex broker session per pending intent following `docs/execution/EXECUTOR.md`, then verifies the ledger |
 
 The 14:45 and 15:xx triggers only do real work on NYSE half-days; every worker is calendar-aware
 and no-ops otherwise. Both installers leave tasks disabled unless given `-Enable`, and
@@ -79,11 +81,12 @@ python -m app.x.run status
 The `python` on PATH must import the project with its dependencies, since the tasks don't
 activate a virtual environment. Back up `data\boustrategy.db` before enabling anything.
 
-### 4. Paper schedule revision
+### 4. Live schedule revision
 
-The runtime only claims occurrences for an enabled `scheduled` revision. Copy
-`ops/runtime.schedule.example.json` to `ops/runtime.schedule.local.json` (gitignored), set
-`enabled` to `true`, `schedule_mode` to `"scheduled"`, and a current `configured_at`, then:
+The runtime only claims occurrences for an enabled `scheduled` revision. The live schedule is
+`live-close`: mode `live`, `account_id` equal to the profile's broker fingerprint,
+`execution_profile_id` `codex`. Write it to `ops/runtime.schedule.local.json` (gitignored) with
+`enabled` true, `schedule_mode` `"scheduled"` and a current `configured_at`, then:
 
 Keep `due_local` at `18:15:00` and `early_close_due_local` at `15:15:00` with the 1,800-second
 grace. The runtime claims an occurrence only between the due time and the end of grace, and the
@@ -91,8 +94,8 @@ poller task ticks from 18:15 to 18:45 (15:15 to 15:45 on half-days), so the two 
 coincide. An earlier due time would expire before the first tick.
 
 ```powershell
-python -m app.reason.runtime --db data/boustrategy.db configure --in ops/runtime.schedule.local.json
-python -m app.reason.runtime --db data/boustrategy.db preview --schedule paper-close
+python -m app.reason.runtime --db data/boustrategy.db --live-profiles ops/live.local.json configure --in ops/runtime.schedule.local.json
+python -m app.reason.runtime --db data/boustrategy.db preview --schedule live-close
 ```
 
 Every later change is a new file with `revision` incremented by one. `pause` and `resume` exist
@@ -115,9 +118,13 @@ the tasks to "Run whether user is logged on or not". Keep the server session sig
 RDP rather than signing out, and sign back in after a reboot. Don't switch the task account unless
 that account also has the Codex home, the repository, Python, and `X_BEARER_TOKEN`.
 
-Recommended order: enable the five digester tasks first and watch two or three days of
-`data\logs\digester\`. A healthy log ends with a verified database status and `exit code: 0`.
-Enable the review tasks once digests land reliably.
+Recommended order: enable the five digester tasks first and watch a clean weekday of
+`data\logs\digester\`. Then enable the four `boustrategy-review-*` and `boustrategy-live-execute`
+tasks together. The evening chain is: close digest 17:45, live preparation 18:10 (market data,
+broker snapshot, PREPARED run), review claimed at 18:15 with a fresh snapshot before authoring and
+again before submission. A policy-approved BUY becomes a LIVE intent that night and is placed at
+09:35 the next session through the execution task; the 12:15 trigger retries anything still
+pending. Intents older than 48 hours are never executed.
 
 ## What to watch
 
@@ -127,6 +134,9 @@ Enable the review tasks once digests land reliably.
   `dependency_missing` means the digest or receipt isn't there yet; `skipped` after the grace
   window means the day was missed and won't be replayed.
 - `data\runtime-logs\`: bounded Codex event logs per attempt.
+- `data\logs\runtime\prepare-live-*.log` and `execute-*.log`: the live preparation and execution
+  wrappers. `data\logs\broker\` holds each broker session's output and `executions.jsonl`, one
+  line per executed intent with the session's report and any ledger problems.
 - The private dashboard (`start-boustrategy.cmd`) for decisions, policy outcomes, and fills.
 - The dashboard's **Operations** page (`http://127.0.0.1:8378/operations`): task states and
   last results, agent readiness (Codex login, Robinhood grant, X token, models), the review

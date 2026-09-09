@@ -6,7 +6,7 @@
 # the runtime's account lease guards against overlap from any other caller.
 
 param(
-    [string]$Schedule = "paper-close"
+    [string]$Schedule = "live-close"
 )
 
 $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
@@ -20,11 +20,13 @@ $LogFile = Join-Path $LogDir "poller-$Schedule-$Day.log"
 $DiscordWebhookUrl = ""
 $CodexHome = Join-Path $HOME ".codex-boustrategy"
 $ReviewModel = "gpt-5.6-sol"
+$CollectorModel = "gpt-5.6-luna"
 if (Test-Path -LiteralPath $LocalConfigFile) {
     $LocalConfig = Import-PowerShellDataFile -LiteralPath $LocalConfigFile
     if ($LocalConfig.DiscordWebhookUrl) { $DiscordWebhookUrl = [string]$LocalConfig.DiscordWebhookUrl }
     if ($LocalConfig.CodexHome) { $CodexHome = [string]$LocalConfig.CodexHome }
     if ($LocalConfig.ReviewModel) { $ReviewModel = [string]$LocalConfig.ReviewModel }
+    if ($LocalConfig.CollectorModel) { $CollectorModel = [string]$LocalConfig.CollectorModel }
 }
 
 function Send-DiscordNotification {
@@ -48,17 +50,20 @@ $SessionDate = & python -c "from datetime import datetime; from zoneinfo import 
 $Receipt = "data/reason_runs/$SessionDate/preparation.json"
 
 $Timestamp = Get-Date -Format "HH:mm:ss"
-"=== $Timestamp tick schedule=$Schedule model=$ReviewModel receipt=$Receipt ===" | Out-File -FilePath $LogFile -Append -Encoding utf8
+"=== $Timestamp tick schedule=$Schedule model=$ReviewModel collector=$CollectorModel ===" | Out-File -FilePath $LogFile -Append -Encoding utf8
 
+# A paper schedule consumes the preparation receipt; a live schedule consumes the
+# PREPARED live reasoning run and refreshes the broker snapshot through the collector.
+$IntakeArgs = if ($Schedule -like "paper*") { @("--paper-preparation", $Receipt) } else { @() }
 $env:CODEX_HOME = $CodexHome
 $Output = @(
-    & python -m app.reason.runtime --db data/boustrategy.db scheduled `
+    & python -m app.reason.runtime --db data/boustrategy.db --live-profiles ops/live.local.json scheduled `
         --schedule $Schedule `
         --model $ReviewModel `
-        --paper-preparation $Receipt `
+        --collector-model $CollectorModel `
         --digest-dir data/digests `
         --out data/runtime-intakes `
-        --logs data/runtime-logs 2>&1
+        --logs data/runtime-logs @IntakeArgs 2>&1
 )
 $ExitCode = $LASTEXITCODE
 $Output | Out-File -FilePath $LogFile -Append -Encoding utf8
