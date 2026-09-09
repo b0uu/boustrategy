@@ -87,6 +87,17 @@ JSON at step 7.
    that the designation is rare by doctrine and its frequency is tracked.
    Any quota override needs a written explanation of why this week's
    catalyst cannot wait for tomorrow's quota.
+   Then set the price bound the entry depends on: `entry_price_max` for a BUY
+   or ADD, `entry_price_min` for a TRIM or SELL. Check the current quote before
+   writing it. Derive the bound from `what_is_priced_in`: it is the price at
+   which the market has absorbed the thing you claim it hasn't, so
+   `refined_thesis` stops being a variant perception. It is not a round number,
+   a fixed percentage cushion, or the current price plus a margin for comfort.
+   Live execution refuses a BUY with no bound, and refuses one whose ask has
+   passed it, so this field decides whether a delayed order still goes. If the
+   price has already passed the bound while you were reasoning, say so in
+   `refined_thesis` and PASS rather than rewriting the bound around the new
+   price.
 9. Produce raw JSON matching the exact current `InvestmentDecisionRecord`
    schema. Do not invent fields or omit required fields.
 10. Save that JSON to a file and finish by running
