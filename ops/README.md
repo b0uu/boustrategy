@@ -85,6 +85,11 @@ The runtime only claims occurrences for an enabled `scheduled` revision. Copy
 `ops/runtime.schedule.example.json` to `ops/runtime.schedule.local.json` (gitignored), set
 `enabled` to `true`, `schedule_mode` to `"scheduled"`, and a current `configured_at`, then:
 
+Keep `due_local` at `18:15:00` and `early_close_due_local` at `15:15:00` with the 1,800-second
+grace. The runtime claims an occurrence only between the due time and the end of grace, and the
+poller task ticks from 18:15 to 18:45 (15:15 to 15:45 on half-days), so the two windows must
+coincide. An earlier due time would expire before the first tick.
+
 ```powershell
 python -m app.reason.runtime --db data/boustrategy.db configure --in ops/runtime.schedule.local.json
 python -m app.reason.runtime --db data/boustrategy.db preview --schedule paper-close

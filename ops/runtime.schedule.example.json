@@ -9,8 +9,8 @@
   "schedule_mode": "manual",
   "timezone": "America/New_York",
   "slot": "close",
-  "due_local": "17:45:00",
-  "early_close_due_local": "14:45:00",
+  "due_local": "18:15:00",
+  "early_close_due_local": "15:15:00",
   "grace_seconds": 1800,
   "observer_max_age_seconds": 180
 }
