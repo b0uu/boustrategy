@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -113,8 +114,10 @@ def run_codex(
         work = Path(folder)
         schema_path = work / "output-schema.json"
         schema_path.write_text(json.dumps(strict_output_schema()), encoding="utf-8")
+        # npm installs Codex on Windows as a .cmd shim, which CreateProcess won't
+        # find from a bare name; resolve through PATHEXT and fall back unchanged.
         argv = [
-            executable,
+            shutil.which(executable) or executable,
             "exec",
             "--json",
             "--output-schema",
