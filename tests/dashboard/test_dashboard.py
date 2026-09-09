@@ -23,6 +23,7 @@ ROUTES = (
     "/x",
     "/regime",
     "/triggers",
+    "/operations",
 )
 
 
@@ -98,7 +99,12 @@ def test_dashboard_registers_only_supervised_preparation_mutation(tmp_path: Path
         else:
             assert methods <= {"GET", "HEAD"}
 
-    assert post_routes == ["/operate/prepare"]
+    assert post_routes == [
+        "/operate/prepare",
+        "/operations/task",
+        "/operations/schedule",
+        "/operations/attempt",
+    ]
 
 
 def test_operator_page_explains_manual_boundary_and_blocks_unready_prepare(

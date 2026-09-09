@@ -122,6 +122,10 @@ Enable the review tasks once digests land reliably.
   window means the day was missed and won't be replayed.
 - `data\runtime-logs\`: bounded Codex event logs per attempt.
 - The private dashboard (`start-boustrategy.cmd`) for decisions, policy outcomes, and fills.
+- The dashboard's **Operations** page (`http://127.0.0.1:8378/operations`): task states and
+  last results, agent readiness (Codex login, Robinhood grant, X token, models), the review
+  schedule with pause/resume, occurrences, attempts with named cancel/retry, and log tails.
+  Enable, disable and run-now buttons call the same Task Scheduler commands as the installers.
 
 Discord receives digester completions and failures, prepare results, and poller ticks that
 claimed or refused an actual run. Calendar no-ops and idle ticks stay in the logs.

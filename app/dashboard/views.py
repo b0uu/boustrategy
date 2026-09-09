@@ -9,8 +9,11 @@ from typing import Any
 _STATUS_GOOD = {
     "available",
     "clear",
+    "completed",
+    "configured",
     "consumed",
     "decisions_authored",
+    "enabled",
     "filled",
     "green",
     "order_intent_created",
@@ -25,13 +28,20 @@ _STATUS_GOOD = {
 _STATUS_WARN = {
     "awaiting_execution",
     "awaiting_price",
+    "claimed",
+    "disabled",
     "exported",
     "no_action",
     "partially_filled",
+    "paused",
     "pending",
+    "planned",
     "prepared",
+    "queued",
     "routed",
+    "running",
     "started",
+    "waiting",
     "watchlist",
     "yellow",
 }
@@ -39,12 +49,16 @@ _STATUS_BAD = {
     "blocked",
     "canceled",
     "dismissed",
+    "expired",
     "failed",
     "missing",
+    "not_claimed",
     "policy_rejected",
     "red",
     "rejected",
     "schema_failed",
+    "skipped",
+    "timed_out",
     "unavailable",
 }
 
@@ -150,6 +164,7 @@ button:hover,.button:hover{background:oklch(0.33 0.06 265)}button:disabled{curso
   color:var(--text-2)}.control-note{display:block;margin-top:7px;color:var(--amber);font-size:11.5px}
 .status-list{display:grid}.status-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;
   border-bottom:1px solid var(--border-soft);font-size:12px}.status-row:last-child{border:0}
+.inline-form{display:inline-block;margin:0 6px 4px 0}.actions{white-space:nowrap}
 .table-wrap{overflow-x:auto;margin:8px 0 20px;border-top:1px solid var(--border-soft)}
 table{border-collapse:collapse;width:100%;font-size:12px}th{color:var(--text-3);font-weight:500;text-align:left;
   padding:9px 8px;border-bottom:1px solid var(--border)}td{padding:10px 8px;border-bottom:1px solid var(--border-soft);
@@ -205,6 +220,7 @@ _NAV = (
     ("X", "/x"),
     ("Regime", "/regime"),
     ("Triggers", "/triggers"),
+    ("Operations", "/operations"),
 )
 
 _SCRIPT = """
@@ -255,8 +271,8 @@ def page(title: str, body: str, *, active: str = "", eyebrow: str = "", wide: bo
         f"<main id='content'{' class=' + chr(39) + 'wide' + chr(39) if wide else ''}>"
         f"<header class='page-head'><div><div class='eyebrow'>{page_eyebrow}</div>"
         f"<h1>{escape(title)}</h1></div></header>{body}"
-        "<div class='footer-note'>Private localhost interface · read-only "
-        "except supervised paper preparation</div>"
+        "<div class='footer-note'>Private localhost interface · mutations limited to "
+        "supervised paper preparation and named operations controls</div>"
         f"</main><script>{_SCRIPT}</script></body></html>"
     )
 
@@ -1046,3 +1062,201 @@ def regime_table(items: list[dict[str, Any]] | None) -> str:
         older = items[index + 1]["regime"] if index + 1 < len(items) else None
         rows.append({**item, "state_change": item["regime"] != older})
     return table(rows)
+
+
+_RETRYABLE_ATTEMPTS = {"failed", "blocked", "timed_out", "canceled", "expired"}
+
+
+def action_form(
+    action: str,
+    csrf_token: str,
+    fields: dict[str, str],
+    label: str,
+    *,
+    secondary: bool = False,
+    confirm: str = "",
+) -> str:
+    hidden = "".join(
+        f"<input type='hidden' name='{escape(name)}' value='{escape(value)}'>"
+        for name, value in fields.items()
+    )
+    css = " class='secondary'" if secondary else ""
+    guard = f" onsubmit=\"return confirm('{escape(confirm)}')\"" if confirm else ""
+    return (
+        f"<form method='post' action='{action}' class='inline-form'{guard}>"
+        f"<input type='hidden' name='csrf_token' value='{escape(csrf_token)}'>{hidden}"
+        f"<button type='submit'{css}>{escape(label)}</button></form>"
+    )
+
+
+def _cell(value: Any) -> str:
+    if value is None or value == "":
+        return "<span class='empty'>unavailable</span>"
+    return escape(str(value))
+
+
+def operations(
+    payload: dict[str, Any], csrf_token: str, *, notice: str = "", error: str = ""
+) -> str:
+    agent_rows = "".join(
+        f"<div class='status-row'><span>{escape(item['item'])}<br>"
+        f"<span class='quiet mono'>{escape(item['detail'])}</span></span>{status_badge(item['status'])}</div>"
+        for item in payload["agents"]
+    )
+    tasks = payload["tasks"]
+    if tasks is None:
+        tasks_html = (
+            "<p class='empty'>unavailable · Task Scheduler couldn't be read from this process</p>"
+        )
+    elif not tasks:
+        tasks_html = "<p class='empty'>none yet · run the installers in ops/ to register tasks</p>"
+    else:
+        rows = []
+        for task in tasks:
+            enabled = task["state"].casefold() != "disabled"
+            toggle = action_form(
+                "/operations/task",
+                csrf_token,
+                {"name": task["name"], "action": "disable" if enabled else "enable"},
+                "Disable" if enabled else "Enable",
+                secondary=enabled,
+                confirm=""
+                if enabled
+                else f"Enable {task['name']}? It will run unattended on its own trigger.",
+            )
+            run_now = action_form(
+                "/operations/task",
+                csrf_token,
+                {"name": task["name"], "action": "run"},
+                "Run now",
+                secondary=True,
+                confirm=f"Start {task['name']} now? This may spend model and X credits.",
+            )
+            rows.append(
+                f"<tr><td class='mono'>{escape(task['name'])}</td><td>{status_badge(task['state'])}</td>"
+                f"<td class='mono'>{_cell(task['last_run'])}</td><td class='num'>{_cell(task['last_result'])}</td>"
+                f"<td class='mono'>{_cell(task['next_run'])}</td><td>{_cell(task['logon'])}</td>"
+                f"<td class='actions'>{toggle} {run_now}</td></tr>"
+            )
+        tasks_html = (
+            "<div class='table-wrap'><table><thead><tr><th scope='col'>task</th><th scope='col'>state</th>"
+            "<th scope='col'>last run</th><th scope='col' class='num'>last result</th><th scope='col'>next run</th>"
+            f"<th scope='col'>logon</th><th scope='col'>controls</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
+        )
+
+    status = payload["schedule"]
+    schedule = status["schedule"]
+    if schedule is None:
+        schedule_html = (
+            "<p class='empty'>none yet · configure a schedule revision with the runtime CLI</p>"
+        )
+    else:
+        state = "paused" if schedule["paused"] else "enabled" if schedule["enabled"] else "disabled"
+        toggle = action_form(
+            "/operations/schedule",
+            csrf_token,
+            {
+                "schedule_id": status["schedule_id"],
+                "action": "resume" if schedule["paused"] else "pause",
+            },
+            "Resume claims" if schedule["paused"] else "Pause claims",
+            secondary=not schedule["paused"],
+        )
+        reconcile = action_form(
+            "/operations/schedule",
+            csrf_token,
+            {"schedule_id": status["schedule_id"], "action": "reconcile"},
+            "Reconcile leases",
+            secondary=True,
+        )
+        preview = (
+            "".join(
+                f"<div class='compact-row'><span>{escape(item['session_date'])}</span>"
+                f"<span class='mono'>{escape(item['due_at'])}</span>{status_badge(item['status'])}</div>"
+                for item in status["preview"]
+            )
+            or "<p class='empty'>none planned inside calendar coverage</p>"
+        )
+        schedule_html = (
+            f"<div class='split'><strong class='mono'>{escape(status['schedule_id'])} · revision {schedule['revision']}</strong>"
+            f"{status_badge(state)}</div>"
+            f"<p class='quiet' style='margin-top:6px'>{escape(schedule['mode'])} · {escape(schedule['schedule_mode'])} · due {escape(str(schedule['due_local']))} "
+            f"(half-day {escape(str(schedule['early_close_due_local']))}) · grace {schedule['grace_seconds']}s · configured {escape(str(schedule['configured_at']))}</p>"
+            f"<div class='controls' style='margin:12px 0'>{toggle}{reconcile}</div>"
+            "<div class='section-label'>Planned occurrences</div>"
+            f"<div class='compact-list'>{preview}</div>"
+            "<p class='quiet' style='margin-top:8px'>Planned, not observed. A countdown needs an enabled host task and a fresh worker observation.</p>"
+        )
+
+    attempts = status["attempts"]
+    if attempts is None:
+        attempts_html = "<p class='empty'>unavailable</p>"
+    elif not attempts:
+        attempts_html = "<p class='empty'>none yet</p>"
+    else:
+        rows = []
+        for attempt in attempts:
+            controls = ""
+            if attempt["status"] == "running":
+                controls = action_form(
+                    "/operations/attempt",
+                    csrf_token,
+                    {"attempt_id": attempt["attempt_id"], "action": "cancel"},
+                    "Cancel",
+                    confirm="Cancel this authoring attempt? Orders already sent to a broker are not affected.",
+                )
+            elif attempt["status"] in _RETRYABLE_ATTEMPTS:
+                controls = action_form(
+                    "/operations/attempt",
+                    csrf_token,
+                    {"attempt_id": attempt["attempt_id"], "action": "retry"},
+                    "Retry",
+                    secondary=True,
+                    confirm="Start a new attempt for this run with the configured review model?",
+                )
+            rows.append(
+                f"<tr><td class='mono'>{escape(attempt['attempt_id'])}</td><td class='mono'>{escape(attempt['run_id'])}</td>"
+                f"<td>{_cell(attempt['session_date'])} · {_cell(attempt['slot'])} · {_cell(attempt['mode'])}</td>"
+                f"<td>{status_badge(str(attempt['status']))}</td><td>{_cell(attempt['stage'])}</td>"
+                f"<td class='mono'>{_cell(attempt['model'])}<br><span class='quiet'>{_cell(attempt['observed_model'])}</span></td>"
+                f"<td class='mono'>{_cell(attempt['started_at'])}<br><span class='quiet'>beat {_cell(attempt['heartbeat_at'])}</span></td>"
+                f"<td>{_cell(attempt['reason'])}</td><td class='actions'>{controls}</td></tr>"
+            )
+        attempts_html = (
+            "<div class='table-wrap'><table><thead><tr><th scope='col'>attempt</th><th scope='col'>run</th>"
+            "<th scope='col'>session</th><th scope='col'>status</th><th scope='col'>stage</th><th scope='col'>model</th>"
+            f"<th scope='col'>started</th><th scope='col'>reason</th><th scope='col'>controls</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
+        )
+
+    logs = payload["logs"]
+    logs_html = (
+        "".join(
+            f"<details><summary class='compact-row'><span class='mono'>{escape(item['kind'])}/{escape(item['name'])}</span>"
+            f"<span class='quiet'>{escape(item['modified'])}</span></summary>"
+            f"<pre class='prompt' style='max-height:320px'>{escape(item['tail'])}</pre></details>"
+            for item in logs
+        )
+        or "<p class='empty'>none yet</p>"
+    )
+
+    return (
+        "<div class='mode-strip'><strong>Operations</strong><span>Host tasks, the bot's agent "
+        "identity, the persisted review schedule and its attempts. Every control here is the same "
+        "named operation the CLI performs; nothing places an order.</span></div>"
+        + (f"<div class='notice'>{escape(notice)}</div>" if notice else "")
+        + (f"<div class='error'>{escape(error)}</div>" if error else "")
+        + "<div class='operator-grid'><section>"
+        f"<section class='section'><div class='section-label'>Scheduled tasks</div>{tasks_html}</section>"
+        f"<section class='section'><div class='section-label'>Review schedule</div><div class='panel'>{schedule_html}</div></section>"
+        f"<section class='section'><div class='section-label'>Occurrences</div>{table(status['occurrences'])}</section>"
+        f"<section class='section'><div class='section-label'>Authoring attempts</div>{attempts_html}</section>"
+        f"<section class='section'><div class='section-label'>Active leases</div>{table(status['leases'])}</section>"
+        f"<section class='section'><div class='section-label'>Recent logs</div>{logs_html}</section>"
+        "</section><aside>"
+        f"<div class='panel'><div class='section-label'>Agent readiness</div><div class='status-list'>{agent_rows}</div></div>"
+        "<div class='panel'><div class='section-label'>Boundary</div><p>Enabling a task lets it run "
+        "unattended on its trigger. Pause stops new claims while an active attempt finishes. Cancel "
+        "ends an authoring attempt, never a broker order. Retry starts a detached CLI process and "
+        "logs under data/logs/runtime.</p></div>"
+        "</aside></div>"
+    )

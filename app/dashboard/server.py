@@ -1,6 +1,7 @@
 import argparse
 import secrets
 import sqlite3
+import subprocess
 from contextlib import closing
 from datetime import UTC, date, datetime
 from html import escape
@@ -15,7 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.broker.config import load_live_profiles, public_profile_status
-from app.dashboard import queries, views
+from app.dashboard import operations, queries, views
 from app.reason.run import PreparationResult, prepare_session
 from app.storage.database import connect
 
@@ -39,6 +40,10 @@ def create_app(
     db_path: str | Path,
     preparation_runner: PreparationRunner = prepare_session,
     live_config_path: str | Path = "ops/live.local.json",
+    local_config_path: str | Path = "ops/digester.local.psd1",
+    host_runner: operations.HostRunner = operations.powershell,
+    spawner: operations.Spawner = operations.spawn_detached,
+    review_schedule_id: str = "paper-close",
 ) -> FastAPI:
     app = FastAPI(title="BouStrategy dashboard")
     path = Path(db_path)
@@ -47,6 +52,8 @@ def create_app(
     digest_dir = path.parent / "digests"
     reason_dir = path.parent / "reason_runs"
     live_config = Path(live_config_path)
+    local_config_file = Path(local_config_path)
+    logs_dir = path.parent / "logs"
     csrf_token = secrets.token_urlsafe(24)
 
     @app.get("/", response_class=HTMLResponse)
@@ -275,6 +282,101 @@ def create_app(
             return views.page(
                 "Triggers", body, active="/triggers", eyebrow="Persisted trigger events", wide=True
             )
+
+    def operations_page(
+        *, notice: str = "", error: str = "", status_code: int = 200
+    ) -> HTMLResponse:
+        config = operations.local_config(local_config_file)
+        now = datetime.now(UTC)
+        with closing(sqlite3.connect(path)) as conn:
+            payload = {
+                "agents": operations.agent_status(config),
+                "tasks": operations.host_tasks(host_runner),
+                "schedule": operations.schedule_status(conn, review_schedule_id, now),
+                "logs": operations.log_tails(logs_dir),
+            }
+        return HTMLResponse(
+            views.page(
+                "Operations",
+                views.operations(payload, csrf_token, notice=notice, error=error),
+                active="/operations",
+                eyebrow="Operator · host tasks and runtime",
+                wide=True,
+            ),
+            status_code=status_code,
+        )
+
+    async def operations_form(request: Request) -> dict[str, str]:
+        form = parse_qs((await request.body()).decode("utf-8"), keep_blank_values=True)
+        submitted_token = form.get("csrf_token", [""])[0]
+        if not secrets.compare_digest(submitted_token, csrf_token):
+            raise HTTPException(403, "invalid request token")
+        return {name: values[0] for name, values in form.items()}
+
+    def operations_redirect(notice: str) -> RedirectResponse:
+        return RedirectResponse(f"/operations?{urlencode({'notice': notice})}", status_code=303)
+
+    @app.get("/operations", response_class=HTMLResponse)
+    def operations_view(notice: str = "") -> Response:
+        return operations_page(notice=notice)
+
+    @app.post("/operations/task", response_class=HTMLResponse)
+    async def operations_task(request: Request) -> Response:
+        form = await operations_form(request)
+        name, action = form.get("name", ""), form.get("action", "")
+        try:
+            await run_in_threadpool(operations.task_action, name, action, host_runner)
+        except ValueError as error:
+            raise HTTPException(400, str(error)) from error
+        except (OSError, subprocess.SubprocessError) as error:
+            return operations_page(
+                error=f"Task Scheduler refused {action} for {name}: {error}", status_code=502
+            )
+        return operations_redirect(f"Task {name}: {action} accepted.")
+
+    @app.post("/operations/schedule", response_class=HTMLResponse)
+    async def operations_schedule(request: Request) -> Response:
+        form = await operations_form(request)
+        schedule_id = form.get("schedule_id", review_schedule_id)
+        action = form.get("action", "")
+
+        def apply() -> dict[str, object]:
+            with closing(connect(path, wal=True)) as conn:
+                return operations.schedule_action(conn, schedule_id, action, datetime.now(UTC))
+
+        try:
+            result = await run_in_threadpool(apply)
+        except ValueError as error:
+            return operations_page(error=f"Schedule {action} failed: {error}", status_code=400)
+        return operations_redirect(f"Schedule {schedule_id}: {action} recorded {result}.")
+
+    @app.post("/operations/attempt", response_class=HTMLResponse)
+    async def operations_attempt(request: Request) -> Response:
+        form = await operations_form(request)
+        attempt_id, action = form.get("attempt_id", ""), form.get("action", "")
+        if action not in {"cancel", "retry"}:
+            raise HTTPException(400, "unknown attempt action")
+        config = operations.local_config(local_config_file)
+
+        def apply() -> dict[str, object]:
+            with closing(connect(path, wal=True)) as conn:
+                if action == "cancel":
+                    return operations.cancel_attempt(conn, attempt_id, datetime.now(UTC))
+                return operations.retry_attempt(
+                    conn,
+                    attempt_id,
+                    db_path=path,
+                    model=config.get("ReviewModel", ""),
+                    logs_dir=logs_dir / "runtime",
+                    codex_home=config.get("CodexHome", ""),
+                    spawn=spawner,
+                )
+
+        try:
+            result = await run_in_threadpool(apply)
+        except ValueError as error:
+            return operations_page(error=f"Attempt {action} failed: {error}", status_code=400)
+        return operations_redirect(f"Attempt {attempt_id}: {action} recorded {result}.")
 
     return app
 
