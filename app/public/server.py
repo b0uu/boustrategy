@@ -90,10 +90,8 @@ def create_public_app(
             result.setdefault("decision_counts", {"approved": 0, "rejected": 0, "unavailable": 0})
             if result.get("decision_count_date") == today.date().isoformat():
                 result["decisions_today"] = result.get("decisions_today", 0)
-                result["reviews_today"] = result.get("reviews_today", 0)
             elif "decision_count_date" in result:
                 result["decisions_today"] = 0
-                result["reviews_today"] = 0
             elif table_exists(conn, "public_decisions"):
                 result["decisions_today"] = conn.execute(
                     "SELECT COUNT(*) FROM public_decisions WHERE portfolio_id=? "
@@ -106,16 +104,21 @@ def create_public_app(
                 ).fetchone()[0]
             else:
                 result["decisions_today"] = 0
-            result.setdefault(
-                "reviews_today",
-                conn.execute(
-                    "SELECT COUNT(*) FROM public_activity WHERE portfolio_id=? AND "
-                    "json_extract(content, '$.session_date')=?",
-                    (portfolio_id, today.date().isoformat()),
-                ).fetchone()[0]
-                if table_exists(conn, "public_activity")
-                else 0,
-            )
+            # An incremental publication leaves the stored count on the day it was written,
+            # so a same-day count is only trusted when the projection is from today.
+            if (
+                result.get("decision_count_date") != today.date().isoformat()
+                or "reviews_today" not in result
+            ):
+                result["reviews_today"] = (
+                    conn.execute(
+                        "SELECT COUNT(*) FROM public_activity WHERE portfolio_id=? AND "
+                        "json_extract(content, '$.session_date')=?",
+                        (portfolio_id, today.date().isoformat()),
+                    ).fetchone()[0]
+                    if table_exists(conn, "public_activity")
+                    else 0
+                )
             return {**queries.metadata(conn), **result}
 
     @app.api_route("/api/public/v2/portfolios/{portfolio_id}/runtime", methods=["GET", "HEAD"])
