@@ -46,7 +46,7 @@ Set-Location $RepoRoot
 $env:CODEX_HOME = $CodexHome
 $Output = @(
     & python -m app.broker.executor --profile $Profile --model $ExecutionModel --codex-home $CodexHome `
-        --logs data/logs/broker --max-intents 3 2>&1
+        --logs data/logs/broker --max-intents 2 2>&1
 )
 $ExitCode = $LASTEXITCODE
 $Output | Out-File -FilePath $LogFile -Append -Encoding utf8

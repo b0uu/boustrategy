@@ -117,7 +117,7 @@ $ExecuteTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At 00:00 `
 Register-BouTask -Name "boustrategy-live-execute" `
     -Arguments "-File `"$ExecuteScript`"" `
     -Triggers @($ExecuteTrigger) `
-    -TimeLimitMinutes 14 `
+    -TimeLimitMinutes 30 `
     -Description "boustrategy live execution: place pending approved intents during regular hours"
 
 Write-Output "`nSeven tasks registered. Verify with:"

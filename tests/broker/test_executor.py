@@ -5,6 +5,7 @@ from typing import Any
 
 from app.broker.executor import (
     MAX_ATTEMPTS_PER_INTENT,
+    RECOVERY_WARNING,
     ExecutionReport,
     execute_pending,
     execution_prompt,
@@ -233,3 +234,30 @@ def test_execution_attempts_back_off_and_stop_at_the_cap(tmp_path: Path) -> None
     )
     assert immediate_retry[0]["skipped"] in {"retry_backoff", "attempt_cap_reached"}
     assert sessions == MAX_ATTEMPTS_PER_INTENT
+
+
+def test_a_retry_is_told_to_check_broker_history_before_placing_again(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 14, 0, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(minutes=30))
+    prompts: list[str] = []
+
+    def recording(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        prompts.append(prompt)
+        return schema.model_validate(
+            {"order_intent_id": intent.order_intent_id, "outcome": "blocked", "notes": ""}
+        )
+
+    for minute in (0, 20):
+        execute_pending(
+            db_path,
+            _profile(),
+            now=now + timedelta(minutes=minute),
+            session=recording,
+            codex_home=tmp_path,
+            log_dir=tmp_path / "logs",
+        )
+
+    assert not prompts[0].startswith(RECOVERY_WARNING)
+    assert prompts[1].startswith(RECOVERY_WARNING)
+    assert "get_equity_orders" in prompts[1] and "Placing again would duplicate" in prompts[1]

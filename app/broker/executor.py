@@ -95,8 +95,20 @@ def attempt_history(ledger: Path, since: datetime | None) -> dict[str, tuple[int
     return {key: (len(values), max(values)) for key, values in seen.items()}
 
 
-def execution_prompt(intent: OrderIntent, profile: ExecutionProfile) -> str:
-    return (
+RECOVERY_WARNING = (
+    "An earlier execution session for this intent ended without reporting, so an order may "
+    "already exist at the broker. Before reviewing or placing anything, call get_equity_orders "
+    "for this account filtered to this symbol and today, and look for an order matching this "
+    "intent's side. If any such order exists, place nothing: report outcome 'submitted' with its "
+    "broker order id and say in notes that it was found in order history. Placing again would "
+    "duplicate it, because a rebuilt packet carries a new ref_id the broker cannot deduplicate. "
+)
+
+
+def execution_prompt(
+    intent: OrderIntent, profile: ExecutionProfile, prior_attempts: int = 0
+) -> str:
+    return (RECOVERY_WARNING if prior_attempts else "") + (
         "You are the execution-only worker for an autonomous investment harness, launched "
         "unattended. Read docs/execution/EXECUTOR.md first and follow it exactly, including its "
         "tool and record mapping section. Execute exactly one order intent: "
@@ -155,7 +167,7 @@ def execute_pending(
     log_dir: Path,
     now: datetime | None = None,
     session: Callable[..., Any] = run_broker_session,
-    max_intents: int = 3,
+    max_intents: int = 2,
 ) -> list[dict[str, Any]]:
     if not profile.enabled:
         raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
@@ -185,13 +197,13 @@ def execute_pending(
         }
         try:
             report = session(
-                execution_prompt(intent, profile),
+                execution_prompt(intent, profile, attempts),
                 schema=ExecutionReport,
                 model=model,
                 codex_home=codex_home or default_codex_home(),
                 sandbox="workspace-write",
                 cwd=repo_root,
-                timeout_seconds=900,
+                timeout_seconds=720,
                 log_path=log_dir / f"execute-{intent.order_intent_id}-{stamp}.log",
             )
         except BrokerSessionFailure as error:
@@ -223,7 +235,7 @@ def main() -> None:
     parser.add_argument("--model", default=DEFAULT_EXECUTION_MODEL)
     parser.add_argument("--codex-home", default=default_codex_home())
     parser.add_argument("--logs", default="data/logs/broker")
-    parser.add_argument("--max-intents", type=int, default=3)
+    parser.add_argument("--max-intents", type=int, default=2)
     args = parser.parse_args()
     profile = get_live_profile(load_live_profiles(args.profiles), args.profile)
     results = execute_pending(
