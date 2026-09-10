@@ -850,6 +850,7 @@ def publish(
             )
             decision_count_date = decision_day.date().isoformat()
             decisions_today: dict[str, int] = {}
+            reviews_today: dict[str, int] = {}
             for scope in ("live", "paper"):
                 scope_counts = {"approved": 0, "rejected": 0, "unavailable": 0}
                 for policy, count in target.execute(
@@ -868,14 +869,26 @@ def publish(
                         (decision_day + timedelta(days=1)).astimezone(UTC).isoformat(),
                     ),
                 ).fetchone()[0]
+                # A review that concludes no action is still work the public record should
+                # show; counting only authored decisions reads as an idle agent.
+                reviews_today[scope] = (
+                    target.execute(
+                        "SELECT COUNT(*) FROM public_activity WHERE portfolio_id=? AND "
+                        "json_extract(content, '$.session_date')=?",
+                        (scope, decision_count_date),
+                    ).fetchone()[0]
+                    if table_exists(target, "public_activity")
+                    else 0
+                )
                 target.execute(
                     "UPDATE public_portfolios SET content=json_set(content, "
                     "'$.decision_counts', json(?), '$.decision_count_date', ?, "
-                    "'$.decisions_today', ?) WHERE portfolio_id=?",
+                    "'$.decisions_today', ?, '$.reviews_today', ?) WHERE portfolio_id=?",
                     (
                         json.dumps(scope_counts, sort_keys=True),
                         decision_count_date,
                         decisions_today[scope],
+                        reviews_today[scope],
                         scope,
                     ),
                 )
@@ -1007,6 +1020,7 @@ def publish(
                 portfolio["decision_counts"] = decision_counts[portfolio["mode"]]
                 portfolio["decision_count_date"] = decision_count_date
                 portfolio["decisions_today"] = decisions_today[portfolio["mode"]]
+                portfolio["reviews_today"] = reviews_today[portfolio["mode"]]
                 reporting: dict[str, Any] = {}
                 ranges: dict[str, dict[str, Any]] = {}
                 observations = reporting_by_scope[portfolio["mode"]]

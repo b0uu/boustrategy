@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { PublicError, readPublic } from './api'
 import { Badge, Empty, RequestIssue } from './common'
+import { ReviewRow, useReviews } from './Activity'
 import { label, when } from './format'
 import { dashboardUrl, decisionUrl, Link, navigate } from './navigation'
-import type { FeedPage, Scope } from './types'
+import type { ActivityItem, DecisionItem, FeedPage, Scope } from './types'
 
 const WINDOW_LIMIT = 500
 const PAGE_LIMIT = 25
@@ -114,7 +116,30 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
     navigate(dashboardUrl({ q: value.trim() || null, tab: 'feed' }, search), replace)
   }
   const clear = () => navigate(dashboardUrl(Object.fromEntries(['q', 'action', 'policy', 'lifecycle', 'since', 'until', 'run_id'].map(key => [key, null])), search))
-  return <section aria-label={`${scope === 'live' ? 'Live' : 'Paper'} decision feed`}>
+  const reviews = useReviews(scope)
+  // A review that concluded no action is still work. Showing only authored decisions makes
+  // an agent that reviewed three times today look idle. Filters are decision-scoped, so a
+  // filtered view drops back to decisions alone and says so.
+  const reviewAt = (item: ActivityItem) => Date.parse(item.completed_at ?? item.prepared_at ?? item.due_at ?? item.session_date + 'T00:00:00Z')
+  const entries: Array<{ key: string; at: number; node: ReactNode }> = [
+    ...(feed.page?.items ?? []).map((item: DecisionItem) => ({
+      key: item.public_id,
+      at: Date.parse(item.created_at),
+      node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. View full trace'}>
+        <strong className="mono stream-kind">{item.ticker}</strong>
+        <span className="stream-body"><span className="stream-headline">{label(item.decision)}<Badge value={item.policy_outcome} /><span className="execution-label">{label(item.lifecycle)}</span></span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
+        <time dateTime={item.created_at} title={when(item.created_at)}>{when(item.created_at, true)}</time>
+        <span className="chevron" aria-hidden="true">&rsaquo;</span>
+      </Link>,
+    })),
+    ...(filtered ? [] : reviews.items.map(item => ({
+      key: item.public_id,
+      at: reviewAt(item),
+      node: <ReviewRow item={item} scope={scope} />,
+    }))),
+  ].sort((a, b) => b.at - a.at)
+
+  return <section aria-label="Agent activity and decisions">
     <form className="feed-tools" onSubmit={event => { event.preventDefault(); submitSearch(draft) }}>
       <label className="search-label"><span className="sr-only">Search all public decisions</span><input type="search" maxLength={200} placeholder="Search ticker, company or thesis" value={draft} onChange={event => {
         const value = event.target.value
@@ -131,17 +156,16 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
         <label>Before date (UTC)<input type="date" value={params.get('until')?.slice(0, 10) ?? ''} onChange={event => setFilter('until', event.target.value ? event.target.value + 'T00:00:00Z' : '')} /></label>
       </div></details>
     </form>
-    {filtered && <div className="filter-state"><span>{params.has('run_id') ? 'Decisions from one recorded review' : 'Filtered public history'}</span><button className="text-button" onClick={clear}>Clear filters</button></div>}
-    {(feed.updates > 0 || feed.changed) && <button className="updates-button" onClick={() => void feed.request('first')}>{feed.updates > 0 ? `${feed.updates} new update${feed.updates === 1 ? '' : 's'}` : 'Published records changed'} · Refresh feed</button>}
+    {filtered && <div className="filter-state"><span>{params.has('run_id') ? 'Decisions from one recorded review' : 'Filtered decisions only, reviews hidden'}</span><button className="text-button" onClick={clear}>Clear filters</button></div>}
+    {(feed.updates > 0 || feed.changed || reviews.changed) && <button className="updates-button" onClick={() => { void feed.request('first'); reviews.refresh() }}>{feed.updates > 0 ? feed.updates + ' new update' + (feed.updates === 1 ? '' : 's') : 'Published records changed'} · Refresh</button>}
     {feed.error && <RequestIssue error={feed.error} retained={!!feed.page} retry={() => void feed.request(feed.error?.status !== 409 && feed.failedMore ? 'more' : 'first')} />}
     {!feed.page && feed.loading && <p className="empty" role="status">Loading public decisions...</p>}
     {feed.page && <>
-      <div className="feed-count"><span>{feed.page.total.toLocaleString()} public decisions{scope === 'paper' ? ' · Paper' : ''}</span><button className="text-button" onClick={() => void feed.request('first')} disabled={feed.loading}>Refresh</button></div>
-      {!feed.page.items.length && <Empty>{filtered ? params.has('run_id') ? 'This review has no published investment decisions.' : 'No public decisions match these filters.' : `No ${scope} decisions have been published yet.`}</Empty>}
-      {feed.page.items.map(item => <Link className="feed-row" key={item.public_id} href={decisionUrl(item.public_id, scope)} aria-label={`${item.ticker}: ${label(item.decision)}. View full trace`}>
-        <strong className="mono">{item.ticker}</strong><span className="feed-content"><span className="action">{label(item.decision)}</span><span className="feed-summary">{item.public_summary}{item.summary_truncated ? '...' : ''}</span><span className="execution-label">{label(item.lifecycle)}</span></span><Badge value={item.policy_outcome} /><time dateTime={item.created_at} title={when(item.created_at)}>{when(item.created_at, true)}</time>
-      </Link>)}
-      {feed.page.next_cursor && feed.page.items.length < WINDOW_LIMIT && <button className="more-button" onClick={() => void feed.request('more')} disabled={feed.more || feed.loading}>{feed.more ? 'Loading more...' : 'Show more'} <span aria-hidden="true">&rsaquo;</span></button>}
+      <div className="feed-count"><span>{feed.page.total.toLocaleString()} public decisions{filtered ? '' : ' · ' + reviews.items.length + ' review' + (reviews.items.length === 1 ? '' : 's')}</span><button className="text-button" onClick={() => { void feed.request('first'); reviews.refresh() }} disabled={feed.loading}>Refresh</button></div>
+      {!entries.length && <Empty>{filtered ? params.has('run_id') ? 'This review has no published investment decisions.' : 'No public decisions match these filters.' : 'Nothing has been published yet.'}</Empty>}
+      {entries.map(entry => <div key={entry.key}>{entry.node}</div>)}
+      {feed.page.next_cursor && feed.page.items.length < WINDOW_LIMIT && <button className="more-button" onClick={() => void feed.request('more')} disabled={feed.more || feed.loading}>{feed.more ? 'Loading more...' : 'Show more decisions'} <span aria-hidden="true">&rsaquo;</span></button>}
+      {!filtered && reviews.hasMore && <button className="more-button" onClick={reviews.more} disabled={reviews.loading}>{reviews.loading ? 'Loading reviews...' : 'Show more reviews'} <span aria-hidden="true">&rsaquo;</span></button>}
       {feed.page.items.length >= WINDOW_LIMIT && <p className="section-note">{WINDOW_LIMIT} records are loaded in this view. Narrow your search or dates to explore more of the archive.</p>}
       <p className="section-note">Policy approval and confirmed execution are separate. Times are shown in New York time.</p>
     </>}

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { readPublic, usePublic } from './api'
 import { ResourceNotice } from './common'
-import { Activity } from './Activity'
+import { AgentStatus } from './Activity'
 import { PortfolioChart } from './Performance'
 import { amount, money, percent, publicUrl, tone } from './format'
 import { navigate } from './navigation'
@@ -18,7 +18,7 @@ function respond(url: string) {
   const result = fixtureResponse(url, data)
   return new Response(result.body, { status: result.status, headers: { 'Content-Type': result.contentType } })
 }
-const rows = () => document.querySelectorAll('.feed-row')
+const rows = () => document.querySelectorAll('.stream-row--decision')
 async function dashboard() { render(<App />); await waitFor(() => expect(rows()).toHaveLength(25)) }
 beforeEach(() => {
   data = structuredClone(fixtures)
@@ -30,19 +30,28 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers() })
 
-it('loads independently scoped V2 records with paper explicitly separate', async () => {
+it('reports the live account only and never offers the paper simulation', async () => {
   await dashboard()
   expect(screen.getByRole('heading', { name: 'BouStrategy Agent' })).toBeVisible()
-  expect(screen.getByText('$10.4K')).toBeVisible()
-  fireEvent.click(screen.getByRole('button', { name: 'Paper simulation' }))
-  await waitFor(() => expect(rows()).toHaveLength(4))
-  expect(location.search).toContain('scope=paper')
-  expect(screen.getByText(/Simulated results/)).toBeVisible()
+  expect(screen.getByTitle('$10,400.00')).toHaveTextContent('$10.4K')
+  expect(screen.getByText('Portfolio value')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Paper simulation' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Simulated results/)).not.toBeInTheDocument()
+  expect(vi.mocked(fetch).mock.calls.every(([url]) => !String(url).includes('portfolios/paper'))).toBe(true)
+})
+
+it('shows reviews beside decisions so a no-action session is still public work', async () => {
+  data['live/activity'] = data['paper/activity']
+  await dashboard()
+  await waitFor(() => expect(document.querySelectorAll('.stream-row--review')).toHaveLength(1))
+  fireEvent.click(screen.getByRole('button', { name: 'positions' }))
+  fireEvent.click(screen.getByRole('button', { name: 'feed' }))
+  expect(document.querySelectorAll('.stream-row--review')).toHaveLength(1)
 })
 it('defers the feed until first opened and retains its pages across tabs', async () => {
   history.replaceState({}, '', '/?tab=policies')
   render(<App />)
-  await screen.findByText('$10.4K')
+  await screen.findByTitle('$10,400.00')
   expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/v2/decisions?'))).toBe(false)
   fireEvent.click(screen.getByRole('button', { name: 'feed' }))
   await waitFor(() => expect(rows()).toHaveLength(25))
@@ -132,14 +141,14 @@ it('contains malformed nested positions without breaking the portfolio', async (
   data['live/positions'] = { ...(data['live/positions'] as object), items: [{ ticker: 'NVDA', thesis_review: { state: {} } }] }
   fireEvent.click(screen.getByRole('button', { name: 'positions' }))
   expect(await screen.findByText(/positions response couldn't be displayed/)).toBeVisible()
-  expect(screen.getByText('$10.4K')).toBeVisible()
+  expect(screen.getByTitle('$10,400.00')).toHaveTextContent('$10.4K')
 })
 it('keeps last good overview on transient failure and retries locally', async () => {
   await dashboard()
   vi.mocked(fetch).mockImplementation(input => Promise.resolve(String(input).endsWith('/overview') ? json({}, 503) : respond(String(input))))
   act(() => window.dispatchEvent(new Event('online')))
   expect(await screen.findByText(/Showing the last loaded data/)).toBeVisible()
-  expect(screen.getByText('$10.4K')).toBeVisible()
+  expect(screen.getByTitle('$10,400.00')).toHaveTextContent('$10.4K')
   vi.mocked(fetch).mockImplementation(input => Promise.resolve(respond(String(input))))
   fireEvent.click(screen.getByRole('button', { name: /Try again/ }))
   await waitFor(() => expect(screen.queryByText(/Showing the last loaded data/)).not.toBeInTheDocument())
@@ -254,7 +263,7 @@ it('counts down using server time and waits at zero', async () => {
     runtime.server_now = new Date(Date.now() + 60000).toISOString()
     return Promise.resolve(respond(String(input)))
   })
-  render(<Activity scope="live" />); await act(async () => {})
+  render(<AgentStatus scope="live" />); await act(async () => {})
   expect(screen.getByText('Next review in 0m 05s')).toBeVisible()
   await act(async () => vi.advanceTimersByTime(5000))
   expect(screen.getByText('Waiting for the scheduler')).toBeVisible()
@@ -271,15 +280,15 @@ it('labels missing runtime authority without implying manual operation', async (
     schedules: [],
     schedule_mode: undefined,
   }
-  render(<Activity scope="live" />)
+  render(<AgentStatus scope="live" />)
   expect(await screen.findByText('Agent activity unavailable')).toBeVisible()
   expect(screen.getByText("Runtime status hasn't been published")).toBeVisible()
   expect(screen.queryByText('Manual reviews')).not.toBeInTheDocument()
 })
-it('shows an unknown page and invalid scope instead of dashboard defaults', () => {
+it('shows an unknown page and an invalid section instead of dashboard defaults', () => {
   history.replaceState({}, '', '/unknown'); render(<App />)
   expect(screen.getByRole('heading', { name: 'Page not found' })).toBeVisible()
-  act(() => navigate('/?scope=private'))
+  act(() => navigate('/?tab=private'))
   expect(screen.getByRole('heading', { name: 'This dashboard link is invalid' })).toBeVisible()
 })
 it('rejects malformed transport metadata before rendering', async () => {

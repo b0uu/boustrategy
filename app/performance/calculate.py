@@ -64,6 +64,16 @@ def linked_return(
             "reason": "coincident_flow_endpoint_order_unknown",
             "return_percent": None,
         }
+    if start.observation_id == end.observation_id:
+        # One complete valuation spans no interval. Nothing changed across it, which is a
+        # measured zero rather than a missing fact; a newly funded account is not "unknown".
+        if not start.complete:
+            return {
+                "status": "unavailable",
+                "reason": "incomplete_valuation",
+                "return_percent": None,
+            }
+        return {"status": "available", "reason": "single_observation", "return_percent": 0.0}
     if start.occurred_at >= end.occurred_at:
         return {
             "status": "unavailable",

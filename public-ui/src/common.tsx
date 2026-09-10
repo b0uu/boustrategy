@@ -24,6 +24,7 @@ export function RequestIssue({ error, retry, retained = false }: { error: Public
 export function ResourceNotice<T>({ resource, name }: { resource: Resource<T>; name: string }) {
   if (resource.error) return <RequestIssue error={resource.error} retry={resource.refresh} retained={resource.data !== null} />
   if (!resource.data && resource.loading) return <p className="empty" role="status">Loading {name}...</p>
+  if (resource.stale) return <p className="sr-only" role="status">Updating {name}...</p>
   return null
 }
 export function AsOf({ at, published }: { at: string | null | undefined; published?: string | null }) {

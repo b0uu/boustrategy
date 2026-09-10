@@ -31,7 +31,7 @@ export interface Position {
 export interface Episode { episode_id: string; ticker: string; status: string; opened_at: string | null; first_observed_at: string; closed_at: string | null; quantity: string; thesis_review?: ThesisReview }
 export interface Overview extends Metadata {
   portfolio_id: Scope; mode: Scope; status: string; reason: string | null; data_as_of: string | null
-  equity: DecimalValue; cash: DecimalValue; portfolio_state?: string; decisions_today: number
+  equity: DecimalValue; cash: DecimalValue; portfolio_state?: string; decisions_today: number; reviews_today: number
   decision_counts: Record<string, number>; capabilities: { returns: boolean; cash: boolean; quantities: boolean }
   allocation?: Array<{ asset_class: string; market_value: DecimalValue; weight: number | null }>
   daily_pnl?: { status: string; reason: string | null; amount: DecimalValue; net_external_flows?: DecimalValue; baseline_at?: string }

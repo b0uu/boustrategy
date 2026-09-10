@@ -84,13 +84,13 @@ h3 { font-size: 11px; margin-bottom: 4px; }
 .tabs button { color: var(--text-2); font-size: 13.5px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 12px 0; background: none; text-transform: capitalize; }
 .tabs button[aria-pressed=true] { color: var(--text); font-weight: 600; border-bottom-color: var(--indigo); }
 .dashboard-panel { animation: reveal 160ms ease-out; }
-.feed-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 100px 84px; gap: 16px; align-items: baseline; padding: 15px 4px; border-bottom: 1px solid var(--border-soft); border-radius: 6px; color: inherit; }
-.feed-row:hover { color: inherit; background: var(--surface); }
-.feed-row > strong { font-size: 13px; overflow-wrap: anywhere; }
+.stream-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 100px 84px; gap: 16px; align-items: baseline; padding: 15px 4px; border-bottom: 1px solid var(--border-soft); border-radius: 6px; color: inherit; }
+.stream-row:hover { color: inherit; background: var(--surface); }
+.stream-row > strong { font-size: 13px; overflow-wrap: anywhere; }
 .feed-content { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .feed-content .action { font-size: 13.5px; }
 .feed-summary { font-size: 12.5px; color: var(--text-2); line-height: 1.5; overflow-wrap: anywhere; }
-.feed-row time { font-size: 11.5px; text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.stream-row time { font-size: 11.5px; text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .badge { font-size: 11px; font-weight: 600; line-height: 1.5; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); color: var(--text-2); justify-self: start; text-transform: capitalize; }
 .badge--approved, .badge--passed, .badge--paper_filled { background: var(--green-bg); color: var(--green); }
 .badge--rejected, .badge--failed, .badge--schema_failed, .badge--policy_rejected { background: var(--coral-bg); color: var(--coral); }
@@ -181,8 +181,8 @@ dd { margin: 2px 0 0; font: 400 12px/1.6 'IBM Plex Mono', monospace; font-varian
 @media (max-width: 600px) {
   .metrics { gap: 24px; }
   .metrics strong { font-size: 19px; }
-  .feed-row { grid-template-columns: 48px minmax(0, 1fr) 88px; gap: 10px; }
-  .feed-row time { grid-column: 2 / -1; text-align: left; }
+  .stream-row { grid-template-columns: 48px minmax(0, 1fr) 88px; gap: 10px; }
+  .stream-row time { grid-column: 2 / -1; text-align: left; }
   .position-name > span { display: none; }
   .position-heading, .position summary { grid-template-columns: 16px minmax(0, 1fr) 85px 105px; gap: 8px; }
   .position summary { font-size: 12px; }
@@ -217,14 +217,14 @@ dd { margin: 2px 0 0; font: 400 12px/1.6 'IBM Plex Mono', monospace; font-varian
 .chart-heading { line-height: 27px; }
 .allocation-group > .quiet, .allocation-legend > span { line-height: 27px; }
 .tabs button { line-height: 32px; }
-.feed-row { grid-template-columns: 56px minmax(0, 1fr) 78px 84px; }
+.stream-row { grid-template-columns: 56px minmax(0, 1fr) 78px 84px; }
 @media (max-width: 600px) {
-  .feed-row { grid-template-columns: 48px minmax(0, 1fr) 78px; }
+  .stream-row { grid-template-columns: 48px minmax(0, 1fr) 78px; }
   .feed-content { display: contents; }
   .feed-content .action { grid-column: 2; grid-row: 1; }
   .feed-summary { grid-column: 2 / -1; grid-row: 2; }
-  .feed-row > .badge { grid-column: 3; grid-row: 1; }
-  .feed-row time { grid-row: 3; }
+  .stream-row > .badge { grid-column: 3; grid-row: 1; }
+  .stream-row time { grid-row: 3; }
   .profile h1 { line-height: 1.8; }
 }
 
@@ -251,7 +251,7 @@ input[type=search] { width: 100%; }
 .updates-button, .more-button { display: block; border: 0; background: var(--surface); color: var(--text-2); border-radius: 4px; padding: 10px 12px; margin: 12px 0; font-size: 12px; }
 .more-button { margin-inline: auto; }
 .execution-label { font-size: 10.5px; color: var(--text-3); }
-.compact-disclosure > summary, .run-row > summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 12px; color: var(--text-2); }
+.compact-disclosure > summary, .stream-row--review > summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 12px; color: var(--text-2); }
 .disclosure-body { padding: 8px 0 12px 22px; }
 .compact-disclosure p + p { margin-top: 8px; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
@@ -264,13 +264,13 @@ th { color: var(--text-3); font-weight: 400; }
 .allocation-color-2 { background: var(--amber) !important; }
 .allocation-color-3 { background: var(--coral) !important; }
 .activity { padding: 0 4px 16px; }
-.activity-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-2); }
-.activity-strip time { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+.agent-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-2); }
+.agent-status time { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
 .activity-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); }
 .activity-dot.is-active { background: var(--green); }
-.run-row { border-top: 1px solid var(--border-soft); }
-.run-row > summary > span:nth-child(2) { flex: 1; min-width: 0; }
-.run-row strong { font-weight: 500; }
+.stream-row--review { border-top: 1px solid var(--border-soft); }
+.stream-row--review > summary > span:nth-child(2) { flex: 1; min-width: 0; }
+.stream-row--review strong { font-weight: 500; }
 .run-date { display: block; font-size: 11px; color: var(--text-3); }
 .attempt + .attempt { border-top: 1px solid var(--border-soft); padding-top: 12px; }
 .policy-row > summary { display: flex; align-items: center; gap: 10px; padding: 12px 4px; font-size: 12px; }
@@ -299,7 +299,7 @@ main:focus, h1:focus { outline: none; }
   .feed-tools > label { flex-basis: 100%; }
   .filters { grid-template-columns: 1fr; }
   .profile h1 { line-height: 1.4; }
-  .activity-strip time { width: 100%; margin-left: 13px; }
+  .agent-status time { width: 100%; margin-left: 13px; }
   .disclosure-body { padding-left: 12px; }
   .site-foot { flex-wrap: wrap; }
 }
@@ -307,6 +307,54 @@ main:focus, h1:focus { outline: none; }
   button, .tabs button, .range-controls button, .scope-controls button, summary { min-height: 44px; }
 }
 
-.activity-strip { display: block; padding: 0 4px 16px; }
-.activity-current { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
-.activity-current > .quiet { margin-left: auto; }
+.agent-status { display: block; padding: 0 4px 16px; }
+.agent-status-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.agent-status-line > .quiet { margin-left: auto; }
+
+
+/* --- Agent status: one compact line under the profile ------------------------------ */
+.agent-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; font-size: 11.5px; color: var(--text-2); padding: 0; }
+.agent-status .agent-state { font-weight: 500; color: var(--text); }
+.agent-status time, .agent-status > .quiet { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* --- Tabs stay reachable instead of sinking below the portfolio -------------------- */
+.tabs { position: sticky; top: 0; z-index: 2; background: var(--bg); margin-top: 8px; }
+
+/* --- One stream of reviews and decisions ------------------------------------------ */
+.stream-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 84px 14px; gap: 16px; align-items: baseline; padding: 15px 4px; border-bottom: 1px solid var(--border-soft); border-radius: 6px; color: inherit; }
+.stream-row:hover { color: inherit; background: var(--surface); }
+.stream-row--review { display: block; padding: 0; border-radius: 0; }
+.stream-row--review > summary { display: grid; grid-template-columns: 56px minmax(0, 1fr) 84px 14px; gap: 16px; align-items: baseline; padding: 15px 4px; border-radius: 6px; }
+.stream-row--review > summary:hover { background: var(--surface); }
+.stream-row--review[open] > summary { background: var(--surface); }
+.stream-kind { font-size: 12px; color: var(--text-3); font-weight: 500; overflow-wrap: anywhere; }
+.stream-row--decision .stream-kind { color: var(--text); font-size: 13px; }
+.stream-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.stream-headline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--text); }
+.stream-summary { color: var(--text-2); font-size: 12.5px; line-height: 1.6; overflow-wrap: anywhere; }
+.stream-slot { color: var(--text-3); font-size: 11px; }
+.stream-row time { font-size: 11.5px; text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* --- Chart: readable with one observation, inspectable with many ------------------- */
+.chart-figure { position: relative; margin: 0; }
+.chart-scale { position: absolute; top: 0; right: 4px; height: 108px; display: flex; flex-direction: column; justify-content: space-between; font: 10.5px 'IBM Plex Mono', monospace; color: var(--text-3); pointer-events: none; }
+.chart-readout { display: flex; align-items: baseline; gap: 10px; padding: 6px 4px 0; font-size: 11.5px; }
+.chart-readout .mono { font: 600 13px 'IBM Plex Mono', monospace; color: var(--text); font-variant-numeric: tabular-nums; }
+.chart-baseline { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.chart-cursor { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart-point { fill: var(--indigo); }
+.chart-point.is-active { fill: var(--text); }
+.portfolio-chart { touch-action: pan-y; }
+
+/* --- Refreshing keeps the last record in place instead of blanking ----------------- */
+.performance.is-updating .metrics strong, .performance.is-updating .portfolio-chart { opacity: .55; }
+.metrics strong, .portfolio-chart { transition: opacity 160ms ease-out; }
+
+@media (max-width: 560px) {
+  .stream-row, .stream-row--review > summary { grid-template-columns: 48px minmax(0, 1fr) 14px; gap: 10px; }
+  .stream-row time { grid-column: 2 / -1; text-align: left; }
+  .chart-scale { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metrics strong, .portfolio-chart { transition: none; }
+}

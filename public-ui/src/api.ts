@@ -64,7 +64,7 @@ export async function readPublic<T>(url: string, kind: ResourceKind, signal: Abo
   return { data: value as T, offset: Date.parse(value.server_now) - (started + Date.now()) / 2 }
 }
 
-export interface Resource<T> { data: T | null; loading: boolean; error: PublicError | null; offset: number; refresh: () => void }
+export interface Resource<T> { data: T | null; loading: boolean; stale: boolean; error: PublicError | null; offset: number; refresh: () => void }
 
 export function usePublic<T>(url: string | null, kind: ResourceKind, poll = 60_000): Resource<T> {
   const [state, setState] = useState<{ url: string | null; data: T | null; loading: boolean; error: PublicError | null; offset: number }>({ url, data: null, loading: !!url, error: null, offset: 0 })
@@ -81,14 +81,14 @@ export function usePublic<T>(url: string | null, kind: ResourceKind, poll = 60_0
     }
     const controller = new AbortController()
     const request = ++generation.current
-    setState(previous => ({ ...previous, url, data: previous.url === url ? previous.data : null, loading: true, error: null }))
+    setState(previous => ({ ...previous, url, data: previous.data, loading: true, error: null }))
     readPublic<T>(url, kind, controller.signal).then(result => {
       if (!controller.signal.aborted && request === generation.current) setState({ url, data: result.data, offset: result.offset, loading: false, error: null })
     }).catch((error: unknown) => {
       if (controller.signal.aborted || request !== generation.current) return
       const failure = error instanceof PublicError ? error : new PublicError(502, 'The public record could not be read.')
       retryGate.current = { url, until: failure.retryAt }
-      setState(previous => ({ ...previous, url, data: failure.status === 410 || previous.url !== url ? null : previous.data, loading: false, error: failure }))
+      setState(previous => ({ ...previous, url, data: failure.status === 410 ? null : previous.data, loading: false, error: failure }))
       if (failure.status === 410) window.dispatchEvent(new CustomEvent('public-retraction', { detail: url }))
     })
     return () => controller.abort()
@@ -113,5 +113,5 @@ export function usePublic<T>(url: string | null, kind: ResourceKind, poll = 60_0
       window.removeEventListener('public-retraction', retract)
     }
   }, [url, poll, refresh])
-  return { ...state, data: state.url === url ? state.data : null, error: state.url === url ? state.error : null, refresh }
+  return { ...state, stale: state.url !== url, error: state.url === url ? state.error : null, refresh }
 }

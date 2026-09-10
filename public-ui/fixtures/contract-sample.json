@@ -2,8 +2,8 @@
   "live/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.644114+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.370994+00:00",
     "allocation": [
       {
         "asset_class": "cash",
@@ -31,7 +31,7 @@
       "status": "available"
     },
     "data_as_of": "2026-06-12T20:00:00+00:00",
-    "decision_count_date": "2026-09-08",
+    "decision_count_date": "2026-09-10",
     "decision_counts": {
       "approved": 44,
       "rejected": 11,
@@ -91,13 +91,14 @@
     "reason": null,
     "recent_fills": [],
     "return_percent": "4.000000",
+    "reviews_today": 0,
     "status": "available"
   },
   "live/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.653006+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.381628+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "status": "available",
@@ -109,7 +110,7 @@
         "asset_class": "equity",
         "average_cost": "145",
         "holding_episode_id": "holding_52952b9c4fd8fb825c6d8e21",
-        "latest_decision_id": "dec_96cd91ebc32b460dadba891801e74e06",
+        "latest_decision_id": "dec_1f29f814373740579af302c0e592c22f",
         "latest_price": "158",
         "latest_public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "market_value": "3179.75",
@@ -133,8 +134,8 @@
   "live/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.659938+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.388726+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "benchmarks": [
@@ -228,8 +229,8 @@
   "live/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.681275+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.397495+00:00",
     "portfolio_id": "live",
     "status": "available",
     "current_asset_exposure": [
@@ -306,7 +307,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_f60cb0b92cf04f15ac33daf3adb987f9",
+          "public_id": "dec_f5bacb84cf074b25ae59684effa37589",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -494,11 +495,11 @@
   "live/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.687768+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.413740+00:00",
     "portfolio_id": "live",
     "active_run": null,
-    "as_of": "2026-09-08T20:07:40.519936+00:00",
+    "as_of": "2026-09-10T21:51:02.245560+00:00",
     "latest_run": null,
     "schedule_mode": "manual",
     "schedules": []
@@ -506,8 +507,8 @@
   "live/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.695924+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.418389+00:00",
     "portfolio_id": "live",
     "items": [],
     "next_cursor": null,
@@ -517,8 +518,8 @@
   "live/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.705316+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.423840+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -529,7 +530,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_96cd91ebc32b460dadba891801e74e06",
+        "public_id": "dec_1f29f814373740579af302c0e592c22f",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -549,8 +550,8 @@
   "paper/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.152087+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.778910+00:00",
     "capabilities": {
       "cash": false,
       "quantities": true,
@@ -558,7 +559,7 @@
     },
     "cash": null,
     "data_as_of": null,
-    "decision_count_date": "2026-09-08",
+    "decision_count_date": "2026-09-10",
     "decision_counts": {
       "approved": 3,
       "rejected": 1,
@@ -573,14 +574,15 @@
     "portfolio_id": "paper",
     "reason": null,
     "return_percent": null,
+    "reviews_today": 0,
     "simulation_convention": "New next_open_v2 fills size holdings at contemporaneous opens; legacy_close_v1 fills retain original close-based sizing. No fees, slippage, dividends or corporate actions are simulated.",
     "status": "unavailable"
   },
   "paper/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.158590+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.784356+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "status": "unavailable",
@@ -592,8 +594,8 @@
   "paper/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.164931+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.789387+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "benchmarks": [],
@@ -608,8 +610,8 @@
   "paper/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.173698+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.794323+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "current_asset_exposure": [],
@@ -663,7 +665,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_fc64ba523dee4effa8157ab0a4a1cf4d",
+          "public_id": "dec_6a031b5e3fb447239f1b178becd840d6",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -851,11 +853,11 @@
   "paper/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.180421+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.798264+00:00",
     "portfolio_id": "paper",
     "active_run": null,
-    "as_of": "2026-09-08T20:07:40.519936+00:00",
+    "as_of": "2026-09-10T21:51:02.245560+00:00",
     "latest_run": {
       "attempt_count": 2,
       "attempts_truncated": false,
@@ -864,7 +866,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_8de9072946ed45ae8a14808f1254a34b",
+        "public_id": "attempt_1cb57e1ec10247ab9220f3e752b5dc32",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -874,7 +876,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_d881ce8e4b694647a06b52cea3877c52",
+      "public_id": "run_81351a30efb242e9ba0196480430c7e3",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -886,8 +888,8 @@
   "paper/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.191065+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.803023+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -898,7 +900,7 @@
           "finished_at": "2026-06-10T21:45:30+00:00",
           "heartbeat_at": "2026-06-10T21:45:12Z",
           "observed_model": null,
-          "public_id": "attempt_8de9072946ed45ae8a14808f1254a34b",
+          "public_id": "attempt_1cb57e1ec10247ab9220f3e752b5dc32",
           "reason": null,
           "requested_model": "fixture-model-b",
           "stage": "finished",
@@ -908,7 +910,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_d881ce8e4b694647a06b52cea3877c52",
+        "public_id": "run_81351a30efb242e9ba0196480430c7e3",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -922,8 +924,8 @@
   "paper/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.196816+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.810021+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -934,7 +936,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_c06de1d4ae0f4548883603a99d76441e",
+        "public_id": "dec_751c3ad98c7142e297e38f7a40edf6ba",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -954,8 +956,8 @@
   "decision/detail": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:40.716366+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.430294+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -1022,9 +1024,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_d53a05f76b6a866f785d17a0",
+          "public_id": "claim_aebe6efc0438fc3b0909fef0",
           "source_ids": [
-            "src_a20bd12c39494af49abb6a0729f5611a"
+            "src_636c4f922a6a4de9a7580f6ff7ef808d"
           ]
         }
       ],
@@ -1048,7 +1050,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_a20bd12c39494af49abb6a0729f5611a",
+          "public_id": "src_636c4f922a6a4de9a7580f6ff7ef808d",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -1059,7 +1061,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_d53a05f76b6a866f785d17a0"
+            "claim_aebe6efc0438fc3b0909fef0"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -1068,7 +1070,7 @@
         },
         {
           "claim_ids": [
-            "claim_d53a05f76b6a866f785d17a0"
+            "claim_aebe6efc0438fc3b0909fef0"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -1077,7 +1079,7 @@
         },
         {
           "claim_ids": [
-            "claim_d53a05f76b6a866f785d17a0"
+            "claim_aebe6efc0438fc3b0909fef0"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -1086,7 +1088,7 @@
         },
         {
           "claim_ids": [
-            "claim_d53a05f76b6a866f785d17a0"
+            "claim_aebe6efc0438fc3b0909fef0"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -1095,7 +1097,7 @@
         },
         {
           "claim_ids": [
-            "claim_d53a05f76b6a866f785d17a0"
+            "claim_aebe6efc0438fc3b0909fef0"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -1106,7 +1108,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_d53a05f76b6a866f785d17a0"
+          "claim_aebe6efc0438fc3b0909fef0"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -1340,13 +1342,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "3acfe1f06c41954aebe00d2f341b0a7ff1f7a2c9ce9705411ae6900dddf14a95",
+      "validator_schema_sha256": "2c692c5df889e4ac1bc507c4caf16b16ead264fb9b2cee74c9a0e42345f382ab",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_96cd91ebc32b460dadba891801e74e06",
+    "public_id": "dec_1f29f814373740579af302c0e592c22f",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -1365,8 +1367,8 @@
   "activity/detail": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-08T20:07:40.519936+00:00",
-    "server_now": "2026-09-08T20:07:41.256089+00:00",
+    "published_at": "2026-09-10T21:51:02.245560+00:00",
+    "server_now": "2026-09-10T21:51:02.840657+00:00",
     "portfolio_id": "paper",
     "attempt_count": 2,
     "attempts": [
@@ -1375,7 +1377,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_8de9072946ed45ae8a14808f1254a34b",
+        "public_id": "attempt_1cb57e1ec10247ab9220f3e752b5dc32",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -1388,7 +1390,7 @@
         "finished_at": "2026-06-10T21:45:10+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_fba73020c5e94cc58c347489b893ef46",
+        "public_id": "attempt_4dbfcc64ccec4f7792d6f95e2e0aa14a",
         "reason": "runner_failed",
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -1400,7 +1402,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_d881ce8e4b694647a06b52cea3877c52",
+    "public_id": "run_81351a30efb242e9ba0196480430c7e3",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",
