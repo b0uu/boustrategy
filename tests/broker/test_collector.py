@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -57,8 +58,16 @@ def test_collect_snapshot_saves_fingerprint_checked_snapshot_with_themes(tmp_pat
         "account_number_last4": "0001",
         "account_equity": 118.5,
         "buying_power": 80.25,
+        "cash": 80.25,
         "positions": [
-            {"ticker": "NVDA", "market_value": 38.25, "quantity": 0.2},
+            {
+                "ticker": "NVDA",
+                "market_value": 38.25,
+                "quantity": 0.2,
+                "average_cost": 180.0,
+                "price": 191.25,
+                "quote_at": "2026-09-10T18:04:00+00:00",
+            },
             {"ticker": "TSM", "market_value": 0.0, "quantity": 0.0},
         ],
         "broker_reported_at": "",
@@ -80,6 +89,13 @@ def test_collect_snapshot_saves_fingerprint_checked_snapshot_with_themes(tmp_pat
     assert [(p.ticker, p.market_value, p.primary_theme_id) for p in snapshot.positions] == [
         ("NVDA", 38.25, "ai_semiconductors")
     ]
+    reporting = snapshot.reporting
+    assert reporting is not None
+    assert reporting.complete is True
+    assert reporting.cash == Decimal("80.25") and reporting.equity == Decimal("118.50")
+    assert [
+        (p.ticker, str(p.market_value), p.price_quality) for p in reporting.positions or []
+    ] == [("NVDA", "38.25", "current")]
     assert seen["schema"] is AccountObservation
     assert FINGERPRINT in seen["prompt"] and "Never print a full account number" in seen["prompt"]
     assert str(seen["kwargs"]["log_path"]).endswith("snapshot-codex-20260910T220500000000Z.log")
@@ -148,3 +164,56 @@ def test_snapshot_prompt_forbids_order_tools() -> None:
 
     assert "Never call any tool that reviews, places, modifies or cancels an order" in prompt
     assert "get_portfolio" in prompt and "get_equity_positions" in prompt
+
+
+def test_valuation_is_incomplete_when_a_quote_or_cash_is_missing(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    unpriced = {
+        "broker_account_fingerprint": FINGERPRINT,
+        "account_number_last4": "0001",
+        "account_equity": 118.5,
+        "buying_power": 80.25,
+        "cash": 80.25,
+        "positions": [{"ticker": "NVDA", "market_value": 38.25, "quantity": 0.2}],
+        "broker_reported_at": None,
+    }
+
+    snapshot = collect_snapshot(
+        conn, _profile(), session=_session(unpriced, {}), codex_home=tmp_path
+    )
+
+    reporting = snapshot.reporting
+    assert reporting is not None
+    assert reporting.complete is False
+    assert reporting.positions is not None
+    assert reporting.positions[0].price_quality == "missing"
+    conn.close()
+
+
+def test_valuation_after_the_close_is_recorded_as_a_session_close(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    payload = {
+        "broker_account_fingerprint": FINGERPRINT,
+        "account_number_last4": "0001",
+        "account_equity": 100.0,
+        "buying_power": 100.0,
+        "cash": 100.0,
+        "positions": [],
+        "broker_reported_at": None,
+    }
+
+    snapshot = collect_snapshot(
+        conn,
+        _profile(),
+        now=datetime(2026, 9, 10, 22, 10, tzinfo=UTC),
+        session=_session(payload, {}),
+        codex_home=tmp_path,
+    )
+
+    reporting = snapshot.reporting
+    assert reporting is not None
+    assert reporting.phase == "session_close"
+    assert reporting.session_date is not None and reporting.session_date.isoformat() == "2026-09-10"
+    assert reporting.previous_session_date is not None
+    assert reporting.complete is True
+    conn.close()

@@ -13,9 +13,9 @@ import sqlite3
 from collections.abc import Callable
 from contextlib import closing
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
@@ -27,11 +27,12 @@ from app.schemas.live_execution import (
     LivePortfolioSnapshot,
     LivePosition,
 )
+from app.schemas.reporting import ReportingPosition, ValuationObservation
 from app.storage.database import connect
 from app.storage.records import save_live_portfolio_snapshot
+from app.x.calendar import NEW_YORK, is_session, previous_session, session_close
 
 DEFAULT_COLLECTOR_MODEL = "gpt-5.6-luna"
-_NEW_YORK = ZoneInfo("America/New_York")
 _FINGERPRINT_COMMAND = (
     'python -c "import hashlib,sys; '
     'print(hashlib.sha256(sys.argv[1].strip().encode()).hexdigest()[:16])" <account_number>'
@@ -44,6 +45,9 @@ class ObservedPosition(BaseModel):
     ticker: str = Field(min_length=1, max_length=12)
     market_value: float = Field(ge=0.0)
     quantity: float = Field(ge=0.0)
+    average_cost: float | None = Field(default=None, ge=0.0)
+    price: float | None = Field(default=None, ge=0.0)
+    quote_at: AwareDatetime | None = None
 
 
 class AccountObservation(BaseModel):
@@ -53,6 +57,7 @@ class AccountObservation(BaseModel):
     account_number_last4: str | None = Field(default=None, max_length=4)
     account_equity: float = Field(gt=0.0)
     buying_power: float = Field(ge=0.0)
+    cash: float | None = Field(default=None, ge=0.0)
     positions: list[ObservedPosition] = Field(default_factory=list, max_length=50)
     broker_reported_at: str | None = Field(default=None, max_length=64)
 
@@ -91,14 +96,18 @@ def snapshot_prompt(profile: ExecutionProfile) -> str:
     return (
         "You are a read-only account collector for an autonomous investment harness. "
         + account_selection(profile)
-        + " Then call get_portfolio and get_equity_positions for that account. Report "
-        "account_equity as the total account value including cash and positions; if the "
-        "portfolio tool reports equity 0 while cash or buying power is positive, use cash plus "
-        "the market value of positions. Report buying_power as cash available to buy. List every "
-        "open equity position with its ticker, current market value in dollars and share "
-        "quantity. Put the last four characters of the account number in account_number_last4 "
-        "and the broker's own timestamp, if any, in broker_reported_at. Return only the JSON "
-        "object required by the schema."
+        + " Then call get_portfolio and get_equity_positions for that account, and "
+        "get_equity_quotes for every ticker held. Report account_equity as the total account "
+        "value including cash and positions; if the portfolio tool reports equity 0 while cash "
+        "or buying power is positive, use cash plus the market value of positions. Report "
+        "buying_power as cash available to buy, and cash as the account's actual cash balance, "
+        "which is often a different number. For every open equity position report the ticker, "
+        "share quantity, current market value in dollars, average cost per share, the current "
+        "price per share, and quote_at as that quote's own ISO 8601 timestamp with a timezone "
+        "offset. Leave price and quote_at null rather than guessing when a quote is "
+        "unavailable. Put the last four characters of the account number in "
+        "account_number_last4 and the broker's own timestamp, if any, in broker_reported_at. "
+        "Return only the JSON object required by the schema."
     )
 
 
@@ -127,6 +136,52 @@ def theme_for_ticker(conn: sqlite3.Connection, ticker: str) -> str:
     return str(json.loads(row[0]).get("primary_theme_id") or "unclassified")
 
 
+def _money(value: float) -> Decimal:
+    return Decimal(str(value)).quantize(Decimal("0.01"))
+
+
+def _valuation(
+    observed: AccountObservation,
+    profile: ExecutionProfile,
+    positions: list[LivePosition],
+    reporting_positions: list[ReportingPosition],
+    captured: datetime,
+    stamp: str,
+) -> ValuationObservation:
+    """Build the reporting fact that public value, allocation and returns are computed from.
+
+    The execution snapshot answers "may this order proceed". This answers "what was the
+    account worth", which the public store needs separately and will not infer.
+    """
+    local_day = captured.astimezone(NEW_YORK).date()
+    close = session_close(local_day) if is_session(local_day) else None
+    at_close = close is not None and captured >= close
+    equity = _money(observed.account_equity)
+    cash = _money(observed.cash) if observed.cash is not None else None
+    priced = all(item.price_quality == "current" for item in reporting_positions)
+    held = sum(
+        (item.market_value for item in reporting_positions if item.market_value is not None),
+        Decimal(0),
+    )
+    complete = cash is not None and priced and cash + held == equity
+    return ValuationObservation(
+        observation_id=f"val_{profile.execution_profile_id}_{stamp}",
+        external_event_id=f"broker_valuation_{profile.execution_profile_id}_{stamp}",
+        mode="live",
+        account_id=profile.broker_account_fingerprint,
+        occurred_at=captured,
+        # A snapshot captured at a supplied time can be recorded no earlier than it happened.
+        recorded_at=max(datetime.now(UTC), captured),
+        equity=equity,
+        cash=cash,
+        positions=reporting_positions,
+        complete=complete,
+        phase="session_close" if at_close else "intraday",
+        session_date=local_day if at_close else None,
+        previous_session_date=previous_session(local_day) if at_close else None,
+    )
+
+
 def collect_snapshot(
     conn: sqlite3.Connection,
     profile: ExecutionProfile,
@@ -150,22 +205,53 @@ def collect_snapshot(
     )
     if observed.broker_account_fingerprint != profile.broker_account_fingerprint:
         raise ValueError("collector_account_mismatch")
+    positions: list[LivePosition] = []
+    reporting_positions: list[ReportingPosition] = []
+    for observation in observed.positions:
+        quantity = Decimal(str(observation.quantity))
+        price = Decimal(str(observation.price)) if observation.price is not None else None
+        # Derive the value from quantity times price so the reporting position reconciles
+        # exactly; brokers round the two independently and the schema checks the product.
+        value = (
+            (quantity * price).quantize(Decimal("0.01"))
+            if price is not None
+            else _money(observation.market_value)
+        )
+        if value <= 0:
+            continue
+        theme = theme_for_ticker(conn, observation.ticker)
+        positions.append(
+            LivePosition(
+                ticker=observation.ticker,
+                market_value=float(value),
+                primary_theme_id=theme,
+            )
+        )
+        current = price is not None and observation.quote_at is not None
+        reporting_positions.append(
+            ReportingPosition(
+                ticker=observation.ticker,
+                quantity=quantity,
+                market_value=value,
+                average_cost=Decimal(str(observation.average_cost))
+                if observation.average_cost is not None
+                else None,
+                price=price,
+                quote_at=observation.quote_at if current else None,
+                price_quality="current" if current else "missing",
+                theme=theme,
+                asset_class="equity",
+            )
+        )
     snapshot = LivePortfolioSnapshot(
         portfolio_snapshot_id=f"snap_{profile.execution_profile_id}_{stamp}",
         execution_profile_id=profile.execution_profile_id,
         broker_account_fingerprint=profile.broker_account_fingerprint,
         captured_at=captured,
-        account_equity=observed.account_equity,
+        account_equity=float(_money(observed.account_equity)),
         buying_power=observed.buying_power,
-        positions=[
-            LivePosition(
-                ticker=position.ticker,
-                market_value=position.market_value,
-                primary_theme_id=theme_for_ticker(conn, position.ticker),
-            )
-            for position in observed.positions
-            if position.market_value > 0
-        ],
+        positions=positions,
+        reporting=_valuation(observed, profile, positions, reporting_positions, captured, stamp),
     )
     save_live_portfolio_snapshot(conn, snapshot, profile)
     return snapshot
@@ -252,7 +338,7 @@ def main() -> None:
         if args.command == "prepare-live":
             from app.reason.run import prepare_live_runs
 
-            on_date = date.fromisoformat(args.date) if args.date else datetime.now(_NEW_YORK).date()
+            on_date = date.fromisoformat(args.date) if args.date else datetime.now(NEW_YORK).date()
             runs = prepare_live_runs(
                 conn,
                 on_date,
