@@ -57,7 +57,8 @@ export interface ActivityItem { public_id: string; origin: string; session_date:
 export interface ActivityPage extends Metadata { items: ActivityItem[]; next_cursor: string | null; total: number; activity_revision?: number }
 export interface Schedule { schedule_mode: string; timezone: string; revision: number; enabled: boolean; paused: boolean; next_due_at: string | null; reason: string | null; observer_as_of: string | null; observer_max_age_seconds: number; grace_seconds: number }
 export interface Runtime extends Metadata { status?: string; reason?: string; as_of?: string; latest_run: ActivityItem | null; active_run?: ActivityItem | null; schedules: Schedule[]; schedule_mode?: string }
-export interface Decision extends DecisionItem, Metadata {
+// summary_truncated is computed for feed rows only; the detail payload carries full prose.
+export interface Decision extends Omit<DecisionItem, 'summary_truncated'>, Metadata {
   narrative: Narrative | null; narrative_status: string; proposed_target_weight: number | null
   final_target_weight: number | null; current_weight: number | null; policy_evaluation: PolicyEvaluation
   claims: Array<{ claim: string; source_type: string; source_timestamp: string }>

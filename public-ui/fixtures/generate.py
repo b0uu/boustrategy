@@ -4,11 +4,15 @@ Run from the repository root: python public-ui/fixtures/generate.py
 """
 
 import json
+import sys
 import tempfile
 from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from fastapi.testclient import TestClient
 
@@ -220,7 +224,35 @@ def generate() -> dict:
         return result
 
 
+def contract_sample(fixture: dict[str, Any]) -> dict[str, Any]:
+    """One payload per stable route name, with list bodies trimmed to one item.
+
+    The browser type checker needs to name every published shape, but the detail
+    keys are opaque IDs minted per publication. This gives them stable names and
+    keeps the type checker off the full fixture.
+    """
+    sample: dict[str, Any] = {}
+    for name, payload in fixture.items():
+        if "/" not in name:
+            continue
+        if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+            payload = {**payload, "items": payload["items"][:1]}
+        sample[name] = payload
+    for alias, section in (("decision/detail", "feed"), ("activity/detail", "activity")):
+        # Either scope may be the populated one, so take the first detail that exists.
+        for scope in ("live", "paper"):
+            items = fixture[f"{scope}/{section}"]["items"]
+            if items and items[0]["public_id"] in fixture:
+                sample[alias] = fixture[items[0]["public_id"]]
+                break
+    return sample
+
+
 if __name__ == "__main__":
+    fixture = generate()
     target = Path(__file__).with_name("public-v2.json")
-    target.write_text(json.dumps(generate(), indent=2) + "\n", encoding="utf-8")
+    target.write_text(json.dumps(fixture, indent=2) + "\n", encoding="utf-8")
+    sample = Path(__file__).with_name("contract-sample.json")
+    sample.write_text(json.dumps(contract_sample(fixture), indent=2) + "\n", encoding="utf-8")
     print(target)
+    print(sample)

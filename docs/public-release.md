@@ -9,6 +9,7 @@ broker. Publication is the only step here that reads the private source and writ
 Run the complete gates from the repository root:
 
 ```powershell
+python public-ui/fixtures/generate.py
 python -m pytest -q
 python -m ruff check .
 python -m ruff format --check .
@@ -22,6 +23,13 @@ git diff --check
 
 The browser bundle has no production fixture fallback. `public-ui/fixtures/public-v2.json` and its
 router are test-only files and aren't imported by `public-ui/src`.
+
+Regenerate the fixtures whenever a public payload changes. Two checks make a stale one fail the
+build rather than reach production: `tests/public/test_contract.py` compares the committed fixture's
+shape against a freshly published API and refuses an uncovered route, and
+`public-ui/src/contract.check.ts` assigns `contract-sample.json` to the UI's declared types so a
+field the API stopped sending becomes a `tsc` error. Regeneration rewrites opaque IDs and
+timestamps, so expect churn in `public-v2.json` even when no shape changed.
 
 The release matrix is split across tests that each own a real failure boundary:
 
