@@ -16,6 +16,41 @@ JSON at step 7.
    contributed to the thesis, satisfy the `confirmed_outside_x` discipline
    with genuinely independent evidence. An X digest is still X and cannot
    serve as outside-X confirmation.
+
+   Go and find that evidence. The intake deliberately carries no prices and
+   no outside sources, so nothing here is waiting to be handed to you. The
+   session is bounded, so prefer three decisive sources to twenty shallow
+   ones, and stop once the question is actually settled either way.
+
+   - **Establish facts at the highest provenance that can settle them.** The
+     filing, the company's own release, the official statistic, the price
+     series. An article describing a filing is not the filing, and
+     `docs/source_policy.md` ranks provenance precisely so you go to the
+     record rather than to coverage of the record.
+   - **Read for meaning as a separate act.** "The filing says X" inherits the
+     filing's reliability; "the filing means Y" inherits nothing, and neither
+     does a reputable outlet's framing. Interpretation is earned through the
+     expert-reader doctrine every time, from every source class.
+   - **Corroboration is not repetition.** `confirmed_outside_x` means the
+     X-derived claim was substantiated by real evidence and survived
+     scrutiny. Three outlets recycling one tweet, or an aggregator quoting
+     the original post, is a single source wearing different hats. Trace the
+     claim back to whoever actually observed the thing.
+   - **Search against yourself before concluding.** Run at least one search
+     framed the way someone who wants this trade to be wrong would frame it.
+     Carry what it returns into step 3 instead of discarding it; finding
+     nothing is itself a result worth stating.
+   - **Date every fact and price its age.** Note when the market could first
+     have known each fact, then answer the recency question in
+     `docs/source_policy.md` directly: given this horizon, is it already
+     priced? That answer belongs in `what_is_priced_in`.
+   - **Record only what you opened.** Each `source_claim` carries the real
+     identifier you retrieved, the source's own timestamp, a `source_type`
+     from the schema enum, and an honest `public_safe`. If the evidence you
+     need does not exist or you could not reach it, say so and let the
+     conclusion be WATCHLIST or PASS. An unsubstantiated thesis dressed as a
+     substantiated one is the worst output this step can produce, worse than
+     no action.
 3. `counter_thesis`: argue the strongest serious case against the trade,
    in good faith, as if arguing to convince a skeptical version of yourself.
    Do not write a token objection. Actively look for disconfirming evidence,
@@ -98,6 +133,11 @@ JSON at step 7.
    price has already passed the bound while you were reasoning, say so in
    `refined_thesis` and PASS rather than rewriting the bound around the new
    price.
+   Look the price up yourself; nothing in the intake supplies one. A delayed
+   or last-close quote is fine for setting a bound, because the bound is
+   tested against the broker's own live ask at placement, not against the
+   number you saw. Not having a real-time feed is therefore never a reason to
+   leave the bound empty or to decline the trade.
 9. Produce raw JSON matching the exact current `InvestmentDecisionRecord`
    schema. Do not invent fields or omit required fields.
 10. Save that JSON to a file and finish by running

@@ -35,11 +35,20 @@ from app.storage.runtime import (
     validate_fence,
 )
 
-_AUTHORING_CONTRACT = """You author investment records from the provided intake only.
-You have no authority to call broker tools, submit orders, modify files, or start other agents.
+_AUTHORING_CONTRACT = """You author investment records from the supplied intake plus outside
+research you perform yourself. Web search is available and you are expected to use it. The
+intake carries curated X signal, regime, triggers, calendar and account state; it never
+carries security prices or independent corroboration, and those are yours to find.
+Research is read-only. You have no authority to call broker tools, submit orders, modify
+files, or start other agents, and a search result never licenses skipping a reasoning step.
 Return the required structured JSON. Empty decisions and thesis_reviews are valid.
+Record only what you actually read. Every source claim needs a real identifier you retrieved
+and the source's own publication timestamp; reconstruct neither from memory. A search that
+fails or returns nothing usable is a research limitation to state, not a gap to fill in.
 Use dedicated approved public prose, never private research as public fallback.
-Use only recorded public source references. Unknown facts stay null or unavailable.
+Registered public evidence is only what the intake supplies. Sources you research yourself
+belong in source_claims and are not registered evidence.
+Unknown facts stay null or unavailable.
 Do not invent stage timings, fills, positions, sources, confidence or provider versions.
 The trusted worker validates and submits each record. It may reject stale inputs.
 The supplied decision namespace is mandatory. Set created_at to null:
