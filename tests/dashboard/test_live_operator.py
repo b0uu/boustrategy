@@ -1,8 +1,10 @@
 import json
 import re
+import sys
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.broker.config import load_live_profiles, public_profile_status
@@ -19,6 +21,14 @@ from app.storage.records import (
 )
 
 NOW = datetime.now(UTC)
+
+
+@pytest.fixture(autouse=True)
+def fresh_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The rendered page judges packet expiry and snapshot age against the wall clock, so
+    # NOW must be taken when each test starts; an import-time value goes stale on a slow
+    # runner that reaches these tests minutes after collection.
+    monkeypatch.setattr(sys.modules[__name__], "NOW", datetime.now(UTC))
 
 
 def _config(path: Path, *, codex_enabled: bool = True) -> Path:
