@@ -5,6 +5,23 @@ from app.schemas.decision_record import AssetType, InvestmentDecisionRecord
 from app.schemas.live_execution import BrokerPreflight, ExecutionProfile, LiveExecutionPacket
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide, OrderType
 
+# A limit exactly at the quote goes stale on the next tick: a BUY limit at the ask is refused
+# the moment the ask moves up a cent. A small allowance keeps the order marketable; it is
+# never past the decision's own entry bound, and a limit order still fills at the best price.
+LIMIT_ALLOWANCE = 0.002
+
+
+def _limit_price(
+    intent: OrderIntent, decision: InvestmentDecisionRecord, preflight: BrokerPreflight
+) -> float:
+    if intent.side == OrderSide.BUY:
+        limit = round(preflight.ask * (1 + LIMIT_ALLOWANCE), 2)
+        bound = decision.entry_price_max
+        return min(limit, bound) if bound is not None else limit
+    limit = round(preflight.bid * (1 - LIMIT_ALLOWANCE), 2)
+    floor = decision.entry_price_min
+    return max(limit, floor) if floor is not None else limit
+
 
 def build_execution_packet(
     intent: OrderIntent,
@@ -99,7 +116,7 @@ def build_execution_packet(
         account_equity=preflight.account_equity,
         current_position_value=preflight.current_position_value,
         notional=round(notional, 2),
-        limit_price=preflight.ask if intent.side == OrderSide.BUY else preflight.bid,
+        limit_price=_limit_price(intent, decision, preflight),
         quote_at=preflight.quote_at,
         spread_bps=spread_bps,
         require_human_approval=profile.require_human_approval,

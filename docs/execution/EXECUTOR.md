@@ -85,7 +85,9 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   "order_intent_id","execution_packet_id","execution_profile_id","status":"REVIEWED",
   "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`.
 - **Place once.** `place_equity_order` with the identical fields (the same `quantity` and
-  `limit_price`) plus `ref_id` set to the `execution_packet_id`. Never call it twice for one packet. On an ambiguous error or timeout,
+  `limit_price`) plus `ref_id` set to the UUID derived from the packet, which Robinhood requires
+  in UUID form: `python -c "import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, sys.argv[1]))" <execution_packet_id>`.
+  The same packet always yields the same UUID, so the broker still deduplicates a repeat. Never call it twice for one packet. On an ambiguous error or timeout,
   call `get_equity_orders` for the account and look for that order before deciding anything.
 - **Record.** `python -m app.broker.run record --in <file>` with
   `{"broker_execution_record_id":"ber_<packet>","order_intent_id","execution_packet_id",
