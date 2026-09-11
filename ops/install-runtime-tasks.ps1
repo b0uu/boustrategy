@@ -69,6 +69,15 @@ foreach ($Name in $Retired) {
 
 # Preparation runs 15 minutes before each review's due time. The close task carries
 # both the regular and the half-day trigger; the wrapper drops whichever is wrong.
+# The morning review trades on live prices after the open settles. Its preparation runs at
+# 09:40, clear of the 09:37 and 09:52 valuation ticks' start and before the 09:45 execution tick
+# has anything to do.
+Register-BouTask -Name "boustrategy-review-prepare-morning" `
+    -Arguments "-File `"$PrepareScript`" -Slot morning" `
+    -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:40)) `
+    -TimeLimitMinutes 20 `
+    -Description "boustrategy live review: morning preparation and broker snapshot"
+
 Register-BouTask -Name "boustrategy-review-prepare-midday" `
     -Arguments "-File `"$PrepareScript`" -Slot midday" `
     -Triggers @((New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:45)) `
@@ -89,6 +98,12 @@ Register-BouTask -Name "boustrategy-review-prepare-close" `
     ) `
     -TimeLimitMinutes 20 `
     -Description "boustrategy live review: after-hours preparation and broker snapshot"
+
+Register-BouTask -Name "boustrategy-review-poller-morning" `
+    -Arguments "-File `"$PollerScript`" -Schedule live-morning" `
+    -Triggers @((New-PollingTrigger -At 10:00)) `
+    -TimeLimitMinutes 45 `
+    -Description "boustrategy live review: morning scheduler tick"
 
 Register-BouTask -Name "boustrategy-review-poller-midday" `
     -Arguments "-File `"$PollerScript`" -Schedule live-midday" `
@@ -120,5 +135,5 @@ Register-BouTask -Name "boustrategy-live-execute" `
     -TimeLimitMinutes 30 `
     -Description "boustrategy live execution: place pending approved intents during regular hours"
 
-Write-Output "`nSeven tasks registered. Verify with:"
+Write-Output "`nNine tasks registered. Verify with:"
 Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-review-*','boustrategy-live-*' | Select TaskName,State"

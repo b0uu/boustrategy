@@ -8,7 +8,7 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("midday", "preclose", "close")]
+    [ValidateSet("morning", "midday", "preclose", "close")]
     [string]$Slot
 )
 

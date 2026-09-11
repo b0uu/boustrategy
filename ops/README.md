@@ -83,22 +83,29 @@ activate a virtual environment. Back up `data\boustrategy.db` before enabling an
 
 ### 4. Live schedule revisions
 
-The runtime only claims occurrences for an enabled `scheduled` revision. Three live schedules run
+The runtime only claims occurrences for an enabled `scheduled` revision. Four live schedules run
 each session, all with mode `live`, `account_id` equal to the profile's broker fingerprint and
 `execution_profile_id` `codex`:
 
 | Schedule | Slot | Due (ET) | Half-day | Purpose |
 | --- | --- | --- | --- | --- |
+| `live-morning` | `morning` | 10:00 | 10:00 | first trading review, on live prices after the open settles |
 | `live-midday` | `midday` | 13:00 | none | acts on the morning and midday digests while the session is open |
 | `live-preclose` | `preclose` | 15:00 | none | last intraday entry, an hour before the close |
-| `live-close` | `close` | 18:15 | 15:15 | after-hours review; its intents execute next session |
+| `live-close` | `close` | 18:15 | 15:15 | after-hours review: holdings and the hunt, watchlist only, no orders |
 
-Half sessions close at 13:00, so only the after-hours review runs on them and
-`early_close_due_local` is null for the other two. Every revision keeps the 1,800-second grace, and
-each poller ticks for exactly that window, so the due time and the tick window must coincide. An
-earlier due time would expire before the first tick.
+Only in-session reviews trade (2026-09-11). A review that runs while the market is closed may not
+author BUY, ADD, TRIM or SELL; ideas that clear the bar go on the watchlist for the next in-session
+review. An intent executes only in the session it was decided in and expires at the close, so no
+order fills against a price read before an overnight gap. The review poller hands an in-session
+review's intents to execution immediately.
 
-Both intraday reviews finish inside regular hours, so their approved intents are placed the same
+Half sessions close at 13:00; the morning review still runs, and the after-hours review moves to
+15:15. Every revision keeps the 1,800-second grace, and each poller ticks for exactly that window,
+so the due time and the tick window must coincide. An earlier due time would expire before the
+first tick.
+
+The in-session reviews finish inside regular hours, so their approved intents are placed the same
 session. The daily quota is shared: two BUY or ADD intents per day across all three reviews, not
 per review. Pausing any live schedule stops new claims on the whole account, which makes pause an
 account-wide brake rather than a per-slot switch.

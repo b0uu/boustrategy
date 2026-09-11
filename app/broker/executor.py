@@ -34,9 +34,8 @@ from app.x.calendar import (
 
 DEFAULT_EXECUTION_MODEL = "gpt-5.6-sol"
 PLACED_OUTCOMES = {"submitted", "partially_filled", "filled"}
-# An entry band is anchored to the price the model actually checked, so an intent is
-# executable only in its own session or the next one. Anything older needs a new review.
-# Attempts are capped because a packet that keeps failing its band would otherwise burn
+# An intent's guard is anchored to the price the review read, so it is executable only in the
+# session it was decided in (see pending_live_intents). Attempts are capped because a packet that keeps failing its band would otherwise burn
 # one execution session on every tick of the market-hours schedule.
 MAX_ATTEMPTS_PER_INTENT = 3
 MIN_RETRY_INTERVAL = timedelta(minutes=15)
