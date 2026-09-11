@@ -72,21 +72,25 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   `price_above_entry_band`, ...) ends the session with outcome `blocked`. A price outside the
   decision's entry band is a normal outcome, not a fault: the market has left the level the
   thesis was priced at. Never widen a band, re-quote to chase one, or place around it.
-- **Review.** `review_equity_order` on the selected account with the packet's symbol, side, a
-  limit order at exactly `limit_price`, `dollar_amount` equal to `notional`, good-for-day and
-  regular hours only, using the tool's documented enumerations. If the response changes any of
-  those economics or warns, record a `FAILED` event and stop with outcome `review_rejected`.
+- **Review.** `review_equity_order` on the selected account with the packet's symbol, side,
+  `type` `limit` at exactly `limit_price`, good-for-day and regular hours only, using the tool's
+  documented enumerations. Size it in shares, never with `dollar_amount`: Robinhood accepts a
+  dollar amount only on plain market orders. Set `quantity` to `notional / limit_price` rounded
+  down to 6 decimal places, so the order can never cost more than `notional`. An estimated cost
+  at or slightly below `notional` is that rounding, not a change in economics. If the response
+  changes the symbol, side, type, limit price, quantity, time in force or market hours, or warns,
+  record a `FAILED` event and stop with outcome `review_rejected`.
 - **REVIEWED event.** `python -m app.broker.run event --in <file>` with
   `{"broker_event_id":"bev_<packet>_reviewed","broker_execution_record_id":"ber_<packet>",
   "order_intent_id","execution_packet_id","execution_profile_id","status":"REVIEWED",
   "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`.
-- **Place once.** `place_equity_order` with the identical fields plus `ref_id` set to the
-  `execution_packet_id`. Never call it twice for one packet. On an ambiguous error or timeout,
+- **Place once.** `place_equity_order` with the identical fields (the same `quantity` and
+  `limit_price`) plus `ref_id` set to the `execution_packet_id`. Never call it twice for one packet. On an ambiguous error or timeout,
   call `get_equity_orders` for the account and look for that order before deciding anything.
 - **Record.** `python -m app.broker.run record --in <file>` with
   `{"broker_execution_record_id":"ber_<packet>","order_intent_id","execution_packet_id",
   "execution_profile_id","account_alias","ticker","side","order_type":"LIMIT",
-  "requested_notional":<notional>,"limit_price":<limit>,"submitted_at":<now>,
+  "requested_notional":<packet notional, not quantity times price>,"limit_price":<limit>,"submitted_at":<now>,
   "status":"SUBMITTED","broker_order_id":<broker id>,"execution_price":0}`, then append the
   `SUBMITTED` event (`bev_<packet>_submitted`).
 - **Reconcile.** Poll `get_equity_orders` by order id about every 20 seconds for up to five
