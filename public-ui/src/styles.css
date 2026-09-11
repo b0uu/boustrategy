@@ -72,7 +72,9 @@ main { padding-bottom: 32px; }
 .page-nav { display: flex; gap: 20px; padding: 20px 4px 0; }
 .page-nav a, .page-nav > span { font-size: 12.5px; line-height: 29px; color: var(--text-2); border-bottom: 1px solid transparent; padding: 6px 0; }
 .page-nav a[aria-current=page], .page-nav > .is-current { color: var(--text); font-weight: 600; border-bottom-color: var(--text-2); }
-.theme-toggle { margin-left: auto; align-self: center; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; background: none; border: 0; border-radius: 4px; color: var(--text-3); }
+/* In the page's top-right corner rather than the content column, so it belongs to the page and
+   not to the navigation. Absolute, not fixed: it scrolls away instead of floating over the feed. */
+.theme-toggle { position: absolute; top: 25px; right: 20px; z-index: 5; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; background: none; border: 0; border-radius: 4px; color: var(--text-3); }
 .theme-toggle:hover { color: var(--text); background: var(--surface); }
 h1, h2, h3, p, dl { margin: 0; }
 h1 { font-size: 20px; line-height: 1.4; font-weight: 700; letter-spacing: -.01em; }
