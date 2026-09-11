@@ -331,3 +331,34 @@ def test_an_order_needs_a_public_narrative_the_dashboard_would_show_in_full() ->
     assert "would not publish stages: refined_thesis" in str(gap(cited))
     assert "conviction_rationale" in str(gap({**public_story(), "conviction_rationale": None}))
     assert "invalidation" in str(gap({**public_story(), "conditions": {"invalidation": []}}))
+
+
+def test_a_decision_that_used_x_must_link_its_posts() -> None:
+    record = InvestmentDecisionRecord.model_validate(
+        {
+            **valid_decision_record_data(),
+            "x_signal_usage": {
+                "used": True,
+                "usage_type": "IDEA_SOURCE",
+                "summary": "A curated post prompted the review.",
+                "confirmed_outside_x": True,
+            },
+        }
+    )
+    without = record.model_copy(
+        update={"public_narrative": PublicNarrative.model_validate(public_story())}
+    )
+    assert "lists no x_posts" in str(public_narrative_gap(without))
+
+    story = {
+        **public_story(),
+        "x_posts": [
+            {
+                "url": "https://x.com/examplefeed/status/1000000000000000000",
+                "role": "idea_source",
+                "summary": "Flagged the results the review examined.",
+            }
+        ],
+    }
+    linked = record.model_copy(update={"public_narrative": PublicNarrative.model_validate(story)})
+    assert public_narrative_gap(linked) is None

@@ -7,7 +7,12 @@ from typing import Any
 
 from app.dashboard.queries import table_exists
 from app.schemas.policy_reporting import PolicyEvaluationRecord
-from app.schemas.public_authoring import PublicNarrative, PublicSourceRecord, ThesisReview
+from app.schemas.public_authoring import (
+    PublicNarrative,
+    PublicSourceRecord,
+    ThesisReview,
+    canonical_x_post,
+)
 from app.schemas.reporting import FillObservation
 from app.x.calendar import NEW_YORK
 
@@ -92,6 +97,15 @@ def narrative_projection(
         "variant_perception": variant,
         "trigger_summary": narrative.trigger_summary,
         "x_summary": narrative.x_summary,
+        "x_posts": [
+            {
+                "url": post.url,
+                "handle": (canonical_x_post(post.url) or ("", ""))[0],
+                "role": post.role,
+                "summary": post.summary,
+            }
+            for post in narrative.x_posts
+        ],
         "conviction_rationale": narrative.conviction_rationale,
         "extraordinary_opportunity_summary": narrative.extraordinary_opportunity_summary,
         "conditions": narrative.conditions.model_dump(mode="json")

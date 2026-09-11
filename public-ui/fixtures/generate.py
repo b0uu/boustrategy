@@ -141,6 +141,25 @@ def generate() -> dict:
                         data["proposed_target_weight"] = 0.4
                         data["final_target_weight"] = 0.4
                     if index == 0:
+                        # A digest headline triggered this review; its X post is linked publicly.
+                        post = "1000000000000000000"
+                        data["trigger_id"] = f"digest_headline:{post}:2026-06-10"
+                        conn.execute(
+                            "INSERT OR IGNORE INTO trigger_events (trigger_id, trigger_type, "
+                            "subject, fired_at, details_json, status) VALUES (?, "
+                            "'digest_headline', ?, '2026-06-10', ?, 'pending')",
+                            (
+                                data["trigger_id"],
+                                post,
+                                json.dumps(
+                                    {
+                                        "handle": "examplefeed",
+                                        "reason": "fixture headline",
+                                        "url": f"https://x.com/examplefeed/status/{post}",
+                                    }
+                                ),
+                            ),
+                        )
                         data["public_narrative"] = {
                             "approved_for_publication": True,
                             "company_name": "NVIDIA",
@@ -176,6 +195,22 @@ def generate() -> dict:
                                 "claim_ids": ["growth"],
                             },
                             "trigger_summary": "Review following the company's quarterly results.",
+                            "x_summary": (
+                                "Curated X discussion prompted the review; the company's filings "
+                                "established the facts."
+                            ),
+                            "x_posts": [
+                                {
+                                    "url": "https://x.com/examplefeed/status/1000000000000000000",
+                                    "role": "idea_source",
+                                    "summary": "Flagged the quarterly results the review examined.",
+                                },
+                                {
+                                    "url": "https://x.com/otherfeed/status/1000000000000000001",
+                                    "role": "counter_evidence",
+                                    "summary": "Argued that customer orders may pause next year.",
+                                },
+                            ],
                             "conviction_rationale": (
                                 "Evidence supports the business outlook, while the entry price "
                                 "limits the proposed size."

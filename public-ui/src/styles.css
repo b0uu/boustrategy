@@ -309,6 +309,10 @@ main:focus, h1:focus { outline: none; }
 .claim-detail { padding: 0 4px 14px 28px; font-size: 11.5px; color: var(--text-2); }
 .source-pack > div { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 9px 4px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
 .source-pack .source-title { min-width: 0; overflow-wrap: anywhere; }
+.x-posts { list-style: none; margin: 10px 0; padding: 0; }
+.x-posts li { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 9px 4px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
+.x-post-body { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.x-post-body span { color: var(--text-2); }
 .source-pack .source-published { font: 400 11px 'IBM Plex Mono', monospace; color: var(--text-3); white-space: nowrap; }
 .prose-fact + .prose-fact, .source-entry + .source-entry { margin-top: 14px; }
 .source-entry { overflow-wrap: anywhere; }
@@ -381,6 +385,7 @@ main:focus, h1:focus { outline: none; }
   .disclosure-body { padding-left: 12px; }
   .as-of { max-width: 100%; overflow-wrap: anywhere; }
   .source-pack > div { grid-template-columns: 70px minmax(0, 1fr); }
+  .x-posts li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .source-pack .source-published { grid-column: 2; }
 }
 @media (max-width: 380px) {

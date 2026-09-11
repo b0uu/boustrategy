@@ -52,6 +52,8 @@ const labels: Record<string, string> = {
   awaiting_paper_price: 'Waiting for paper price', broker_filled: 'Broker fill reported', partial: 'Partially available',
   broker_failed: 'Order attempt failed', broker_reviewed: 'Order reviewed', broker_submitted: 'Order submitted',
   broker_canceled: 'Order canceled', broker_partially_filled: 'Partial fill reported', order_intent_created: 'Order pending',
+  x_trigger: 'Triggered this review', x_idea_source: 'Idea source', x_supporting: 'Supporting',
+  x_counter_evidence: 'Counter-evidence', x_context: 'Context',
 }
 // Unmapped codes read as sentence case ("Buy", "Preclose"), never raw lowercase.
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)

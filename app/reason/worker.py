@@ -90,6 +90,10 @@ prose that faithfully summarizes that step of your reasoning, add conviction_rat
 add conditions with at least one invalidation condition. Keep it public-safe: no account
 details, private notes or internal identifiers. Leave required_source_refs empty and give
 stages no claim_ids, because sources the worker hasn't registered would suppress them.
+When X shaped a decision (x_signal_usage.used), list the specific posts in public_narrative
+x_posts: each post's https://x.com/<handle>/status/<id> URL from the intake, its role
+(idea_source, supporting, counter_evidence or context) and a one-line summary in your own words
+of what it contributed; never quote post text. Set x_summary to how X was used overall.
 """
 
 
@@ -128,6 +132,8 @@ def public_narrative_gap(decision: InvestmentDecisionRecord) -> str | None:
     conditions = projected["conditions"] or {}
     if not projected["conviction_rationale"] or not conditions.get("invalidation"):
         return "public_narrative needs conviction_rationale and at least one invalidation condition"
+    if decision.x_signal_usage.used and not projected["x_posts"]:
+        return "used X but its public_narrative lists no x_posts with URL, role and summary"
     return None
 
 

@@ -12,12 +12,14 @@ export interface FeedPage extends Metadata { items: DecisionItem[]; total: numbe
 export interface Conditions { invalidation: string[]; add: string[]; trim: string[]; exit: string[] }
 export interface PublicSource { public_id: string; title: string; publisher: string; published_on: string | null; source_type: string; url: string | null; excerpt: string | null }
 export interface Claim { public_id: string; claim: string; evidence_confidence: number | null; source_ids: string[] }
+// A linked X post: the dashboard publishes its canonical link, handle and the review's own summary, never post text.
+export interface XPost { url: string; handle: string; role: string; summary: string | null }
 export interface Narrative {
   company_name: string | null
   stages: Array<{ stage: string; summary: string; started_at: string | null; completed_at: string | null; claim_ids: string[] }>
   claims: Claim[]; sources: PublicSource[]
   variant_perception: { consensus: string | null; disagreement: string | null; evidence: string | null; falsification: string | null; claim_ids: string[] } | null
-  trigger_summary: string | null; x_summary: string | null; conviction_rationale: string | null
+  trigger_summary: string | null; x_summary: string | null; x_posts?: XPost[]; conviction_rationale: string | null
   extraordinary_opportunity_summary: string | null; conditions: Conditions | null
 }
 export interface ThesisReview { state: string; reviewed_at: string | null; summary: string | null; reason?: string; narrative?: Narrative | null; author?: string }
@@ -63,6 +65,7 @@ export interface Decision extends Omit<DecisionItem, 'summary_truncated'>, Metad
   final_target_weight: number | null; current_weight: number | null; policy_evaluation: PolicyEvaluation
   claims: Array<{ claim: string; source_type: string; source_timestamp: string }>
   x_usage: { used: boolean; usage_type: string; summary: string; confirmed_outside_x: boolean }
+  x_posts?: XPost[]
   model_provenance: { status: string; model_label?: string | null; requested_model?: string; observed_model?: string | null }
   execution: { status: string; reason?: string; quantity: DecimalValue; gross_notional: DecimalValue; fees: DecimalValue; total?: number; truncated?: boolean; slippage_reason?: string; items: Array<{ occurred_at: string; side: string; quantity: string; price: string; gross_notional: string; fee: string | null; order_state: string; canceled_quantity: string; settled_at: string | null }> }
   sized_order: { notional: DecimalValue; limit_price: DecimalValue; side: string; order_type: string; sized_at: string; expires_at: string; status: string } | null

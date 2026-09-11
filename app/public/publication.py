@@ -26,7 +26,7 @@ from app.schemas.broker_execution import BrokerExecutionRecord, BrokerExecutionS
 from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.live_execution import LiveExecutionPacket
 from app.schemas.policy_reporting import PolicyEvaluationRecord
-from app.schemas.public_authoring import ThesisReview
+from app.schemas.public_authoring import ThesisReview, canonical_x_post
 from app.schemas.reporting import (
     CoverageObservation,
     FillObservation,
@@ -219,7 +219,7 @@ def publish(
             ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 9,
+                    "version": 10,
                     "accounting_clock": accounting_clock,
                     "identity": identity,
                     "changes": changes,
@@ -408,6 +408,24 @@ def publish(
                 if table_exists(source, "public_source_records")
                 else set()
             )
+            # The X post a digest-headline trigger points at. Only its canonical link and handle
+            # are published: the dashboard links to X rather than redistributing post text.
+            trigger_posts: dict[str, dict[str, str]] = {}
+            if table_exists(source, "trigger_events"):
+                for trigger_id, details_json in source.execute(
+                    "SELECT trigger_id, details_json FROM trigger_events "
+                    "WHERE trigger_type='digest_headline'"
+                ):
+                    try:
+                        details = json.loads(details_json)
+                    except ValueError:
+                        continue
+                    parsed = canonical_x_post(str(details.get("url", "")))
+                    if parsed:
+                        trigger_posts[str(trigger_id)] = {
+                            "url": f"https://x.com/{parsed[0]}/status/{parsed[1]}",
+                            "handle": parsed[0],
+                        }
             evaluations = (
                 {
                     row[0]: PolicyEvaluationRecord.model_validate_json(row[1])
@@ -749,6 +767,16 @@ def publish(
                     content["company_name"] = narrative["company_name"]
                 if narrative:
                     content["x_usage"]["summary"] = narrative["x_summary"] or ""
+                x_posts: list[dict[str, Any]] = []
+                trigger_post = trigger_posts.get(str(raw.get("trigger_id") or ""))
+                if trigger_post:
+                    x_posts.append({**trigger_post, "role": "trigger", "summary": None})
+                for post in narrative["x_posts"] if narrative else []:
+                    if trigger_post and post["url"] == trigger_post["url"]:
+                        x_posts[0]["summary"] = post["summary"]
+                    else:
+                        x_posts.append(post)
+                content["x_posts"] = x_posts
                 content["created_at"] = (
                     datetime.fromisoformat(str(raw["created_at"]).replace("Z", "+00:00"))
                     .astimezone(UTC)

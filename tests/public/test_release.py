@@ -40,7 +40,7 @@ def test_published_store_contains_no_profile_or_account_identity(tmp_path: Path)
     assert ("f" * 16).encode() not in blob
     assert len(checkpoint["identity"]) == 64
     assert "profiles" not in checkpoint and "account" not in checkpoint
-    assert checkpoint["version"] == 9
+    assert checkpoint["version"] == 10
 
 
 def test_built_public_surface_has_no_mutation_routes_and_reads_write_nothing(

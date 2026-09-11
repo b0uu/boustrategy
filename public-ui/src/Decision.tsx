@@ -61,6 +61,7 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
     } finally { setExporting(false) }
   }
   const narrative = data.narrative
+  const xPosts = data.x_posts ?? []
   const regime = data.policy_evaluation.regime_evidence
   return <div className="trace">
     <Link className="back" href={back}>← Feed</Link>
@@ -97,6 +98,14 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         </div> })}</div>
         <p className="section-note">Every source the published record cites, whether or not a claim quotes it.</p>
       </section> : null}
+      <section><div className="section-heading"><h2>X signals</h2>{xPosts.length ? <span>{xPosts.length} linked post{xPosts.length === 1 ? '' : 's'}</span> : null}</div>
+        <p>{data.x_usage.used ? narrative?.x_summary || data.x_usage.summary || label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>
+        {xPosts.length ? <ul className="x-posts">{xPosts.map(post => { const href = publicUrl(post.url); return <li key={post.url}>
+          <span className="source-type">{label('x_' + post.role)}</span>
+          <span className="x-post-body"><strong>{href ? <a href={href} target="_blank" rel="noopener noreferrer">@{post.handle} on X ↗</a> : `@${post.handle}`}</strong>{post.summary && <span>{post.summary}</span>}</span>
+        </li> })}</ul> : null}
+        {data.x_usage.used && <p className="quiet">{data.x_usage.confirmed_outside_x ? 'Confirmation outside X was recorded.' : 'Confirmation outside X was not recorded.'}</p>}
+      </section>
       <section><h2>Invalidation criteria</h2><TextList items={narrative?.conditions?.invalidation} empty="No public invalidation criteria were recorded." /></section>
       {data.theme && <section><h2>Strategy &amp; themes</h2><div className="tags mono">{[data.theme, data.regime && `regime_${data.regime.toLowerCase()}`].filter(Boolean).map(tag => <span key={tag as string}>{tag}</span>)}</div></section>}
       <section><details className="regime"><summary><Chevron /> Regime {label(regime?.published_state ?? data.regime)}{regime ? `, composite score ${regime.score}` : ''}</summary><div className="regime-detail">{regime ? <><p>Raw {label(regime.raw_state)} · Published {label(regime.published_state)} · {when(regime.as_of)}</p><dl className="regime-values">{regime.components.map(component => <div key={component.name}><dt>{label(component.name)}</dt><dd>{ruleValue(component.value, component.unit)} · {component.points} points</dd></div>)}</dl><p className="section-note">Component values and points are recorded observations. The composite isn't model confidence.</p></> : <Empty>Bound historical regime evidence wasn't recorded.</Empty>}</div></details></section>
@@ -106,7 +115,6 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         <p className="section-note">Approval, submitted orders and confirmed fills are separate. Slippage is unavailable without a recorded reference price.</p>
       </section>
       <section><details className="compact-disclosure"><summary><Chevron /> Recorded milestones ({data.milestones.length})</summary><ol className="timeline">{data.milestones.map((milestone, index) => <li key={index}><span>{label(milestone.stage)}</span><time dateTime={milestone.occurred_at}>{milestone.time_precision === 'timestamp' ? when(milestone.occurred_at) : milestone.occurred_at}</time></li>)}</ol>{!data.milestones.length && <Empty>No milestone timestamps were recorded.</Empty>}{data.milestones_truncated && <p className="section-note">Showing {data.milestones.length} of {data.milestones_total} milestones.</p>}</details></section>
-      <section><h2>X signal usage</h2><p>{data.x_usage.used ? narrative?.x_summary ?? data.x_usage.summary ?? label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>{data.x_usage.used && <p className="quiet">{data.x_usage.confirmed_outside_x ? 'Confirmation outside X was recorded.' : 'Confirmation outside X was not recorded.'}</p>}</section>
       <section><details className="conditions"><summary><Chevron /> Portfolio management conditions</summary><div className="condition-grid">{(['add', 'trim', 'exit'] as const).map(key => <div key={key}><h3>{label(key)}</h3><TextList items={narrative?.conditions?.[key]} /></div>)}</div></details></section>
       <section><details className="compact-disclosure"><summary><Chevron /> Record provenance</summary><dl className="detail-grid disclosure-body"><Fact name="Public decision">{data.public_id}</Fact><Fact name="Requested model">{data.model_provenance.requested_model ?? data.model_provenance.model_label ?? 'Not recorded'}</Fact><Fact name="Observed model">{data.model_provenance.observed_model ?? 'Not recorded'}</Fact><Fact name="Policy version">{data.policy_evaluation.policy_version ?? 'Not recorded'}</Fact><Fact name="Validator version">{data.policy_evaluation.validator_version ?? 'Not recorded'}</Fact><Fact name="Authored schema">{data.policy_evaluation.authored_schema_version ?? 'Not recorded'}</Fact></dl><p className="section-note">Model changes annotate one account's continuous history. They aren't separate competing portfolios.</p></details></section>
     </SectionBoundary>

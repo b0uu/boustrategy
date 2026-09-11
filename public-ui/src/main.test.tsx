@@ -396,3 +396,20 @@ it('shows every status label in sentence case, never raw lowercase', () => {
   expect(label('broker_filled')).toBe('Broker fill reported')
   expect(label('some_new_code')).toBe('Some new code')
 })
+
+it('links the X posts behind a decision with their role, never their text', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  expect(decision.x_posts?.length).toBeGreaterThan(0)
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+  await screen.findByRole('heading', { name: 'X signals' })
+  for (const post of decision.x_posts!) {
+    const link = screen.getByRole('link', { name: `@${post.handle} on X ↗` })
+    expect(link).toHaveAttribute('href', post.url)
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  }
+  expect(screen.getByText('Triggered this review')).toBeVisible()
+  expect(screen.getByText('Counter-evidence')).toBeVisible()
+})

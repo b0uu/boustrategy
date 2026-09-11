@@ -1,6 +1,7 @@
 """Opt-in public prose and explicit source eligibility, separate from private research."""
 
 import ipaddress
+import re
 from datetime import date
 from typing import Annotated, Literal
 from urllib.parse import parse_qsl, urlsplit
@@ -58,6 +59,33 @@ class PublicConditions(PublicAuthoringModel):
     invalidation: list[Text] = Field(default_factory=list, max_length=20)
 
 
+# A public X post is identified only by its canonical status URL; nothing else from the post
+# (text, media) crosses the public boundary, so the dashboard links rather than redistributes.
+X_STATUS_URL = re.compile(r"^https://(?:x|twitter)\.com/([A-Za-z0-9_]{1,15})/status/(\d{1,25})$")
+
+
+def canonical_x_post(url: str) -> tuple[str, str] | None:
+    """Return (handle, status id) for a well-formed public X status URL, else None."""
+    match = X_STATUS_URL.match(url.strip())
+    return (match.group(1), match.group(2)) if match else None
+
+
+class PublicXPost(PublicAuthoringModel):
+    """An X post that shaped the decision, with the review's own public one-line summary."""
+
+    url: str = Field(min_length=1, max_length=200)
+    role: Literal["idea_source", "supporting", "counter_evidence", "context"]
+    summary: Text
+
+    @field_validator("url")
+    @classmethod
+    def public_status_url(cls, value: str) -> str:
+        parsed = canonical_x_post(value)
+        if parsed is None:
+            raise ValueError("X post must be a https://x.com/<handle>/status/<id> URL")
+        return f"https://x.com/{parsed[0]}/status/{parsed[1]}"
+
+
 class PublicNarrative(PublicAuthoringModel):
     company_name: str | None = Field(default=None, min_length=1, max_length=200)
     approved_for_publication: bool = False
@@ -67,6 +95,7 @@ class PublicNarrative(PublicAuthoringModel):
     variant_perception: PublicVariantPerception | None = None
     trigger_summary: Text | None = None
     x_summary: Text | None = None
+    x_posts: list[PublicXPost] = Field(default_factory=list, max_length=10)
     conviction_rationale: Text | None = None
     extraordinary_opportunity_summary: Text | None = None
     conditions: PublicConditions | None = None
