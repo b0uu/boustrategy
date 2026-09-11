@@ -8,6 +8,7 @@ validates before anything is persisted.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,7 @@ from pydantic import BaseModel, ValidationError
 MAX_PROMPT_BYTES = 200_000
 MAX_OUTPUT_BYTES = 200_000
 MAX_LOG_BYTES = 2_000_000
+_TOOL_NAME = re.compile(r"[a-z][a-z0-9_]{0,63}")
 _ALLOWED_ENVIRONMENT = {
     "SYSTEMROOT",
     "WINDIR",
@@ -81,6 +83,7 @@ def run_broker_session[T: BaseModel](
     executable: str = "codex",
     log_path: Path | None = None,
     run: Runner = subprocess.run,
+    approved_tools: tuple[str, ...] = (),
 ) -> T:
     encoded = prompt.encode("utf-8")
     if not encoded.strip() or len(encoded) > MAX_PROMPT_BYTES:
@@ -113,8 +116,16 @@ def run_broker_session[T: BaseModel](
             model,
             "-c",
             "mcp_servers.robinhood-trading.enabled=true",
-            "-",
         ]
+        # The broker marks order tools as needing approval, and an unattended session's
+        # approval policy is never, so Codex rejects them outright. Only the execution
+        # session names the tools it may call without a human; every other session keeps
+        # the broker's default and cannot place or review an order.
+        for tool in approved_tools:
+            if not _TOOL_NAME.fullmatch(tool):
+                raise ValueError("invalid broker tool name")
+            argv += ["-c", f"mcp_servers.robinhood-trading.tools.{tool}.approval_mode=approve"]
+        argv.append("-")
         environment = {
             key: value for key, value in os.environ.items() if key.upper() in _ALLOWED_ENVIRONMENT
         }

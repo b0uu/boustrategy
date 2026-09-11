@@ -26,8 +26,11 @@ For one packet, follow this order:
 2. Confirm the packet has not expired. Never place from an expired packet. Refresh broker state
    and build a new packet instead.
 3. Use Robinhood's account, position, quote, and tradability tools to verify that the packet still
-   matches current broker state. Stop if the account fingerprint, ticker, side, notional, limit
-   price, buying power, fractional eligibility, or regular-hours state differs.
+   matches current broker state. Stop if the account fingerprint, ticker, side, notional, buying
+   power, fractional eligibility, or regular-hours state differs, or if the market has moved
+   against the packet: on a BUY the current ask is above the packet's `limit_price`, on a SELL the
+   current bid is below it. A quote that moved in the order's favor is not a mismatch. Keep the
+   packet's `limit_price` exactly; never re-price the order.
 4. Call Robinhood's equity order-review tool using exactly the packet fields. Never increase size,
    change side, change ticker, change order type, or substitute an account.
 5. If broker review returns an error, warning that changes the economics, or fields that don't

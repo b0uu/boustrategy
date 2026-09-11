@@ -34,6 +34,9 @@ PLACED_OUTCOMES = {"submitted", "partially_filled", "filled"}
 # one execution session on every tick of the market-hours schedule.
 MAX_ATTEMPTS_PER_INTENT = 3
 MIN_RETRY_INTERVAL = timedelta(minutes=15)
+# The only broker tools an unattended session may call without a human: reviewing and placing
+# the one packet this session executes.
+EXECUTION_TOOLS = ("review_equity_order", "place_equity_order")
 
 
 class ExecutionReport(BaseModel):
@@ -205,6 +208,7 @@ def execute_pending(
                 cwd=repo_root,
                 timeout_seconds=720,
                 log_path=log_dir / f"execute-{intent.order_intent_id}-{stamp}.log",
+                approved_tools=EXECUTION_TOOLS,
             )
         except BrokerSessionFailure as error:
             report = None

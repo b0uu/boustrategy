@@ -61,6 +61,48 @@ def test_session_returns_validated_output_and_isolates_environment(
     )
     assert schema["additionalProperties"] is False
     assert set(schema["required"]) == {"answer", "count"}
+    # A session that names no tools gets no approval overrides: order tools stay gated.
+    assert not any("approval_mode" in part for part in argv)
+    assert argv[-1] == "-"
+
+
+def test_only_named_tools_are_approved_and_names_are_validated(tmp_path: Path) -> None:
+    seen: dict[str, Any] = {}
+
+    run_broker_session(
+        "execute",
+        schema=Reply,
+        model="gpt-5.6-sol",
+        codex_home=tmp_path / "home",
+        run=_fake_run(json.dumps({"answer": "ok"}), seen=seen),
+        approved_tools=("review_equity_order", "place_equity_order"),
+    )
+
+    argv = seen["argv"]
+    overrides = [argv[i + 1] for i, part in enumerate(argv) if part == "-c"]
+    assert (
+        "mcp_servers.robinhood-trading.tools.review_equity_order.approval_mode=approve" in overrides
+    )
+    assert (
+        "mcp_servers.robinhood-trading.tools.place_equity_order.approval_mode=approve" in overrides
+    )
+    assert sum("approval_mode" in item for item in overrides) == 2
+    assert argv[-1] == "-"
+    with pytest.raises(ValueError, match="tool name"):
+        run_broker_session(
+            "x",
+            schema=Reply,
+            model="m",
+            codex_home=tmp_path,
+            run=_fake_run("{}", seen={}),
+            approved_tools=("place_equity_order.approval_mode=approve -c x",),
+        )
+
+
+def test_executor_approves_exactly_review_and_place() -> None:
+    from app.broker.executor import EXECUTION_TOOLS
+
+    assert EXECUTION_TOOLS == ("review_equity_order", "place_equity_order")
 
 
 def test_session_failures_are_named(tmp_path: Path) -> None:
