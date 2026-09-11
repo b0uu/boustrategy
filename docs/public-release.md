@@ -377,7 +377,7 @@ any planned maintenance.
 | Item | Result |
 | --- | --- |
 | Hostname / tunnel | `https://boustrategy.com`, named tunnel `boustrategy-public` (`71da6f41-72c1-42bb-9c18-4b79d83475b5`), cloudflared 2026.9.1 (Authenticode valid, Cloudflare, Inc.), service Automatic/Running with restart-on-failure, 4 IAD edge connections |
-| Commit / build | `cd7329a` on `advisor/039-public-launch`; bundle `index-CwwES6dF.js`, `index-YYVox2WR.css` |
+| Commit / build | `182df87`; bundle `index-CwwES6dF.js`, `index-YYVox2WR.css` |
 | Gates | 537 Python tests, Ruff, format, mypy (162 files); 36 UI tests, tsc, ESLint, build; `git diff --check` clean |
 | HTTP benchmark (100k records) | Overview p95 74-108 ms. Feed p95 446-537 ms against a 500 ms target, identical to the pre-change baseline (510/514 ms) on the same host. Accepted by the maintainer as a host condition; hardening adds no measurable latency. GETs left the store unchanged. |
 | Browser pass | 320/375/768/1200 px, 200% zoom, reduced motion, keyboard order and focus rings, skip link first: no horizontal overflow and no CSP violations, both local and through the edge. Maintainer approved the UI. |

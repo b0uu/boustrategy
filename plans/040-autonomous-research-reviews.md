@@ -4,7 +4,7 @@
 
 - **Priority**: P0 · **Effort**: M · **Risk**: MEDIUM (changes live review behavior)
 - **Depends on**: plan 039 launch finishes first (maintainer order, 2026-09-11)
-- **Planned at**: commit `cd7329a`, 2026-09-11
+- **Planned at**: commit `182df87`, 2026-09-11
 
 ## Why
 
@@ -15,7 +15,7 @@ reopened it for active research.
 The scheduled runtime (`54655fa`, `0349951`, 2026-09-08) was built as a transcription step:
 "author records from the provided intake only". It is one turn, read-only, schema-bound and
 started with `--ignore-user-config`, so no reasoning effort is set. Empty output is explicitly
-valid, nothing checks that it hunted, and no operator pushes back. `b4aca95` (09-10) permitted
+valid, nothing checks that it hunted, and no operator pushes back. `3e9ebad` (09-10) permitted
 search in one paragraph. Every live review since has ended NO_ACTION on 26-241 reasoning tokens,
 and none hunted despite 0% invested in GREEN.
 

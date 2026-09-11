@@ -4,7 +4,7 @@
 > not expose the site until all pre-launch gates pass. If a STOP condition occurs,
 > report it; do not improvise. Update this plan's row in `plans/README.md` when done.
 >
-> **Drift check**: `git diff --stat ec9cfb2..HEAD -- app/broker/collector.py app/public ops docs/public-release.md tests public-ui`
+> **Drift check**: `git diff --stat 7b14ee9..HEAD -- app/broker/collector.py app/public ops docs/public-release.md tests public-ui`
 > Existing maintainer-directed UI changes are expected and must be preserved. A hash
 > difference alone is not a STOP; a contradicted Current-state signature is.
 
@@ -15,7 +15,7 @@
 - **Risk**: HIGH
 - **Depends on**: none (038 is DONE)
 - **Category**: direction, security, ops, product
-- **Planned at**: commit `ec9cfb2`, 2026-09-11
+- **Planned at**: commit `7b14ee9`, 2026-09-11
 
 ## Why this matters
 
