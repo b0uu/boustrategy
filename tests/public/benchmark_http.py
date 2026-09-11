@@ -29,6 +29,7 @@ import uvicorn
 from fastapi.testclient import TestClient
 
 from app.public.database import open_readonly
+from app.public.hardening import RateLimiter
 from app.public.publication import initialize
 from app.public.queries import feed
 from app.public.server import create_public_app
@@ -254,7 +255,11 @@ def main() -> None:
         listener.bind(("127.0.0.1", 0))
         listener.listen(128)
         port = listener.getsockname()[1]
-        app = create_public_app(public, root / "no-ui")
+        # Every synthetic request comes from one loopback client, so the limiter gets room
+        # for the whole run; it still runs on each request and stays in the measurement.
+        app = create_public_app(
+            public, root / "no-ui", limiter=RateLimiter(capacity=4 * args.requests + 100)
+        )
         config = uvicorn.Config(app, log_level="error", access_log=False, lifespan="off")
         server = uvicorn.Server(config)
         thread = threading.Thread(

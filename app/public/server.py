@@ -17,24 +17,56 @@ from app.dashboard.queries import table_exists
 from app.public import activity, queries
 from app.public.database import open_readonly
 from app.public.exports import decision_csv
+from app.public.hardening import SECURITY_HEADERS, RateLimiter, client_key
+
+# Publication stamps the store at least once per New York day while its watcher runs, so
+# a day and a margin without a stamp means the publisher stopped. Finer publication lag
+# is measured by ops/check-public-health.ps1, which can see both stores.
+STALE_AFTER_SECONDS = 26 * 3600
 
 
 def create_public_app(
     public_db_path: str | Path,
     frontend_dir: str | Path = "public-ui/dist",
+    *,
+    trust_tunnel: bool = False,
+    limiter: RateLimiter | None = None,
+    stale_after_seconds: float = STALE_AFTER_SECONDS,
 ) -> FastAPI:
     app = FastAPI(
         title="BouStrategy public dashboard", docs_url=None, redoc_url=None, openapi_url=None
     )
     published = Path(public_db_path)
     assets = Path(frontend_dir)
+    api_limiter = limiter if limiter is not None else RateLimiter()
     app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
 
     @app.middleware("http")
-    async def private_cache(request: Request, call_next: Any) -> Any:
-        response = await call_next(request)
-        if request.url.path.startswith("/api/"):
+    async def public_boundary(request: Request, call_next: Any) -> Any:
+        path = request.url.path
+        if path.startswith("/api/"):
+            wait = api_limiter.acquire(client_key(request.scope, trust_tunnel=trust_tunnel))
+            response = (
+                JSONResponse(
+                    status_code=429,
+                    content={"detail": "rate_limited"},
+                    headers={"Retry-After": str(wait)},
+                )
+                if wait
+                else await call_next(request)
+            )
             response.headers["Cache-Control"] = "no-store"
+        else:
+            response = await call_next(request)
+            if response.status_code == 200:
+                # Built assets carry content hashes; the shell must revalidate so a new
+                # build is picked up on the next load.
+                response.headers["Cache-Control"] = (
+                    "public, max-age=31536000, immutable"
+                    if path.startswith("/assets/")
+                    else "no-cache"
+                )
+        response.headers.update(SECURITY_HEADERS)
         return response
 
     @app.exception_handler(sqlite3.Error)
@@ -44,6 +76,40 @@ def create_public_app(
             status_code=503,
             content={"detail": "public_data_unavailable"},
             headers={"Retry-After": "30"},
+        )
+
+    @app.api_route("/api/public/v2/health", methods=["GET", "HEAD"])
+    def health() -> JSONResponse:
+        unavailable = JSONResponse(
+            status_code=503, content={"status": "unavailable"}, headers={"Retry-After": "30"}
+        )
+        if not published.is_file():
+            return unavailable
+        try:
+            with open_readonly(published) as conn:
+                meta = queries.metadata(conn)
+                conn.execute("SELECT COUNT(*) FROM public_portfolios").fetchone()
+        except sqlite3.Error as exc:
+            logging.getLogger(__name__).warning("Public health read failed: %s", type(exc).__name__)
+            return unavailable
+        try:
+            stamped = datetime.fromisoformat(meta["published_at"] or "")
+        except ValueError:
+            return unavailable
+        if stamped.tzinfo is None:
+            return unavailable
+        age = max(0, int((datetime.now(UTC) - stamped).total_seconds()))
+        stale = age > stale_after_seconds
+        return JSONResponse(
+            status_code=503 if stale else 200,
+            content={
+                "status": "stale" if stale else "ok",
+                "api_version": meta["api_version"],
+                "revision": meta["revision"],
+                "published_at": meta["published_at"],
+                "age_seconds": age,
+            },
+            headers={"Retry-After": "30"} if stale else None,
         )
 
     @app.api_route("/api/public/v2/portfolios", methods=["GET", "HEAD"])
@@ -324,8 +390,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.public.server")
     parser.add_argument("--public-db", required=True)
     parser.add_argument("--port", type=int, default=8380)
+    parser.add_argument(
+        "--behind-tunnel",
+        action="store_true",
+        help="key request limits on Cloudflare's client address for loopback peers",
+    )
     args = parser.parse_args()
-    uvicorn.run(create_public_app(args.public_db), host="127.0.0.1", port=args.port)
+    uvicorn.run(
+        create_public_app(args.public_db, trust_tunnel=args.behind_tunnel),
+        host="127.0.0.1",
+        port=args.port,
+        server_header=False,
+        proxy_headers=False,
+        # Per-request lines would record every reader; errors and startup still log.
+        access_log=False,
+    )
 
 
 if __name__ == "__main__":
