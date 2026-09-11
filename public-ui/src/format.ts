@@ -50,8 +50,12 @@ const labels: Record<string, string> = {
   not_applicable: 'Not applicable', missing_input: 'Missing input', paper_filled: 'Paper fill recorded',
   passed: 'Passed', failed: 'Failed', approved: 'Approved', rejected: 'Rejected',
   awaiting_paper_price: 'Waiting for paper price', broker_filled: 'Broker fill reported', partial: 'Partially available',
+  broker_failed: 'Order attempt failed', broker_reviewed: 'Order reviewed', broker_submitted: 'Order submitted',
+  broker_canceled: 'Order canceled', broker_partially_filled: 'Partial fill reported', order_intent_created: 'Order pending',
 }
-export const label = (value: string | null | undefined) => value ? labels[value.toLowerCase()] ?? value.replaceAll('_', ' ').toLowerCase() : 'Unavailable'
+// Unmapped codes read as sentence case ("Buy", "Preclose"), never raw lowercase.
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+export const label = (value: string | null | undefined) => value ? labels[value.toLowerCase()] ?? sentence(value.replaceAll('_', ' ').toLowerCase()) : 'Unavailable'
 export function ruleValue(value: string | number | boolean | null | undefined, unit?: string) {
   if (value === null || value === undefined) return 'Unavailable'
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'

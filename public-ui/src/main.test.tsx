@@ -6,7 +6,7 @@ import { readPublic, usePublic } from './api'
 import { ResourceNotice } from './common'
 import { AgentStatus } from './Activity'
 import { PortfolioChart } from './Performance'
-import { amount, money, percent, publicUrl, tone } from './format'
+import { amount, label, money, percent, publicUrl, tone } from './format'
 import { navigate } from './navigation'
 import { fixtureResponse, fixtures } from '../fixtures/routes.mjs'
 import type { Decision, FeedPage, Overview, Runtime } from './types'
@@ -387,4 +387,12 @@ it('leads with invalidation criteria instead of hiding them behind a disclosure'
 
   expect(heading.closest('details')).toBeNull()
   for (const line of criteria) expect(screen.getByText(line)).toBeVisible()
+})
+
+it('shows every status label in sentence case, never raw lowercase', () => {
+  expect(label('BUY')).toBe('Buy')
+  expect(label('preclose')).toBe('Preclose')
+  expect(label('broker_failed')).toBe('Order attempt failed')
+  expect(label('broker_filled')).toBe('Broker fill reported')
+  expect(label('some_new_code')).toBe('Some new code')
 })
