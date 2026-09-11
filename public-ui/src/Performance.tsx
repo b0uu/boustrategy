@@ -69,6 +69,10 @@ export function Performance({ overview, performance, range, scope, search, open,
   const allocation = data?.allocation ?? []
   const barAvailable = allocation.length > 0 && allocation.every(item => item.weight !== null && item.weight >= 0 && item.weight <= 1) && Math.abs(allocation.reduce((sum, item) => sum + (item.weight ?? 0), 0) - 1) < .001
   const single = result?.reason === 'single_observation'
+  // The reference design leads with how much of the account is at work. Cash is recorded,
+  // so the deployed share is the remainder rather than a separate published number.
+  const cashWeight = allocation.find(item => item.asset_class === 'cash')?.weight ?? null
+  const deployed = barAvailable && cashWeight !== null ? 1 - cashWeight : null
   return <section className={`performance${performance.stale || overview.stale ? ' is-updating' : ''}`} aria-label="Live portfolio">
     <ResourceNotice resource={overview} name="portfolio overview" />
     <div className="metrics">
@@ -84,12 +88,19 @@ export function Performance({ overview, performance, range, scope, search, open,
       <ResourceNotice resource={performance} name="performance history" />
       <SectionBoundary resetKey={result} retry={performance.refresh} name="performance">
         {result && <>
+          <div className="chart-title"><span>Value history <span className="quiet">{range}</span></span>
+            {data?.daily_pnl?.amount != null && <span className={`change ${tone(data.daily_pnl.amount)}`}>{money(data.daily_pnl.amount)} today</span>}
+          </div>
           <PortfolioChart points={result.history} />
           <div className="chart-caption"><span>{result.start_at ? when(result.start_at, true) : 'Start unavailable'}</span><span>{result.end_at ? when(result.end_at, true) : 'End unavailable'}</span></div>
           {result.status !== 'available' && <p className="section-note">Return unavailable: {label(result.reason)}. Missing facts aren't treated as zero.</p>}
         </>}
       </SectionBoundary>
-      {data?.daily_pnl && <p className="daily-change"><span className={tone(data.daily_pnl.amount)}>{money(data.daily_pnl.amount)}</span> investment change{data.daily_pnl.baseline_at ? ` since ${when(data.daily_pnl.baseline_at)}` : ` · ${label(data.daily_pnl.reason)}`}</p>}
+      {data?.daily_pnl && data.daily_pnl.amount == null && <p className="daily-change">Investment change unavailable · {label(data.daily_pnl.reason)}</p>}
+      {deployed !== null && <div className="bar-group">
+        <div className="bar-heading"><span>Deployed</span><span className="mono">{weight(deployed)}</span></div>
+        <div className="bar" role="img" aria-label={`Deployed ${weight(deployed)} of recorded portfolio value`}><span style={{ width: `${deployed * 100}%` }} /></div>
+      </div>}
       <div className="allocation-group"><span className="quiet">Recorded allocation</span>
         {barAvailable && <div className="allocation-bar" role="img" aria-label={allocation.map(item => `${label(item.asset_class)} ${weight(item.weight)}`).join(', ')}>{allocation.map((item, index) => <span key={item.asset_class} className={`allocation-color-${index % 4}`} style={{ width: `${(item.weight ?? 0) * 100}%` }} />)}</div>}
         {allocation.length ? <div className="allocation-legend">{allocation.map((item, index) => <span key={item.asset_class}><i className={`allocation-color-${index % 4}`} />{label(item.asset_class)} <span className="mono" title={money(item.market_value)}>{weight(item.weight)}</span></span>)}</div> : <Empty>Allocation needs complete cash and holdings data.</Empty>}
