@@ -3,6 +3,7 @@
 Run from the repository root: python public-ui/fixtures/generate.py
 """
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -19,16 +20,76 @@ from fastapi.testclient import TestClient
 from app.performance.storage import ingest
 from app.public.publication import publish
 from app.public.server import create_public_app
+from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
+from app.schemas.reasoning_run import ReasoningRun
 from app.schemas.reporting import CoverageObservation
+from app.schemas.runtime import RuntimeRun
 from app.state.pipeline import process_decision
 from app.storage.database import connect
 from app.storage.public_records import save_public_source
-from app.storage.runtime import claim, finish
+from app.storage.records import save_live_portfolio_snapshot, save_reasoning_run
+from app.storage.runtime import claim, finish, save_run
 from tests.fixtures.decision_records import valid_decision_record_data
 from tests.performance.test_reporting import ACCOUNT, common, position, valuation
 from tests.public.test_explanations import source_record
 from tests.reason.test_runtime import NOW, paper_run
+
+
+def live_run(conn: Any, folder: Path) -> Any:
+    """A prepared live review, with the reasoning run and bound snapshot it requires."""
+    path = folder / "live-intake.md"
+    path.write_text("Deliberate live intake", encoding="utf-8")
+    checksum = hashlib.sha256(path.read_bytes()).hexdigest()
+    profile = ExecutionProfile(
+        execution_profile_id="fixture-profile",
+        agent_provider="CODEX",
+        account_alias="fixture-agentic",
+        broker_account_fingerprint=ACCOUNT,
+        enabled=True,
+        max_order_notional=20,
+        max_quote_age_seconds=60,
+        max_spread_bps=50,
+    )
+    save_live_portfolio_snapshot(
+        conn,
+        LivePortfolioSnapshot(
+            portfolio_snapshot_id="fixture-live-snapshot",
+            execution_profile_id=profile.execution_profile_id,
+            broker_account_fingerprint=ACCOUNT,
+            captured_at=NOW,
+            account_equity=10400,
+            buying_power=1400,
+        ),
+        profile,
+    )
+    legacy = ReasoningRun(
+        reasoning_run_id="fixture-live-reasoning",
+        session_date=NOW.date(),
+        slot="close",
+        execution_profile_id=profile.execution_profile_id,
+        model_label="fixture-model-a",
+        shared_bundle_path=str(path),
+        shared_bundle_sha256=checksum,
+        portfolio_snapshot_id="fixture-live-snapshot",
+        started_at=NOW,
+    )
+    save_reasoning_run(conn, legacy)
+    conn.commit()
+    run = RuntimeRun(
+        run_id="fixture-live-runtime",
+        mode="live",
+        account_id=ACCOUNT,
+        execution_profile_id=profile.execution_profile_id,
+        session_date=NOW.date(),
+        slot="close",
+        prepared_at=NOW,
+        intake_path=str(path),
+        intake_sha256=checksum,
+        reasoning_run_id=legacy.reasoning_run_id,
+    )
+    save_run(conn, run)
+    return run
 
 
 def generate() -> dict:
@@ -172,6 +233,21 @@ def generate() -> dict:
                 ),
             )
             conn.commit()
+            # The live scope carries a review of its own so the merged decision stream is
+            # exercised as it ships, rather than by borrowing paper activity in a test.
+            live = live_run(conn, root)
+            attempt = claim(conn, live.run_id, "fixture-model-a", NOW)
+            finish(
+                conn,
+                attempt.attempt_id,
+                attempt.fence,
+                NOW + timedelta(seconds=25),
+                status="no_action",
+                public_summary=(
+                    "Reviewed the live account against the recorded policy. "
+                    "No proposal cleared the entry bar."
+                ),
+            )
             run = paper_run(conn, root)
             attempt = claim(conn, run.run_id, "fixture-model-a", NOW)
             finish(

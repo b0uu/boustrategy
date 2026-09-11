@@ -41,7 +41,6 @@ it('reports the live account only and never offers the paper simulation', async 
 })
 
 it('shows reviews beside decisions so a no-action session is still public work', async () => {
-  data['live/activity'] = data['paper/activity']
   await dashboard()
   await waitFor(() => expect(document.querySelectorAll('.stream-row--review')).toHaveLength(1))
   fireEvent.click(screen.getByRole('button', { name: 'positions' }))
@@ -294,4 +293,59 @@ it('shows an unknown page and an invalid section instead of dashboard defaults',
 it('rejects malformed transport metadata before rendering', async () => {
   vi.mocked(fetch).mockResolvedValue(json({ api_version: 2, server_now: 'invalid', items: [] }))
   await expect(readPublic('/feed', 'feed', new AbortController().signal)).rejects.toThrow('unexpected format')
+})
+
+it('reads policy checks as one marked table of observed against threshold', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  const check = decision.policy_evaluation.checks.find(row => row.result === 'passed')!
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Decision trace' })
+
+  const rendered = document.querySelectorAll('.policy-check')
+  expect(rendered).toHaveLength(decision.policy_evaluation.checks.length)
+  const row = document.querySelector(`.policy-check--passed`)!
+  expect(row.querySelector('.check-mark')).toHaveTextContent('✓')
+  expect(row.querySelector('.rule-code')).toHaveTextContent(check.rule_id)
+  // An unevaluated rule is neither a pass nor a failure, so it never takes a verdict colour.
+  const inconclusive = [...rendered].filter(node => node.className.includes('inconclusive'))
+  expect(inconclusive.length).toBe(decision.policy_evaluation.checks.filter(c => !['passed', 'failed'].includes(c.result)).length)
+})
+it('shows each rule id and description in the closed policy row', async () => {
+  history.replaceState({}, '', '/?tab=policies')
+  render(<App />)
+  const rules = (data['live/policy'] as { decision_rules: Array<{ rule_id: string; name: string; failure_explanation: string }> }).decision_rules
+  await waitFor(() => expect(document.querySelectorAll('.policy-row')).toHaveLength(rules.length))
+  const first = document.querySelector('.policy-row > summary')!
+  expect(first.querySelector('.rule-code')).toHaveTextContent(rules[0].rule_id)
+  expect(first.querySelector('.rule-description')).toHaveTextContent(rules[0].failure_explanation)
+  expect(screen.getByText(rules[0].name, { exact: false })).toBeVisible()
+})
+it('lists every published source once in the source pack', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Source pack' })
+
+  const pack = document.querySelectorAll('.source-pack > div')
+  expect(pack).toHaveLength(decision.narrative!.sources.length)
+  for (const source of decision.narrative!.sources) {
+    expect([...pack].filter(row => row.textContent?.includes(source.title))).toHaveLength(1)
+  }
+})
+it('leads with invalidation criteria instead of hiding them behind a disclosure', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  const criteria = decision.narrative!.conditions!.invalidation
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+  const heading = await screen.findByRole('heading', { name: 'Invalidation criteria' })
+
+  expect(heading.closest('details')).toBeNull()
+  for (const line of criteria) expect(screen.getByText(line)).toBeVisible()
 })
