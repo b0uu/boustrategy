@@ -66,8 +66,7 @@ main:focus, h1:focus { outline: none; }
 
 /* --- Profile ---------------------------------------------------------------------- */
 .profile { display: flex; align-items: flex-start; gap: 18px; padding: 32px 4px 20px; position: relative; }
-.mark { width: 64px; height: 64px; border-radius: 14px; flex: none; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; }
-.mark { overflow: hidden; }
+.mark { width: 64px; height: 64px; border-radius: 14px; flex: none; overflow: hidden; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; }
 .mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .profile-copy { min-width: 0; flex: 1; }
 .profile h1 { line-height: 28px; }
@@ -230,17 +229,21 @@ main:focus, h1:focus { outline: none; }
 /* --- Positions -------------------------------------------------------------------- */
 .positions { padding-top: 8px; }
 .position-heading, .position summary { display: grid; grid-template-columns: 22px minmax(0, 1fr) 96px 116px; gap: 12px; align-items: center; }
-.position-heading { padding: 0 4px 8px; font-size: 11px; color: var(--text-3); }
+.position-heading { padding: 0 12px 8px; font-size: 11px; color: var(--text-3); }
 .position-heading > :nth-last-child(-n+2), .position summary > :nth-last-child(-n+2) { text-align: right; }
 .position { border-top: 1px solid var(--border-soft); }
 .position[open] { background: var(--surface); border-radius: 6px; }
-.position summary { padding: 11px 4px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
+.position summary { padding: 13px 12px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
+.position summary:hover { background: var(--surface); }
 .position summary .chevron { width: 22px; height: 22px; }
 .position-name { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
 .position-name strong { color: var(--text); min-width: 52px; }
 .position-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.position-detail { padding: 2px 4px 18px 34px; }
+/* The open card keeps the summary's left edge and matches it on the right, so prose ends
+   clear of the card instead of running into it. */
+.position-detail { padding: 2px 16px 18px 46px; }
 .position-detail p { font-size: 12.5px; color: var(--text-2); margin-top: 5px; }
+.position-detail > .section-note { padding-inline: 0; }
 .positions > .section-note { border-top: 1px solid var(--border-soft); }
 .holding-history { padding: 12px 0; }
 
@@ -348,7 +351,9 @@ main:focus, h1:focus { outline: none; }
 @media (max-width: 600px) {
   .position-name > span { display: none; }
   .position-heading, .position summary { grid-template-columns: 16px minmax(0, 1fr) 85px 105px; gap: 8px; }
-  .position summary { font-size: 12px; }
+  .position summary { font-size: 12px; padding: 13px 10px; }
+  .position-heading { padding-inline: 10px; }
+  .position-detail { padding: 2px 12px 16px 34px; }
   .trace-title time { margin-left: 0; width: 100%; }
   .chart-heading { flex-wrap: wrap; gap: 4px 12px; }
   .condition-grid { grid-template-columns: 1fr; gap: 14px; }
@@ -402,3 +407,15 @@ main:focus, h1:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* --- Theme lab (development only) --------------------------------------------------- */
+.theme-lab { position: fixed; z-index: 20; right: 16px; bottom: 16px; width: 296px; max-height: calc(100vh - 32px); overflow: auto; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 18px 40px rgb(0 0 0 / .35); font-size: 12px; }
+.theme-lab header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.theme-lab h3 { margin: 12px 0 4px; }
+.theme-lab label { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 0; }
+.theme-lab input[type=color] { width: 26px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: none; }
+.theme-lab code { font: 400 11px 'IBM Plex Mono', monospace; color: var(--text-3); }
+.theme-lab em { grid-column: 2 / -1; font-style: normal; font-size: 10.5px; color: var(--text-3); }
+.theme-lab em[data-weak=true] { color: var(--coral); }
+.theme-lab-presets, .theme-lab-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.theme-lab-actions { border-top: 1px solid var(--border-soft); padding-top: 10px; }
