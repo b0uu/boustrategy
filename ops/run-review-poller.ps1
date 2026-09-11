@@ -79,4 +79,33 @@ elseif ($Combined -match '"run_id"') {
     # nothing-due, waiting and overlap ticks stay in the log.
     Send-DiscordNotification "BouStrategy review tick: schedule=$Schedule log=$LogName`n$($Combined.Substring(0, [Math]::Min(600, $Combined.Length)))"
 }
+
+# A live review that authored decisions hands off to execution at once instead of
+# waiting up to 15 minutes for the next execution tick. Execution stays its own task
+# and process with its own broker checks; this only starts it early. IgnoreNew keeps it
+# from overlapping a scheduled tick, a disabled execution task stays disabled, and
+# outside the actual NYSE regular session the intents wait for the next session's ticks.
+if ($ExitCode -eq 0 -and $Schedule -like "live*" -and $Combined -match '"status":\s*"completed"') {
+    $Window = & python -c "from datetime import UTC, datetime; from app.broker.valuation import session_window; print('open' if session_window(datetime.now(UTC)).open else 'closed')" 2>$null
+    $ExecuteTask = Get-ScheduledTask -TaskName "boustrategy-live-execute" -ErrorAction SilentlyContinue
+    $HandOff = if ("$Window".Trim() -ne "open") {
+        "outside the regular session; execution waits for the next session's ticks"
+    }
+    elseif (-not $ExecuteTask -or $ExecuteTask.State -eq "Disabled") {
+        "execution task is disabled or missing; not started"
+    }
+    elseif ($ExecuteTask.State -eq "Running") {
+        "execution is already running"
+    }
+    else {
+        try {
+            Start-ScheduledTask -TaskName "boustrategy-live-execute" -ErrorAction Stop
+            "started boustrategy-live-execute"
+        }
+        catch {
+            "could not start boustrategy-live-execute: $($_.Exception.GetType().Name)"
+        }
+    }
+    "--- execution hand-off: $HandOff ---" | Out-File -FilePath $LogFile -Append -Encoding utf8
+}
 exit $ExitCode
