@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -41,6 +41,48 @@ def _session(payload: dict[str, Any], seen: dict[str, Any]) -> Any:
         return schema.model_validate(payload)
 
     return session
+
+
+def test_a_held_position_quoted_during_the_session_does_not_break_the_valuation(
+    tmp_path: Path,
+) -> None:
+    # Regression, 2026-09-11: the first real holding made every snapshot fail because the
+    # observation was stamped when the session started, before the broker quoted the position.
+    conn = connect(tmp_path / "boustrategy.db")
+    started = datetime.now(UTC)
+    # The broker quotes the holding while the session runs, after it started.
+    quoted = started + timedelta(seconds=2)
+
+    def session(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        return schema.model_validate(
+            {
+                "broker_account_fingerprint": FINGERPRINT,
+                "account_number_last4": "0001",
+                "account_equity": 100.0,
+                "buying_power": 80.0,
+                "cash": 80.0,
+                "positions": [
+                    {
+                        "ticker": "NVDA",
+                        "market_value": 20.0,
+                        "quantity": 0.1,
+                        "average_cost": 200.0,
+                        "price": 200.0,
+                        "quote_at": quoted.isoformat(),
+                    }
+                ],
+                "broker_reported_at": "",
+            }
+        )
+
+    snapshot = collect_snapshot(conn, _profile(), session=session, codex_home=tmp_path)
+
+    reporting = snapshot.reporting
+    assert reporting is not None
+    assert snapshot.captured_at >= quoted > started
+    assert snapshot.captured_at == reporting.occurred_at
+    assert [p.price_quality for p in reporting.positions or []] == ["current"]
+    conn.close()
 
 
 def test_collect_snapshot_saves_fingerprint_checked_snapshot_with_themes(tmp_path: Path) -> None:

@@ -192,8 +192,8 @@ def collect_snapshot(
     session: Callable[..., Any] = run_broker_session,
     log_dir: Path | None = None,
 ) -> LivePortfolioSnapshot:
-    captured = now or datetime.now(UTC)
-    stamp = captured.strftime("%Y%m%dT%H%M%S%fZ")
+    started = now or datetime.now(UTC)
+    stamp = started.strftime("%Y%m%dT%H%M%S%fZ")
     observed = session(
         snapshot_prompt(profile),
         schema=AccountObservation,
@@ -205,6 +205,12 @@ def collect_snapshot(
     )
     if observed.broker_account_fingerprint != profile.broker_account_fingerprint:
         raise ValueError("collector_account_mismatch")
+    # The observation happened when the broker answered, which is after the session started
+    # and never before a quote it contains; stamping the start made every held position's
+    # quote "follow" its own valuation.
+    captured = now or max(
+        [datetime.now(UTC), *(item.quote_at for item in observed.positions if item.quote_at)]
+    )
     positions: list[LivePosition] = []
     reporting_positions: list[ReportingPosition] = []
     for observation in observed.positions:
