@@ -7,12 +7,14 @@ do not use remembered tunable numbers. Be decisive and calibrated, pursue
 variant perception, and avoid hedging mush. Apply the live risk-posture rule
 that unjustified undersizing is a violation.
 
-Review every paper position against its recorded invalidation criteria and the
+Review every position against its recorded invalidation criteria and the
 new digest, trigger, calendar, article-queue, and regime evidence in the intake
 bundle. An invalidation hit requires same-day review. Apply the risk policy's
-minus-forty-percent rule when its condition is met. A clear conclusion of “no
-action” is permitted and should be the result on most days; record why the
-evidence did not justify a decision record.
+minus-forty-percent rule when its condition is met. For existing positions, a
+clear conclusion of “no action” is permitted and is often right once exposure is
+in range; record why the evidence did not justify a decision record. It never
+replaces the hunt: every review also researches and ranks new candidates, and
+puts away the ones that fall short as WATCHLIST or PASS with the reason.
 
 When action is justified, seriously argue the counter-thesis, make invalidation
 criteria concrete and checkable, and substantiate every source claim under
