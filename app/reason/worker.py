@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import subprocess
+import time
 import traceback
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -14,7 +15,12 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from app.broker.session import BrokerSessionFailure
-from app.reason.codex_runner import MAX_PROMPT_BYTES, RunnerFailure, run_codex
+from app.reason.codex_runner import (
+    MAX_PROMPT_BYTES,
+    RunnerFailure,
+    research_activity,
+    run_codex,
+)
 from app.reason.run import submit_decision
 from app.reason.runtime_prepare import live_readiness
 from app.schemas.decision_record import InvestmentDecisionRecord
@@ -35,13 +41,24 @@ from app.storage.runtime import (
     validate_fence,
 )
 
-_AUTHORING_CONTRACT = """You author investment records from the supplied intake plus outside
-research you perform yourself. Web search is available and you are expected to use it. The
-intake carries curated X signal, regime, triggers, calendar and account state; it never
-carries security prices or independent corroboration, and those are yours to find.
+_AUTHORING_CONTRACT = """Every review is a research session. Research by default with your web
+tools before you conclude anything; the intake is where ideas start, not where they end. It
+carries curated X signal, regime, triggers, calendar and account state; it never carries
+security prices or independent corroboration, and those are yours to find.
+Always hunt. Identify the strongest candidates available now: current holdings, securities
+named or implied by the digests and triggers, and ideas your own research surfaces. Rank
+them and research at least the top three. For each one, open primary sources (company
+investor-relations releases and transcripts, SEC EDGAR filings, exchange or regulator pages)
+rather than relying on search snippets, and read its current price from an opened quote page,
+noting that page and the time it displays. Then run the thesis chain against our metrics. A
+candidate that clears the bar becomes a BUY or ADD record. One that falls short is put away as
+WATCHLIST or PASS with the specific reason: the evidence that was missing or the objection
+that held. Record every researched candidate in candidates_considered with the exact URLs you
+opened. Empty decisions are valid only after that hunt is recorded; a review that returns no
+action without it is rejected.
 Research is read-only. You have no authority to call broker tools, submit orders, modify
 files, or start other agents, and a search result never licenses skipping a reasoning step.
-Return the required structured JSON. Empty decisions and thesis_reviews are valid.
+Return the required structured JSON; thesis_reviews may be empty when no holding is due.
 Record only what you actually read. Every source claim needs a real identifier you retrieved
 and the source's own publication timestamp; reconstruct neither from memory. A search that
 fails or returns nothing usable is a research limitation to state, not a gap to fill in.
@@ -61,6 +78,64 @@ ask exceeds it, so a move that prices the idea in stops the trade instead of cha
 Set entry_price_min the same way on a SELL or TRIM. Verify the current price before
 choosing either bound; never state a bound you did not check.
 """
+
+
+# Reviews always hunt. A review must show at least this many distinct researched
+# candidates, each with an opened source, and at least as many pages actually opened.
+# Token counts are recorded but not gated on: they measure length, not diligence.
+HUNT_MINIMUM = 3
+_MIN_RETRY_SECONDS = 120
+
+
+def hunt_shortfall(result: AuthoredOutput, activity: dict[str, int], minimum: int) -> str | None:
+    """Explain why an output doesn't show the required hunt, or return None when it does."""
+    if minimum <= 0:
+        return None
+    problems: list[str] = []
+    candidates = result.candidates_considered
+    distinct = {candidate.ticker for candidate in candidates}
+    if len(distinct) < minimum:
+        problems.append(
+            f"{len(distinct)} distinct candidates researched; at least {minimum} are required"
+        )
+    unsourced = sorted(
+        candidate.ticker
+        for candidate in candidates
+        if not any(url.startswith(("https://", "http://")) for url in candidate.sources_opened)
+    )
+    if unsourced:
+        problems.append("no opened source URL recorded for " + ", ".join(unsourced))
+    outcomes = {candidate.ticker: candidate.outcome for candidate in candidates}
+    for decision in result.decisions:
+        if outcomes.get(decision.ticker) != decision.decision:
+            problems.append(
+                f"{decision.decision} {decision.ticker} is not recorded in candidates_considered"
+            )
+    if activity.get("opens", 0) < minimum:
+        problems.append(
+            f"{activity.get('opens', 0)} pages were opened; open primary sources for each "
+            "candidate instead of relying on search snippets"
+        )
+    return "; ".join(problems) or None
+
+
+def _record_research(
+    log_dir: Path, passes: list[dict[str, Any]], result: AuthoredOutput | None
+) -> None:
+    log_dir.mkdir(parents=True, exist_ok=True)
+    (log_dir / "research.json").write_text(
+        json.dumps(
+            {
+                "passes": passes,
+                "candidates": [
+                    candidate.model_dump(mode="json")
+                    for candidate in (result.candidates_considered if result else [])
+                ],
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _refresh_snapshot(collector: Callable[[], object]) -> None:
@@ -84,7 +159,13 @@ def execute_attempt(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     timeout_seconds: float = 1800,
     snapshot_collector: Callable[[], object] | None = None,
+    hunt_minimum: int | None = None,
 ) -> RuntimeAttempt:
+    # Real authoring always enforces the hunt; an injected test runner opts in explicitly.
+    required = (
+        hunt_minimum if hunt_minimum is not None else HUNT_MINIMUM if runner is run_codex else 0
+    )
+    started = time.monotonic()
     attempt = claim(conn, run_id, model, clock(), retry=retry)
     run = get_run(conn, run_id)
     try:
@@ -121,14 +202,44 @@ def execute_attempt(
         if len(prompt.encode()) > MAX_PROMPT_BYTES:
             raise RunnerFailure("intake_too_large")
         heartbeat(conn, attempt.attempt_id, attempt.fence, clock(), stage="authoring")
-        result = runner(
-            prompt,
-            model=model,
-            log_dir=log_root / attempt.attempt_id,
-            timeout_seconds=timeout_seconds,
-            pulse=lambda: heartbeat(conn, attempt.attempt_id, attempt.fence, clock()),
-            cancelled=lambda: get_attempt(conn, attempt.attempt_id).status != "running",
-        )
+        attempt_log = log_root / attempt.attempt_id
+
+        def author(text: str, log_dir: Path, budget: float) -> AuthoredOutput:
+            return runner(
+                text,
+                model=model,
+                log_dir=log_dir,
+                timeout_seconds=budget,
+                pulse=lambda: heartbeat(conn, attempt.attempt_id, attempt.fence, clock()),
+                cancelled=lambda: get_attempt(conn, attempt.attempt_id).status != "running",
+            )
+
+        result = author(prompt, attempt_log, timeout_seconds)
+        activity = research_activity(attempt_log)
+        shortfall = hunt_shortfall(result, activity, required)
+        passes: list[dict[str, Any]] = [{"activity": activity, "shortfall": shortfall}]
+        if shortfall:
+            # One second pass, inside the same time budget, told exactly what was missing.
+            remaining = timeout_seconds - (time.monotonic() - started)
+            if remaining < _MIN_RETRY_SECONDS:
+                _record_research(attempt_log, passes, result)
+                raise RunnerFailure("insufficient_research")
+            second_log = attempt_log / "second-pass"
+            result = author(
+                prompt
+                + "\nYOUR PREVIOUS ANSWER WAS REJECTED BY THE TRUSTED WORKER: "
+                + shortfall
+                + ". Redo the review from the start: hunt, open primary sources for each "
+                "candidate, record them in candidates_considered, and return the complete JSON.",
+                second_log,
+                remaining,
+            )
+            activity = research_activity(second_log)
+            shortfall = hunt_shortfall(result, activity, required)
+            passes.append({"activity": activity, "shortfall": shortfall})
+        _record_research(attempt_log, passes, result)
+        if shortfall:
+            raise RunnerFailure("insufficient_research")
         authored_at = clock()
         heartbeat(conn, attempt.attempt_id, attempt.fence, authored_at, stage="validating")
         if run.mode == "live" and (
@@ -235,6 +346,7 @@ def execute_attempt(
             "subprocess_pipe_cleanup_failed": ("failed", "subprocess_pipe_cleanup_failed"),
             "log_write_failed": ("failed", "runner_failed"),
             "output_too_large": ("failed", "invalid_output"),
+            "insufficient_research": ("failed", "insufficient_research"),
             "invalid_output": ("failed", "invalid_output"),
             "intake_missing": ("blocked", "intake_missing"),
             "intake_changed": ("blocked", "intake_changed"),

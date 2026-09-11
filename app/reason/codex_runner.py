@@ -20,10 +20,43 @@ from app.schemas.runtime import AuthoredOutput
 MAX_PROMPT_BYTES = 512_000
 MAX_STREAM_BYTES = 8_000_000
 MAX_RESULT_BYTES = 1_000_000
+REASONING_EFFORT = "high"
 
 
 class RunnerFailure(ValueError):
     pass
+
+
+def research_activity(log_dir: Path) -> dict[str, int]:
+    """Count what an authoring session actually did, from its own event log.
+
+    Codex records each web tool call as a ``web_search`` item: ``search`` actions are
+    queries and other actions open or read pages. Token usage comes from the turn
+    summary. A missing or unreadable log counts as no activity.
+    """
+    activity = {"searches": 0, "opens": 0, "reasoning_tokens": 0, "output_tokens": 0}
+    try:
+        lines = (log_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return activity
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        item = event.get("item")
+        if event.get("type") == "item.completed" and isinstance(item, dict):
+            if item.get("type") == "web_search":
+                action = item.get("action")
+                kind = action.get("type") if isinstance(action, dict) else None
+                activity["searches" if kind == "search" else "opens"] += 1
+        if event.get("type") == "turn.completed" and isinstance(event.get("usage"), dict):
+            usage = event["usage"]
+            activity["reasoning_tokens"] += int(usage.get("reasoning_output_tokens") or 0)
+            activity["output_tokens"] += int(usage.get("output_tokens") or 0)
+    return activity
 
 
 def strict_output_schema() -> dict[str, Any]:
@@ -101,12 +134,15 @@ def run_codex(
     timeout_seconds: float = 1800,
     pulse: Callable[[], None] = lambda: None,
     cancelled: Callable[[], bool] = lambda: False,
+    reasoning_effort: str = REASONING_EFFORT,
 ) -> AuthoredOutput:
     encoded = prompt.encode("utf-8")
     if len(encoded) > MAX_PROMPT_BYTES:
         raise RunnerFailure("intake_too_large")
     if not model.strip() or timeout_seconds <= 0:
         raise ValueError("runner requires explicit model and positive timeout")
+    if reasoning_effort not in {"low", "medium", "high", "xhigh"}:
+        raise ValueError("unsupported reasoning effort")
     log_dir.mkdir(parents=True, exist_ok=True)
     exceeded = threading.Event()
     reader_errors: list[OSError] = []
@@ -129,6 +165,11 @@ def run_codex(
             "--skip-git-repo-check",
             "--model",
             model,
+            # --ignore-user-config keeps the broker MCP out of authoring, and with it any
+            # configured effort, so the review's depth is set here explicitly. A bare value
+            # avoids quoting through the Windows .cmd shim; Codex reads it as a string.
+            "-c",
+            f"model_reasoning_effort={reasoning_effort}",
             "--color",
             "never",
             "-",

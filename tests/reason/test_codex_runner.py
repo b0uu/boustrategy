@@ -67,6 +67,14 @@ def test_real_local_fake_process_exits_and_releases_inherited_pipes(
     assert "X_BEARER_TOKEN" not in captured["env"] and "BROKER_API_KEY" not in captured["env"]  # type: ignore[operator]
     assert "--ignore-user-config" in captured["argv"]  # type: ignore[operator]
     assert "--sandbox" in captured["argv"]  # type: ignore[operator]
+    argv: list[str] = captured["argv"]  # type: ignore[assignment]
+    assert argv[argv.index("model_reasoning_effort=high") - 1] == "-c"
+    assert not any("robinhood" in part or "mcp_servers" in part for part in argv)
+
+
+def test_runner_rejects_an_unknown_reasoning_effort(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="reasoning effort"):
+        run_codex("intake", model="m", log_dir=tmp_path, reasoning_effort="maximal")
 
 
 def test_runner_timeout_and_cancel_stop_real_local_process(

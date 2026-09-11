@@ -45,7 +45,7 @@ const labels: Record<string, string> = {
   dependency_missing: 'Waiting for completed inputs', observer_stale: 'Scheduler observation is out of date',
   runtime_not_published: "Runtime status hasn't been published",
   observer_disabled: 'Scheduler is disabled', observer_missing: 'Scheduler has not been observed', manual: 'Manual reviews',
-  grace_expired: 'Review window was missed', overlap: 'Another review was already running', lease_expired: 'Worker heartbeat expired',
+  grace_expired: 'Review window was missed', insufficient_research: "Review stopped: the research wasn't thorough enough", overlap: 'Another review was already running', lease_expired: 'Worker heartbeat expired',
   heartbeat_expired_unreconciled: 'Worker heartbeat expired; outcome has not been reconciled',
   not_applicable: 'Not applicable', missing_input: 'Missing input', paper_filled: 'Paper fill recorded',
   passed: 'Passed', failed: 'Failed', approved: 'Approved', rejected: 'Rejected',

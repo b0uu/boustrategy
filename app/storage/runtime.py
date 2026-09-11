@@ -285,6 +285,7 @@ def finish(
         "subprocess_pipe_cleanup_failed",
         "operator_canceled",
         "invalid_output",
+        "insufficient_research",
         "submission_blocked",
         "snapshot_stale",
         "regime_missing",

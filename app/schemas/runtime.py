@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from app.schemas.decision_record import InvestmentDecisionRecord
+from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.public_authoring import PublicNarrative
 
 
@@ -102,9 +102,20 @@ class AuthoredThesisReview(RuntimeModel):
     private_notes: str | None = Field(default=None, max_length=4000)
 
 
+class CandidateConsidered(RuntimeModel):
+    """One researched idea and where it ended up: the review's hunt ledger."""
+
+    ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
+    idea_source: str = Field(min_length=1, max_length=300)
+    sources_opened: list[str] = Field(default_factory=list, max_length=12)
+    outcome: Decision
+    reason: str = Field(min_length=1, max_length=2000)
+
+
 class AuthoredOutput(RuntimeModel):
     decisions: list[InvestmentDecisionRecord] = Field(default_factory=list, max_length=20)
     thesis_reviews: list[AuthoredThesisReview] = Field(default_factory=list, max_length=20)
+    candidates_considered: list[CandidateConsidered] = Field(default_factory=list, max_length=12)
     public_summary: str = Field(min_length=1, max_length=4000)
 
 
