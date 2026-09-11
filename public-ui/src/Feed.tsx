@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowClockwise, CheckCircle, Clock, FunnelSimple, MagnifyingGlass, ShieldCheck, WarningCircle, X } from '@phosphor-icons/react'
+import { ArrowClockwise, CheckCircle, Clock, FunnelSimple, MagnifyingGlass, WarningCircle, X } from '@phosphor-icons/react'
 import { PublicError, readPublic } from './api'
 import { Badge, Empty, RequestIssue } from './common'
 import { ReviewRow, useReviews } from './Activity'
@@ -11,19 +11,31 @@ import type { ActivityItem, DecisionItem, FeedPage, Scope } from './types'
 const WINDOW_LIMIT = 500
 const PAGE_LIMIT = 25
 
+// What became of the order, in one word, with the full phrase on hover. A lifecycle that has not
+// reached an order yet (policy_approved, policy_rejected) says nothing the badge beside it doesn't,
+// so it earns no mark at all.
+const LIFECYCLE: Record<string, { term: string; tone: 'success' | 'error' | 'neutral' }> = {
+  broker_filled: { term: 'Filled', tone: 'success' },
+  paper_filled: { term: 'Filled', tone: 'success' },
+  broker_partially_filled: { term: 'Partial', tone: 'success' },
+  broker_failed: { term: 'Failed', tone: 'error' },
+  broker_canceled: { term: 'Canceled', tone: 'error' },
+  broker_submitted: { term: 'Submitted', tone: 'neutral' },
+  broker_reviewed: { term: 'Reviewed', tone: 'neutral' },
+  order_intent_created: { term: 'Pending', tone: 'neutral' },
+  awaiting_paper_price: { term: 'Pending', tone: 'neutral' },
+}
+const LIFECYCLE_ICONS = { success: CheckCircle, error: WarningCircle, neutral: Clock }
+
 function LifecycleMark({ value }: { value: string }) {
-  const text = label(value)
-  const normalized = value.toLowerCase()
-  const failed = ['failed', 'rejected', 'canceled', 'cancelled'].some(state => normalized.includes(state))
-  const icon = normalized.includes('filled')
-    ? <CheckCircle weight="fill" />
-    : failed
-      ? <WarningCircle weight="fill" />
-      : normalized === 'policy_approved'
-        ? <ShieldCheck weight="fill" />
-        : <Clock weight="fill" />
-  const tone = normalized.includes('filled') ? 'success' : failed ? 'error' : 'neutral'
-  return <span className={`lifecycle-mark lifecycle-mark--${tone}`} aria-label={text} data-tooltip={text} tabIndex={0}>{icon}</span>
+  const state = LIFECYCLE[value.toLowerCase()]
+  if (!state) return null
+  const Icon = LIFECYCLE_ICONS[state.tone]
+  // Not focusable and not labelled: the row's own aria-label already carries the full phrase, and a
+  // focusable span inside the row's link would be invalid and would double every tab stop.
+  return <span className={`lifecycle-mark lifecycle-mark--${state.tone}`} data-tooltip={label(value)}>
+    <Icon weight="fill" aria-hidden="true" />{state.term}
+  </span>
 }
 
 function useFeed(url: string) {

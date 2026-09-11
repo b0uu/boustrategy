@@ -421,6 +421,20 @@ it('leads with invalidation criteria instead of hiding them behind a disclosure'
   for (const line of criteria) expect(screen.getByText(line)).toBeVisible()
 })
 
+it('names an order outcome in the row, and stays out of the link tab order', async () => {
+  feed().items[0].lifecycle = 'broker_failed'
+  feed().items[1].lifecycle = 'broker_filled'
+  feed().items[2].lifecycle = 'policy_approved'
+  await dashboard()
+  const [failed, filled, approved] = [0, 1, 2].map(index => rows()[index])
+  expect(failed.querySelector('.lifecycle-mark')).toHaveTextContent('Failed')
+  expect(failed.querySelector('.lifecycle-mark')).toHaveAttribute('data-tooltip', 'Order attempt failed')
+  expect(failed.getAttribute('aria-label')).toContain('Order attempt failed')
+  expect(filled.querySelector('.lifecycle-mark')).toHaveTextContent('Filled')
+  expect(approved.querySelector('.lifecycle-mark')).toBeNull() // The policy badge already says it.
+  expect(document.querySelectorAll('a [tabindex], a button, a a')).toHaveLength(0)
+})
+
 it('shows every status label in sentence case, never raw lowercase', () => {
   expect(label('BUY')).toBe('Buy')
   expect(label('preclose')).toBe('Preclose')
