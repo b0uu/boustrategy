@@ -67,10 +67,8 @@ main:focus, h1:focus { outline: none; }
 /* --- Profile ---------------------------------------------------------------------- */
 .profile { display: flex; align-items: flex-start; gap: 18px; padding: 32px 4px 20px; position: relative; }
 .mark { width: 64px; height: 64px; border-radius: 14px; flex: none; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; }
-.mark svg { width: 32px; height: 32px; }
-.mark rect:nth-child(1) { fill: var(--text-3); }
-.mark rect:nth-child(2) { fill: var(--text-2); }
-.mark rect:nth-child(3) { fill: var(--indigo); }
+.mark { overflow: hidden; }
+.mark img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .profile-copy { min-width: 0; flex: 1; }
 .profile h1 { line-height: 28px; }
 .handle { font: 400 13px/17px 'IBM Plex Mono', monospace; color: var(--text-3); margin-top: 4px; }

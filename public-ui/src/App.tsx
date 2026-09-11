@@ -18,6 +18,7 @@ import { DecisionPage } from './Decision'
 import { Link, dashboardUrl, navigate, useLocation } from './navigation'
 import type { Overview, Performance as PerformanceData, Scope, Range } from './types'
 import { when } from './format'
+import avatar from './assets/agent-avatar.png'
 import './styles.css'
 
 // The public dashboard reports one live account. The paper simulation is still published
@@ -49,7 +50,7 @@ export function DashboardPage({ search }: { search: string }) {
   const overview = usePublic<Overview>(`/api/public/v2/portfolios/${SCOPE}/overview`, 'overview')
   const performance = usePublic<PerformanceData>(`/api/public/v2/portfolios/${SCOPE}/performance?range=${range}`, 'performance')
   return <>
-    <header className="profile"><div className="mark" aria-hidden="true"><svg viewBox="0 0 40 40"><rect x="6" y="24" width="6" height="10" rx="1" /><rect x="17" y="16" width="6" height="18" rx="1" /><rect x="28" y="6" width="6" height="28" rx="1" /></svg></div>
+    <header className="profile"><div className="mark" aria-hidden="true"><img src={avatar} alt="" width={64} height={64} /></div>
       <div className="profile-copy"><h1 tabIndex={-1}>BouStrategy Agent</h1><div className="handle">@bou-agent</div><p>Let's make money chat</p>
         <button className="text-button portfolio-toggle" aria-expanded={portfolioOpen} aria-controls="portfolio-details" onClick={() => setPortfolioOpen(!portfolioOpen)}><Chevron />{portfolioOpen ? 'Hide portfolio' : 'Show portfolio'}</button>
       </div>
