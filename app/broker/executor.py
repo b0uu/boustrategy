@@ -171,6 +171,8 @@ def execute_pending(
     now: datetime | None = None,
     session: Callable[..., Any] = run_broker_session,
     max_intents: int = 2,
+    max_attempts: int = MAX_ATTEMPTS_PER_INTENT,
+    min_retry_interval: timedelta = MIN_RETRY_INTERVAL,
 ) -> list[dict[str, Any]]:
     if not profile.enabled:
         raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
@@ -183,12 +185,12 @@ def execute_pending(
     history = attempt_history(ledger_path, session_boundary(started))
     for intent in intents:
         attempts, last_attempt = history.get(intent.order_intent_id, (0, None))
-        if attempts >= MAX_ATTEMPTS_PER_INTENT:
+        if attempts >= max_attempts:
             results.append(
                 {"order_intent_id": intent.order_intent_id, "skipped": "attempt_cap_reached"}
             )
             continue
-        if last_attempt is not None and started - last_attempt < MIN_RETRY_INTERVAL:
+        if last_attempt is not None and started - last_attempt < min_retry_interval:
             results.append({"order_intent_id": intent.order_intent_id, "skipped": "retry_backoff"})
             continue
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
@@ -240,7 +242,15 @@ def main() -> None:
     parser.add_argument("--codex-home", default=default_codex_home())
     parser.add_argument("--logs", default="data/logs/broker")
     parser.add_argument("--max-intents", type=int, default=2)
+    # Operator overrides for a supervised retry after a clean failure. Every retry still
+    # checks broker order history before placing, so a relaxed cap can't duplicate an order.
+    parser.add_argument("--max-attempts", type=int, default=MAX_ATTEMPTS_PER_INTENT)
+    parser.add_argument(
+        "--min-retry-minutes", type=float, default=MIN_RETRY_INTERVAL.total_seconds() / 60
+    )
     args = parser.parse_args()
+    if not 1 <= args.max_attempts <= 20 or not 0 <= args.min_retry_minutes <= 60:
+        parser.error("--max-attempts must be 1-20 and --min-retry-minutes 0-60")
     profile = get_live_profile(load_live_profiles(args.profiles), args.profile)
     results = execute_pending(
         args.db,
@@ -250,6 +260,8 @@ def main() -> None:
         repo_root=os.getcwd(),
         log_dir=Path(args.logs),
         max_intents=args.max_intents,
+        max_attempts=args.max_attempts,
+        min_retry_interval=timedelta(minutes=args.min_retry_minutes),
     )
     print(json.dumps({"executed": results}))
     if any(item.get("problems") for item in results):
