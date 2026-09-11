@@ -72,20 +72,24 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   `price_above_entry_band`, ...) ends the session with outcome `blocked`. A price outside the
   decision's entry band is a normal outcome, not a fault: the market has left the level the
   thesis was priced at. Never widen a band, re-quote to chase one, or place around it.
-- **Review.** `review_equity_order` on the selected account with the packet's symbol, side,
-  `type` `limit` at exactly `limit_price`, good-for-day and regular hours only, using the tool's
-  documented enumerations. Size it in shares, never with `dollar_amount`: Robinhood accepts a
-  dollar amount only on plain market orders. Set `quantity` to `notional / limit_price` rounded
-  down to 6 decimal places, so the order can never cost more than `notional`. An estimated cost
-  at or slightly below `notional` is that rounding, not a change in economics. If the response
-  changes the symbol, side, type, limit price, quantity, time in force or market hours, or warns,
-  record a `FAILED` event and stop with outcome `review_rejected`.
+- **Review.** Robinhood places fractional shares only as a market order sized by
+  `dollar_amount`; it rejects fractional `quantity` on limit orders at placement. So when
+  `notional / limit_price` is less than one whole share, review a `type` `market` order with
+  `dollar_amount` equal to `notional`, good-for-day, regular hours only. The packet's
+  `limit_price` is then the price guard, not a broker field: re-read the quote immediately before
+  review and again before placement, and stop with outcome `blocked` if a BUY's ask is above
+  `limit_price` (a SELL's bid below it). When the order is one whole share or more, review a
+  `type` `limit` order at exactly `limit_price` with `quantity` equal to `notional / limit_price`
+  rounded down to whole shares. An estimated cost at or slightly below `notional` is not a change
+  in economics. If the response changes the symbol, side, type, amount or quantity, time in
+  force or market hours, or warns, record a `FAILED` event and stop with outcome
+  `review_rejected`.
 - **REVIEWED event.** `python -m app.broker.run event --in <file>` with
   `{"broker_event_id":"bev_<packet>_reviewed","broker_execution_record_id":"ber_<packet>",
   "order_intent_id","execution_packet_id","execution_profile_id","status":"REVIEWED",
   "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`.
-- **Place once.** `place_equity_order` with the identical fields (the same `quantity` and
-  `limit_price`) plus `ref_id` set to the UUID derived from the packet, which Robinhood requires
+- **Place once.** `place_equity_order` with the identical reviewed fields, after the final quote
+  check above, plus `ref_id` set to the UUID derived from the packet, which Robinhood requires
   in UUID form: `python -c "import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, sys.argv[1]))" <execution_packet_id>`.
   The same packet always yields the same UUID, so the broker still deduplicates a repeat. Never call it twice for one packet. On an ambiguous error or timeout,
   call `get_equity_orders` for the account and look for that order before deciding anything.

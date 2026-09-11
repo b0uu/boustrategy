@@ -5,10 +5,11 @@ from app.schemas.decision_record import AssetType, InvestmentDecisionRecord
 from app.schemas.live_execution import BrokerPreflight, ExecutionProfile, LiveExecutionPacket
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide, OrderType
 
-# A limit exactly at the quote goes stale on the next tick: a BUY limit at the ask is refused
-# the moment the ask moves up a cent. A small allowance keeps the order marketable; it is
-# never past the decision's own entry bound, and a limit order still fills at the best price.
-LIMIT_ALLOWANCE = 0.002
+# The packet's limit_price is the price guard: 1% through the preflight quote (maintainer
+# setting, 2026-09-11), never past the decision's own entry bound. Fractional orders go to
+# Robinhood as dollar-sized market orders, which it requires, and the executor refuses to place
+# one once the ask has drifted above this guard.
+LIMIT_ALLOWANCE = 0.01
 
 
 def _limit_price(

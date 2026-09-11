@@ -96,7 +96,7 @@ def test_build_packet_enforces_profile_and_automatic_safety_limits() -> None:
     assert packet.execution_packet_id == "ep_codex_oi_dec_001_20260827T140000000000Z"
     assert packet.account_alias == "codex-agentic"
     assert packet.notional == 12.0
-    assert packet.limit_price == 200.5
+    assert packet.limit_price == 202.1
     assert packet.require_human_approval is False
 
 
@@ -198,8 +198,8 @@ def test_packet_refuses_a_buy_priced_above_its_entry_band() -> None:
 
     inside = record.model_copy(update={"entry_price_max": 201.0})
     packet = build_execution_packet(intent, inside, _profile(), _preflight(), created_at=NOW)
-    # The ask plus the marketable allowance, 200.1 * 1.002.
-    assert packet.limit_price == 200.5
+    # The ask plus the 1% guard (202.1) is capped at the decision's entry bound.
+    assert packet.limit_price == 201.0
 
     # The allowance never carries the limit past the decision's own entry bound.
     tight = record.model_copy(update={"entry_price_max": 200.3})
@@ -245,8 +245,8 @@ def test_packet_refuses_a_sell_priced_below_its_exit_band() -> None:
 
     inside = record.model_copy(update={"entry_price_min": 199.0})
     packet = build_execution_packet(intent, inside, _profile(), preflight, created_at=NOW)
-    # The bid less the marketable allowance, 199.9 * 0.998, never below the exit bound.
-    assert packet.limit_price == 199.5
+    # The bid less the 1% guard (197.9) is held at the decision's exit bound.
+    assert packet.limit_price == 199.0
     floor = record.model_copy(update={"entry_price_min": 199.7})
     held = build_execution_packet(intent, floor, _profile(), preflight, created_at=NOW)
     assert held.limit_price == 199.7
