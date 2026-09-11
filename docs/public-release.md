@@ -368,6 +368,28 @@ identity or data-quality incidents.
   broker credential exists in this repository.
 - **Discord webhook**: replace it in `ops/digester.local.psd1`.
 
+A restore keeps every public ID that was in the backup. Records published after that backup get
+new IDs when republished into the restored file, so take a fresh backup after launch and before
+any planned maintenance.
+
+### Launch evidence, September 11, 2026
+
+| Item | Result |
+| --- | --- |
+| Hostname / tunnel | `https://boustrategy.com`, named tunnel `boustrategy-public` (`71da6f41-72c1-42bb-9c18-4b79d83475b5`), cloudflared 2026.9.1 (Authenticode valid, Cloudflare, Inc.), service Automatic/Running with restart-on-failure, 4 IAD edge connections |
+| Commit / build | `cd7329a` on `advisor/039-public-launch`; bundle `index-CwwES6dF.js`, `index-YYVox2WR.css` |
+| Gates | 537 Python tests, Ruff, format, mypy (162 files); 36 UI tests, tsc, ESLint, build; `git diff --check` clean |
+| HTTP benchmark (100k records) | Overview p95 74-108 ms. Feed p95 446-537 ms against a 500 ms target, identical to the pre-change baseline (510/514 ms) on the same host. Accepted by the maintainer as a host condition; hardening adds no measurable latency. GETs left the store unchanged. |
+| Browser pass | 320/375/768/1200 px, 200% zoom, reduced motion, keyboard order and focus rings, skip link first: no horizontal overflow and no CSP violations, both local and through the edge. Maintainer approved the UI. |
+| Edge checks | 200 with all security headers, `Server: cloudflare`, `cf-cache-status: DYNAMIC`. `/operate`, `/api/private`, random API and asset paths 404. HTTP to HTTPS 301, `www` to apex 301 keeping the query. TLS 1.1 refused. Also fetched from an unrelated network. |
+| Disclosure sweep | 11 public responses checked for the account fingerprint, last four digits, local paths, host user, Codex home, 8378, profile config, webhooks and snapshot IDs: no hits. |
+| Origin | Listener on `127.0.0.1:8380` only; no inbound firewall rule. |
+| Soak | 30 minutes with the route closed: 6 health cycles ok. Server and publisher child crashes restarted automatically. A forced outage produced one FAILING and one recovered transition. The twelve trading tasks were unchanged. |
+| Freshness | Manual in-session tick 13:34 ET (41.9 s), scheduled ticks 13:37, 13:52 and 14:07 all succeeded. The 14:07 observation was public at 18:07:35 UTC, under a second after it was written. |
+| Rollback drill | Tunnel stopped: edge 530, fails closed while the local origin stays ok. Public stack stopped independently with trading tasks unchanged. Restored to 200. Backup-restore-republish kept every backed-up public ID. |
+| Backups | `data/backups/public/20260911-013303.db` (pre-launch), `20260911-140833.db` (post-launch), both `integrity_check` ok |
+| Disclaimer / analytics | None, per the maintainer decision. No analytics, cookies or third-party scripts; the CSP blocks injected scripts. |
+
 ## Audit completion, September 8, 2026
 
 The audited main tree passed 506 Python tests in `scratchpad/audit-venv`, 26 React tests,

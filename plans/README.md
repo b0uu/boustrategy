@@ -342,7 +342,8 @@ backlog so nobody re-audits them.
 | 036 | [CI workflow (Windows runner), Python lockfile, warnings-as-errors, .env.example](036-ci-lockfile-and-warning-gates.md) | P2 | S | maintainer commit above | DONE (2026-09-08; commit ac06eb0 on `advisor/036-ci-lockfile-warning-gates`; `public-ui/.gitignore` edited but left untracked with the rest of `public-ui/`) |
 | 037 | [Retire labeling, replay tool and public v1 behind an archive tag; archive completed plans](037-retire-finished-subsystems-and-archive-history.md) | P2 | M | none | DONE (2026-09-08; commits 579a724..0702ddd on `advisor/037-retire-finished-subsystems`; tag `archive/2026-09-retirements`) |
 | 038 | [Live collector and scheduled execution on the Agentic account](038-live-collector-and-scheduled-execution.md) | P0 | M | none | DONE (2026-09-09; built directly on `main`) |
-| 039 | [Launch the public dashboard and poll live valuations every 15 minutes](039-launch-public-dashboard-and-poll-live-valuations.md) | P0 | L | none (038 DONE) | TODO — apex `boustrategy.com` DNS pending; awaiting public access confirmation, Cloudflare authorization, agent copy, and push permission; no disclaimer or analytics |
+| 039 | [Launch the public dashboard and poll live valuations every 15 minutes](039-launch-public-dashboard-and-poll-live-valuations.md) | P0 | L | none (038 DONE) | DONE (2026-09-11; live at https://boustrategy.com via named tunnel `boustrategy-public`; commits aecea6c..HEAD on `advisor/039-public-launch`; evidence in `docs/public-release.md`; benchmark feed p95 accepted as host-bound; not pushed) |
+| 040 | [Make scheduled reviews research and hunt like the 2026-08-26 session](040-autonomous-research-reviews.md) | P0 | M | 039 | TODO |
 
 Recommended order: 032, 033, 034, 035, 036 (037 is done). All are independent
 except that 032 and 034 both bump the publication checkpoint version; each
