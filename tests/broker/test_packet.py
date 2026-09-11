@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.broker.config import get_live_profile, load_live_profiles
-from app.broker.packet import build_execution_packet
+from app.broker.packet import allowed_price, build_execution_packet
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
 from app.schemas.decision_record import InvestmentDecisionRecord
@@ -250,3 +250,53 @@ def test_packet_refuses_a_sell_priced_below_its_exit_band() -> None:
     floor = record.model_copy(update={"entry_price_min": 199.7})
     held = build_execution_packet(intent, floor, _profile(), preflight, created_at=NOW)
     assert held.limit_price == 199.7
+
+
+def test_the_review_price_anchors_the_allowed_range() -> None:
+    reviewed = datetime(2026, 8, 27, 13, 50, tzinfo=UTC)
+    record = valid_decision_record().model_copy(
+        update={"entry_price_max": 230.0, "reference_price": 198.0, "reference_price_at": reviewed}
+    )
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+
+    # 1% over the reviewed 198.00 allows up to 199.98; the live ask of 200.10 is outside it.
+    with pytest.raises(ValueError, match="^price_above_allowed_range$"):
+        build_execution_packet(intent, record, _profile(), _preflight(), created_at=NOW)
+
+    within = _preflight(bid=199.5, ask=199.6)
+    packet = build_execution_packet(intent, record, _profile(), within, created_at=NOW)
+    assert packet.limit_price == 199.98
+    assert allowed_price(intent, record, within) == 199.98
+
+
+def test_the_entry_ceiling_still_wins_over_the_allowed_range() -> None:
+    reviewed = datetime(2026, 8, 27, 13, 50, tzinfo=UTC)
+    record = valid_decision_record().model_copy(
+        update={"entry_price_max": 199.0, "reference_price": 198.0, "reference_price_at": reviewed}
+    )
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+
+    with pytest.raises(ValueError, match="^price_above_entry_band$"):
+        build_execution_packet(intent, record, _profile(), _preflight(), created_at=NOW)
+    inside = _preflight(bid=198.5, ask=198.7)
+    assert (
+        build_execution_packet(intent, record, _profile(), inside, created_at=NOW).limit_price
+        == 199.0
+    )
+
+
+def test_reference_price_and_time_are_recorded_together() -> None:
+    with pytest.raises(ValidationError, match="recorded together"):
+        InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "reference_price": 198.0}
+        )

@@ -154,7 +154,12 @@ def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_pat
         _profile(),
         now=now,
         session=_session_returning(
-            {"order_intent_id": intent.order_intent_id, "outcome": "blocked", "notes": "closed"},
+            {
+                "order_intent_id": intent.order_intent_id,
+                "outcome": "blocked",
+                "reason_code": "outside_regular_market_hours",
+                "notes": "closed",
+            },
             {},
         ),
         codex_home=tmp_path,
@@ -164,6 +169,79 @@ def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_pat
     assert failed[0]["problems"] == ["session_failed"]
     assert failed[0]["session_failure"] == "session_timeout"
     assert clean[0]["problems"] == []
+    assert clean[0]["report"]["reason_code"] == "outside_regular_market_hours"
+
+
+def test_a_block_must_carry_a_known_label(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(hours=1))
+    unlabeled = {"order_intent_id": intent.order_intent_id, "outcome": "blocked", "notes": "?"}
+
+    results = execute_pending(
+        db_path,
+        _profile(),
+        now=now,
+        session=_session_returning(unlabeled, {}),
+        codex_home=tmp_path,
+        log_dir=tmp_path / "logs",
+    )
+
+    assert results[0]["problems"] == ["unlabeled_block"]
+    labeled = ExecutionReport.model_validate(
+        {**unlabeled, "reason_code": "price_above_allowed_range"}
+    )
+    assert labeled.reason_code == "price_above_allowed_range"
+    try:
+        ExecutionReport.model_validate({**unlabeled, "reason_code": "felt risky"})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("an unknown block label was accepted")
+
+
+def test_a_fill_triggers_a_snapshot_and_a_snapshot_failure_is_reported(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    taken: list[str] = []
+
+    class Snapshot:
+        portfolio_snapshot_id = "snap_after_fill"
+
+    def snapshot() -> object:
+        taken.append("taken")
+        return Snapshot()
+
+    def failing_snapshot() -> object:
+        raise BrokerSessionFailure("session_timeout")
+
+    def run(folder: str, outcome: str, after_fill: Any) -> list[dict[str, Any]]:
+        db_path = tmp_path / folder / "boustrategy.db"
+        db_path.parent.mkdir()
+        intent = _live_intent(db_path, now - timedelta(hours=1))
+        report = {"order_intent_id": intent.order_intent_id, "outcome": outcome}
+        if outcome == "blocked":
+            report["reason_code"] = "price_above_allowed_range"
+        return execute_pending(
+            db_path,
+            _profile(),
+            now=now,
+            session=_session_returning(report, {}),
+            codex_home=tmp_path,
+            log_dir=db_path.parent / "logs",
+            snapshot=after_fill,
+        )
+
+    # Holdings are published from snapshots, so a fill takes one straight away.
+    assert run("filled", "filled", snapshot)[-1] == {"post_fill_snapshot": "snap_after_fill"}
+    assert taken == ["taken"]
+    # No fill, no snapshot.
+    assert "post_fill_snapshot" not in run("blocked", "blocked", snapshot)[-1]
+    assert taken == ["taken"]
+    # A snapshot that fails is reported by name and doesn't abort the run.
+    assert run("unlucky", "filled", failing_snapshot)[-1] == {
+        "post_fill_snapshot": "failed",
+        "reason": "BrokerSessionFailure",
+    }
 
 
 def test_verify_report_flags_intent_mismatch_and_unexpected_record(tmp_path: Path) -> None:

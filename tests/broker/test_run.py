@@ -159,6 +159,19 @@ def test_broker_cli_builds_packet_without_placing_order(
     assert result["packet"]["execution_profile_id"] == "codex"
     assert result["packet"]["notional"] == 12.0
 
+    # A price that moved out of the allowed range is a labeled block, not a traceback.
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight.update(bid=225.0, ask=225.2, quote_at=datetime.now(UTC).isoformat())
+    preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+    with pytest.raises(SystemExit) as exited:
+        main()
+    blocked = json.loads(capsys.readouterr().out)
+    assert exited.value.code == 2
+    assert blocked["blocked"] is True
+    assert blocked["reason_codes"] == ["price_above_entry_band"]
+    assert blocked["ask"] == 225.2 and blocked["entry_price_max"] is not None
+    assert "Traceback" not in json.dumps(blocked)
+
 
 def test_broker_cli_fingerprints_account_without_storing_identifier(
     monkeypatch: pytest.MonkeyPatch,

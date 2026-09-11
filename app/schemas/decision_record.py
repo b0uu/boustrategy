@@ -133,6 +133,12 @@ class InvestmentDecisionRecord(BaseModel):
     entry_price_max: float | None = Field(default=None, gt=0.0)
     entry_price_min: float | None = Field(default=None, gt=0.0)
 
+    # The price the review actually read from an opened quote page, and the time that page
+    # displayed. Execution measures drift from this price, so an order can't fill far from
+    # the level the reasoning saw.
+    reference_price: float | None = Field(default=None, gt=0.0)
+    reference_price_at: AwareDatetime | None = None
+
     source_claims: list[SourceClaim] = Field(default_factory=list)
     x_signal_usage: XSignalUsage = Field(default_factory=XSignalUsage)
 
@@ -150,6 +156,8 @@ class InvestmentDecisionRecord(BaseModel):
             and self.entry_price_min > self.entry_price_max
         ):
             raise ValueError("entry_price_min cannot exceed entry_price_max")
+        if (self.reference_price is None) != (self.reference_price_at is None):
+            raise ValueError("reference_price and reference_price_at are recorded together")
         return self
 
     @field_validator("ticker")

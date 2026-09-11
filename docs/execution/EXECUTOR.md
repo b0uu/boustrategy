@@ -29,8 +29,10 @@ For one packet, follow this order:
    matches current broker state. Stop if the account fingerprint, ticker, side, notional, buying
    power, fractional eligibility, or regular-hours state differs, or if the market has moved
    against the packet: on a BUY the current ask is above the packet's `limit_price`, on a SELL the
-   current bid is below it. A quote that moved in the order's favor is not a mismatch. Keep the
-   packet's `limit_price` exactly; never re-price the order.
+   current bid is below it. That last case is a normal, labeled stop: outcome `blocked` with
+   `reason_code` `price_above_allowed_range` (`price_below_allowed_range` on a SELL). A quote that
+   moved in the order's favor is not a mismatch. Keep the packet's `limit_price` exactly; never
+   re-price the order.
 4. Call Robinhood's equity order-review tool using exactly the packet fields. Never increase size,
    change side, change ticker, change order type, or substitute an account.
 5. If broker review returns an error, warning that changes the economics, or fields that don't
@@ -46,8 +48,9 @@ For one packet, follow this order:
    `FAILED`. Append each distinct broker update with its actual timestamp.
 
 The execution worker must not continue into another packet automatically. One fresh execution-only
-session handles one packet. Options, crypto, margin, shorts, market orders, extended-hours orders,
-transfers, and orders outside the packet are out of scope.
+session handles one packet. Options, crypto, margin, shorts, extended-hours orders, transfers, and
+orders outside the packet are out of scope. Market orders are used only for fractional shares, as
+the review step below describes, and only inside the packet's allowed price.
 
 ## Tool and record mapping
 
@@ -66,19 +69,25 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   "current_position_value","bid","ask","quote_at","tradable","fractionable","regular_market_hours"}`
   with `quote_at` as an ISO 8601 timestamp carrying a timezone offset.
 - **Packet.** `python -m app.broker.run packet --intent-id <intent> --preflight <file>` prints the
-  packet with `execution_packet_id`, `notional`, `limit_price` and `expires_at`. If it raises
-  `stale_quote`, refresh the preflight and rebuild, at most three times. Any other rejection
-  (`outside_regular_market_hours`, `spread_too_wide`, `insufficient_buying_power`,
-  `price_above_entry_band`, ...) ends the session with outcome `blocked`. A price outside the
-  decision's entry band is a normal outcome, not a fault: the market has left the level the
-  thesis was priced at. Never widen a band, re-quote to chase one, or place around it.
+  packet with `execution_packet_id`, `notional`, `limit_price` and `expires_at`. The packet's
+  `limit_price` is the allowed price: 1% from the price the review recorded (`reference_price`),
+  never past the decision's entry bound. When the packet is refused, the command exits 2 and
+  prints `{"blocked": true, "reason_codes": [...], "ask", "bid", "allowed_price", ...}`. If the
+  only code is `stale_quote`, refresh the preflight and rebuild, at most three times. Otherwise end
+  the session with outcome `blocked` and `reason_code` set to the first code printed
+  (`price_above_allowed_range`, `price_above_entry_band`, `outside_regular_market_hours`,
+  `spread_too_wide`, `insufficient_buying_power`, ...), and put the ask and allowed price in
+  notes. A price outside the allowed range or entry band is a normal outcome, not a fault: the
+  market has left the level the thesis was priced at. Never widen a band, re-quote to chase one,
+  or place around it.
 - **Review.** Robinhood places fractional shares only as a market order sized by
   `dollar_amount`; it rejects fractional `quantity` on limit orders at placement. So when
   `notional / limit_price` is less than one whole share, review a `type` `market` order with
   `dollar_amount` equal to `notional`, good-for-day, regular hours only. The packet's
   `limit_price` is then the price guard, not a broker field: re-read the quote immediately before
-  review and again before placement, and stop with outcome `blocked` if a BUY's ask is above
-  `limit_price` (a SELL's bid below it). When the order is one whole share or more, review a
+  review and again before placement, and stop with outcome `blocked` and `reason_code`
+  `price_above_allowed_range` if a BUY's ask is above `limit_price` (`price_below_allowed_range`
+  if a SELL's bid is below it). When the order is one whole share or more, review a
   `type` `limit` order at exactly `limit_price` with `quantity` equal to `notional / limit_price`
   rounded down to whole shares. An estimated cost at or slightly below `notional` is not a change
   in economics. If the response changes the symbol, side, type, amount or quantity, time in
@@ -104,4 +113,6 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   or `FAILED` events (`bev_<packet>_<status>`) with the broker's timestamps. An order still open
   after five minutes stays `SUBMITTED`; report outcome `submitted`.
 - **Report.** Finish with the JSON object the session schema requires: the intent id, the
-  outcome, the packet id, the record id, the broker order id and short notes.
+  outcome, the packet id, the record id, the broker order id, `reason_code` and short notes.
+  Every `blocked` outcome must carry a `reason_code` from the schema's list; a block without one
+  is flagged to the operator as a problem.

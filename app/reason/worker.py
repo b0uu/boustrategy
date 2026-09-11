@@ -77,6 +77,9 @@ thesis still holds, not a loose ceiling. Live execution refuses the order when t
 ask exceeds it, so a move that prices the idea in stops the trade instead of chasing.
 Set entry_price_min the same way on a SELL or TRIM. Verify the current price before
 choosing either bound; never state a bound you did not check.
+Every BUY, ADD, TRIM or SELL record must also set reference_price and reference_price_at: the
+price you read from the opened quote page and the time that page displayed. Execution refuses
+an order once the market is more than 1% away from that price, so it must be the real quote.
 """
 
 
@@ -85,6 +88,7 @@ choosing either bound; never state a bound you did not check.
 # Token counts are recorded but not gated on: they measure length, not diligence.
 HUNT_MINIMUM = 3
 _MIN_RETRY_SECONDS = 120
+_PRICED_ACTIONS = {"BUY", "ADD", "TRIM", "SELL"}
 
 
 def hunt_shortfall(result: AuthoredOutput, activity: dict[str, int], minimum: int) -> str | None:
@@ -110,6 +114,11 @@ def hunt_shortfall(result: AuthoredOutput, activity: dict[str, int], minimum: in
         if outcomes.get(decision.ticker) != decision.decision:
             problems.append(
                 f"{decision.decision} {decision.ticker} is not recorded in candidates_considered"
+            )
+        if decision.decision in _PRICED_ACTIONS and decision.reference_price is None:
+            problems.append(
+                f"{decision.decision} {decision.ticker} has no reference_price and "
+                "reference_price_at read from an opened quote page"
             )
     if activity.get("opens", 0) < minimum:
         problems.append(

@@ -5,21 +5,25 @@ from app.schemas.decision_record import AssetType, InvestmentDecisionRecord
 from app.schemas.live_execution import BrokerPreflight, ExecutionProfile, LiveExecutionPacket
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide, OrderType
 
-# The packet's limit_price is the price guard: 1% through the preflight quote (maintainer
-# setting, 2026-09-11), never past the decision's own entry bound. Fractional orders go to
-# Robinhood as dollar-sized market orders, which it requires, and the executor refuses to place
-# one once the ask has drifted above this guard.
+# The packet's limit_price is the price guard: the worst price this order may fill at. It sits
+# LIMIT_ALLOWANCE (1%, maintainer setting 2026-09-11) from the price the review read, never past
+# the decision's own entry bound. Fractional orders go to Robinhood as dollar-sized market
+# orders, which it requires, so the executor re-reads the quote and refuses to place once it has
+# drifted outside this guard. A decision recorded before reviews captured a reference price is
+# anchored on the preflight quote instead.
 LIMIT_ALLOWANCE = 0.01
 
 
-def _limit_price(
+def allowed_price(
     intent: OrderIntent, decision: InvestmentDecisionRecord, preflight: BrokerPreflight
 ) -> float:
     if intent.side == OrderSide.BUY:
-        limit = round(preflight.ask * (1 + LIMIT_ALLOWANCE), 2)
+        anchor = decision.reference_price if decision.reference_price is not None else preflight.ask
+        limit = round(anchor * (1 + LIMIT_ALLOWANCE), 2)
         bound = decision.entry_price_max
         return min(limit, bound) if bound is not None else limit
-    limit = round(preflight.bid * (1 - LIMIT_ALLOWANCE), 2)
+    anchor = decision.reference_price if decision.reference_price is not None else preflight.bid
+    limit = round(anchor * (1 - LIMIT_ALLOWANCE), 2)
     floor = decision.entry_price_min
     return max(limit, floor) if floor is not None else limit
 
@@ -75,13 +79,18 @@ def build_execution_packet(
     if spread_bps > profile.max_spread_bps:
         reasons.append("spread_too_wide")
 
+    guard = allowed_price(intent, decision, preflight)
     if intent.side == OrderSide.BUY:
         if decision.entry_price_max is None:
             reasons.append("missing_entry_price_band")
         elif preflight.ask > decision.entry_price_max:
             reasons.append("price_above_entry_band")
+        elif preflight.ask > guard:
+            reasons.append("price_above_allowed_range")
     elif decision.entry_price_min is not None and preflight.bid < decision.entry_price_min:
         reasons.append("price_below_exit_band")
+    elif preflight.bid < guard:
+        reasons.append("price_below_allowed_range")
 
     target_value = intent.target_weight * preflight.account_equity
     delta_value = target_value - preflight.current_position_value
@@ -117,7 +126,7 @@ def build_execution_packet(
         account_equity=preflight.account_equity,
         current_position_value=preflight.current_position_value,
         notional=round(notional, 2),
-        limit_price=_limit_price(intent, decision, preflight),
+        limit_price=guard,
         quote_at=preflight.quote_at,
         spread_bps=spread_bps,
         require_human_approval=profile.require_human_approval,

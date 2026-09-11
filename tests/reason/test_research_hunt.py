@@ -224,3 +224,28 @@ def test_no_retry_when_the_time_budget_is_spent(tmp_path: Path, monkeypatch: Any
 
     assert (attempt.status, attempt.reason, calls) == ("failed", "insufficient_research", 1)
     conn.close()
+
+
+def test_an_actionable_decision_must_carry_the_price_the_review_read() -> None:
+    record = InvestmentDecisionRecord.model_validate(valid_decision_record_data())
+    ledger = [candidate(record.ticker, str(record.decision)), candidate("TSM"), candidate("MSFT")]
+    unpriced = AuthoredOutput(
+        decisions=[record], candidates_considered=ledger, public_summary="One buy."
+    )
+
+    shortfall = hunt_shortfall(unpriced, {"opens": 3}, 3)
+    assert shortfall is not None and "has no reference_price" in shortfall
+
+    priced = unpriced.model_copy(
+        update={
+            "decisions": [
+                record.model_copy(
+                    update={
+                        "reference_price": 200.0,
+                        "reference_price_at": datetime(2026, 9, 11, 19, 0, tzinfo=UTC),
+                    }
+                )
+            ]
+        }
+    )
+    assert hunt_shortfall(priced, {"opens": 3}, 3) is None

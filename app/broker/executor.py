@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.broker.collector import default_codex_home
+from app.broker.collector import DEFAULT_COLLECTOR_MODEL, collect_snapshot, default_codex_home
 from app.broker.config import get_live_profile, load_live_profiles
 from app.broker.session import BrokerSessionFailure, run_broker_session
 from app.schemas.live_execution import ExecutionProfile
@@ -38,6 +38,38 @@ MIN_RETRY_INTERVAL = timedelta(minutes=15)
 # the one packet this session executes.
 EXECUTION_TOOLS = ("review_equity_order", "place_equity_order")
 
+# Every stop that isn't a fault carries one of these labels, so a blocked order reads as a
+# named, expected outcome ("price_above_allowed_range") rather than a free-text note. The packet
+# CLI prints the same codes; a blocked report without one is flagged as a problem.
+BlockReason = Literal[
+    "price_above_allowed_range",
+    "price_below_allowed_range",
+    "price_above_entry_band",
+    "price_below_exit_band",
+    "missing_entry_price_band",
+    "outside_regular_market_hours",
+    "spread_too_wide",
+    "stale_quote",
+    "quote_timestamp_in_future",
+    "insufficient_buying_power",
+    "max_order_notional_exceeded",
+    "buy_has_non_positive_delta",
+    "sell_has_non_negative_delta",
+    "ticker_not_tradable",
+    "ticker_not_fractionable",
+    "packet_expired",
+    "broker_account_mismatch",
+    "existing_order_found",
+    "decision_intent_mismatch",
+    "live_profile_disabled",
+    "intent_is_not_live",
+    "intent_profile_mismatch",
+    "preflight_profile_mismatch",
+    "preflight_ticker_mismatch",
+    "live_asset_type_not_allowed",
+    "live_order_type_not_allowed",
+]
+
 
 class ExecutionReport(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
@@ -56,6 +88,7 @@ class ExecutionReport(BaseModel):
     execution_packet_id: str | None = None
     broker_execution_record_id: str | None = None
     broker_order_id: str | None = None
+    reason_code: BlockReason | None = None
     notes: str = Field(default="", max_length=2000)
 
 
@@ -150,6 +183,8 @@ def verify_report(
             problems.append("broker_order_id_mismatch")
     elif row is not None:
         problems.append("record_without_reported_placement")
+    if report.outcome == "blocked" and report.reason_code is None:
+        problems.append("unlabeled_block")
     if report.execution_packet_id:
         packet = conn.execute(
             "SELECT 1 FROM live_execution_packets WHERE execution_packet_id = ?",
@@ -173,6 +208,7 @@ def execute_pending(
     max_intents: int = 2,
     max_attempts: int = MAX_ATTEMPTS_PER_INTENT,
     min_retry_interval: timedelta = MIN_RETRY_INTERVAL,
+    snapshot: Callable[[], object] | None = None,
 ) -> list[dict[str, Any]]:
     if not profile.enabled:
         raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
@@ -230,6 +266,18 @@ def execute_pending(
         with ledger_path.open("a", encoding="utf-8") as ledger:
             ledger.write(json.dumps(result) + "\n")
         results.append(result)
+    # Holdings are published only from broker observations, so a fill is invisible to the
+    # public portfolio until the next snapshot. Take one now; a failure is reported, not fatal.
+    if snapshot is not None and any(
+        item.get("report", {}).get("outcome") in {"filled", "partially_filled"} for item in results
+    ):
+        try:
+            taken = snapshot()
+            results.append(
+                {"post_fill_snapshot": getattr(taken, "portfolio_snapshot_id", "recorded")}
+            )
+        except (BrokerSessionFailure, ValueError, OSError) as error:
+            results.append({"post_fill_snapshot": "failed", "reason": type(error).__name__})
     return results
 
 
@@ -252,6 +300,17 @@ def main() -> None:
     if not 1 <= args.max_attempts <= 20 or not 0 <= args.min_retry_minutes <= 60:
         parser.error("--max-attempts must be 1-20 and --min-retry-minutes 0-60")
     profile = get_live_profile(load_live_profiles(args.profiles), args.profile)
+
+    def post_fill_snapshot() -> object:
+        with closing(connect(args.db)) as conn:
+            return collect_snapshot(
+                conn,
+                profile,
+                model=DEFAULT_COLLECTOR_MODEL,
+                codex_home=args.codex_home,
+                log_dir=Path(args.logs),
+            )
+
     results = execute_pending(
         args.db,
         profile,
@@ -262,6 +321,7 @@ def main() -> None:
         max_intents=args.max_intents,
         max_attempts=args.max_attempts,
         min_retry_interval=timedelta(minutes=args.min_retry_minutes),
+        snapshot=post_fill_snapshot,
     )
     print(json.dumps({"executed": results}))
     if any(item.get("problems") for item in results):

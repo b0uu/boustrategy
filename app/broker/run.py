@@ -6,7 +6,7 @@ from pathlib import Path
 
 from app.broker.config import account_fingerprint, get_live_profile, load_live_profiles
 from app.broker.lifecycle import append_execution_event
-from app.broker.packet import build_execution_packet
+from app.broker.packet import allowed_price, build_execution_packet
 from app.schemas.broker_execution import BrokerExecutionEvent, BrokerExecutionRecord
 from app.schemas.live_execution import BrokerPreflight, LivePortfolioSnapshot
 from app.storage.database import connect
@@ -92,7 +92,30 @@ def main() -> None:
             preflight = BrokerPreflight.model_validate_json(
                 Path(args.preflight).read_text(encoding="utf-8")
             )
-            packet = build_execution_packet(intent, decision, profile, preflight)
+            try:
+                packet = build_execution_packet(intent, decision, profile, preflight)
+            except ValueError as error:
+                # A rejected packet is an expected, named outcome: print the labels the
+                # executor must report and exit 2, rather than a traceback to interpret.
+                print(
+                    json.dumps(
+                        {
+                            "blocked": True,
+                            "reason_codes": str(error).split(","),
+                            "side": intent.side.value,
+                            "bid": preflight.bid,
+                            "ask": preflight.ask,
+                            "allowed_price": allowed_price(intent, decision, preflight),
+                            "reference_price": decision.reference_price,
+                            "reference_price_at": decision.reference_price_at.isoformat()
+                            if decision.reference_price_at
+                            else None,
+                            "entry_price_max": decision.entry_price_max,
+                            "entry_price_min": decision.entry_price_min,
+                        }
+                    )
+                )
+                raise SystemExit(2) from error
             created = save_execution_packet(conn, packet)
             print(json.dumps({"created": created, "packet": packet.model_dump(mode="json")}))
 
