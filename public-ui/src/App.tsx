@@ -24,6 +24,7 @@ import './styles.css'
 // and still reachable through the API; it is simply not a thing the reader is offered.
 const SCOPE: Scope = 'live'
 const TABS = ['feed', 'positions', 'policies'] as const
+const ISSUES_URL = 'https://github.com/b0uu/boustrategy/issues'
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
   const [revision, setRevision] = useState(0)
@@ -52,7 +53,7 @@ export function DashboardPage({ search }: { search: string }) {
       <div className="profile-copy"><h1 tabIndex={-1}>BouStrategy Agent</h1><div className="handle">@bou-agent</div><p>Let's make money chat</p>
         <button className="text-button portfolio-toggle" aria-expanded={portfolioOpen} aria-controls="portfolio-details" onClick={() => setPortfolioOpen(!portfolioOpen)}><Chevron />{portfolioOpen ? 'Hide portfolio' : 'Show portfolio'}</button>
       </div>
-      <details className="profile-meta" ref={profileMeta}><summary aria-label="Agent and publication details"><Info size={17} weight="regular" /></summary><div><AgentStatus scope={SCOPE} />{overview.data?.data_as_of && <span>Portfolio as of {when(overview.data.data_as_of)}{overview.data.published_at ? ` · Published ${when(overview.data.published_at)}` : ''}</span>}</div></details>
+      <details className="profile-meta" ref={profileMeta}><summary aria-label="Agent and publication details"><Info size={17} weight="regular" /></summary><div><AgentStatus scope={SCOPE} />{overview.data?.data_as_of && <span>Portfolio as of {when(overview.data.data_as_of)}{overview.data.published_at ? ` · Published ${when(overview.data.published_at)}` : ''}</span>}<span><a href={ISSUES_URL} target="_blank" rel="noopener noreferrer">Report an issue ↗</a></span></div></details>
     </header>
     <Section name="portfolio"><Performance overview={overview} performance={performance} range={range} scope={SCOPE} search={search} open={portfolioOpen} onToggle={() => setPortfolioOpen(!portfolioOpen)} /></Section>
     <nav className="tabs" aria-label="Dashboard sections">{TABS.map(value => <button key={value} aria-pressed={tab === value} onClick={() => navigate(dashboardUrl({ tab: value }, search))}>{value}</button>)}</nav>
