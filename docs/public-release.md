@@ -154,6 +154,219 @@ Republish from the source into that restored file to retain its opaque IDs. Use 
 when changing public URLs is acceptable. Don't copy a live WAL file by itself. Verify the restored
 database with the release tests, the HTTP benchmark, and the read-only smoke before serving it again.
 
+## Public operation (plan 039)
+
+The public dashboard is served at `https://boustrategy.com` from this host:
+
+```text
+Robinhood MCP (read only, bot Codex identity)
+  -> boustrategy-live-valuation: one snapshot per 15 min in the regular session
+  -> data/boustrategy.db (private)
+  -> boustrategy-public-publisher: publication --watch 5
+  -> data/boustrategy.public.db
+  -> boustrategy-public-server: read-only FastAPI on 127.0.0.1:8380
+  -> cloudflared Windows service (named tunnel) -> https://boustrategy.com
+```
+
+Nothing listens on a public interface and no inbound firewall rule exists. The private operator
+dashboard on 8378 is never routed.
+
+### Tasks and wrappers
+
+`ops/install-public-tasks.ps1` registers four tasks, Disabled unless `-Enable` is passed. It never
+touches the twelve digester, review and execution tasks.
+
+| Task | Wrapper | Trigger | Principal |
+| --- | --- | --- | --- |
+| `boustrategy-public-server` | `ops/run-public-server.ps1` | logon; restarts itself | interactive, limited |
+| `boustrategy-public-publisher` | `ops/run-publication-watch.ps1` | logon; restarts itself | interactive, limited |
+| `boustrategy-public-health` | `ops/check-public-health.ps1 -Quiet` | every 5 min and at logon | interactive, limited |
+| `boustrategy-live-valuation` | `ops/run-live-valuation.ps1` | weekdays 09:37 + every 15 min for 6.5 h | interactive, highest |
+
+The server and publisher wrappers supervise their child, restart it with backoff after an
+unexpected exit, alert on each exit and give up with a nonzero code after five exits in 15
+minutes. The health task starts an enabled supervisor task that isn't running. A Disabled task is
+deliberate and is left alone. Both supervisors also stop an orphaned child of their own kind
+before starting, because ending a task doesn't always end its child processes.
+
+Valuation ticks fall at :07, :22, :37 and :52, away from the :00/:15/:30/:45 starts of review
+preparation and execution, which run their own broker sessions on the same Codex identity. A tick
+is also skipped while one of those tasks is running. `python -m app.broker.valuation` is the
+authority on whether a tick observes: weekends, NYSE holidays, pre-open and after the close
+(13:00 on half-days) are no-ops. It holds a nonblocking lock so ticks never overlap. It runs only
+`app.broker.collector snapshot` with a 480-second backstop that kills the whole Codex process tree.
+A failed tick writes nothing, so the last good observation stays public.
+
+Non-secret settings live in the gitignored `ops/public.local.psd1` (see
+`ops/public.local.example.psd1`). The Discord webhook stays in `ops/digester.local.psd1`, and the
+broker identity stays in `ops/live.local.json`.
+
+### Start, stop and status
+
+```powershell
+# Status
+Get-ScheduledTask -TaskName 'boustrategy-public-*','boustrategy-live-valuation' |
+    Select-Object TaskName, State
+Get-Service cloudflared
+(Invoke-RestMethod http://127.0.0.1:8380/api/public/v2/health)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\check-public-health.ps1
+
+# Start in dependency order
+'boustrategy-public-server','boustrategy-public-publisher','boustrategy-public-health' |
+    ForEach-Object { Enable-ScheduledTask -TaskName $_ | Out-Null; Start-ScheduledTask -TaskName $_ }
+Enable-ScheduledTask -TaskName boustrategy-live-valuation
+
+# Stop one component (disable first so the health task doesn't restart it)
+Disable-ScheduledTask -TaskName boustrategy-public-server | Out-Null
+Stop-ScheduledTask -TaskName boustrategy-public-server
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+    Where-Object CommandLine -match 'app\.public\.server' |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+Use `app\.public\.publication` in the last filter to stop an orphaned publisher. Restart is stop
+then start. Preview what a valuation tick would do without starting a model or writing a row:
+`powershell -NoProfile -ExecutionPolicy Bypass -File .\ops\run-live-valuation.ps1 -WhatIf`.
+
+### Cadence, cost and timing
+
+A full regular session has 26 valuation ticks. Each is one `gpt-5.6-luna` Codex session with the
+Robinhood MCP and has taken 27 to 44 seconds. A half-day has 14. Weekends and holidays start
+nothing. Review the cadence after two weeks using duration, failure count, cost and rate pressure.
+Move to five minutes only with evidence, and back off to thirty minutes on any auth or rate
+pressure.
+
+Three clocks decide what a reader sees:
+
+- **Broker observation**: at most every 15 minutes in session. The recorded `captured_at` is the
+  truth, and outside the session the last close observation stands.
+- **Publication**: within about 5 seconds of a source change (the watcher's interval).
+- **Browser**: the feed refreshes about every 30 seconds and other resources about every 60
+  seconds.
+
+A new observation should therefore reach an open browser within about 75 seconds. Only real
+observations are stored. The chart may draw between recorded points, but the stored series never
+contains estimates.
+
+This cadence is visualization freshness, not execution authority. Reviews and executions still
+take their own fresh snapshots.
+
+### Origin hardening
+
+Every response carries `Content-Security-Policy` (self-only scripts, styles, fonts and
+connections; no framing), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: no-referrer`, `Permissions-Policy` denying unused device APIs, and
+same-origin COOP/CORP. API responses are `no-store`, hashed assets are `immutable` and the HTML
+shell is `no-cache`. There is no HSTS at the origin because Cloudflare owns TLS.
+
+API requests are limited per client with a token bucket: 120-request burst, refilling 2 per
+second. The state is bounded at 4,096 clients and forgets a client once its bucket refills. An
+exhausted client gets 429 with `Retry-After`. The server is started with `--behind-tunnel`, so for
+loopback peers it keys on Cloudflare's `CF-Connecting-IP` (IPv6 by /64). It never reads that
+header from a non-loopback peer and ignores duplicated or malformed values. Uvicorn's proxy-header
+rewriting and access log are off.
+
+`/api/public/v2/health` returns only `status`, `api_version`, `revision`, `published_at` and
+`age_seconds`. It answers 503 `unavailable` for a missing, unreadable, WAL-mode or unstamped
+store, and 503 `stale` when the store hasn't been stamped for 26 hours. The watcher stamps at least
+once per New York day. Finer lag is measured by `python -m app.public.monitor`, which the health
+task runs with read access to both stores. It calls publication `stuck` when a source change is
+still unpublished after 30 seconds.
+
+### Logs, state and alerts
+
+| What | Where |
+| --- | --- |
+| Valuation ticks | `data/logs/runtime/valuation-*.log`, broker transcripts in `data/logs/broker/` |
+| Publisher / server | `data/logs/runtime/publication-watch-*.log`, `public-server-*.log` (one per supervisor start) |
+| Health | `data/logs/runtime/public-health-<date>.log` |
+| Streak and transition state | `data/state/live-valuation.json`, `data/state/public-health.json` |
+
+Discord alerts go out:
+
+- **Valuation**: on the first failure, every third consecutive failure and on recovery.
+- **Supervisors**: on every unexpected child exit.
+- **Health**: only when the set of failing checks changes.
+
+Alert text is a fixed vocabulary: outcome codes and check names, never collector output,
+paths, identifiers or response bodies.
+
+### Cloudflare Tunnel
+
+The tunnel is a named, locally managed tunnel, never a Quick Tunnel. The binary is at
+`C:\Cloudflared\bin\cloudflared.exe`. The service reads
+`C:\Windows\System32\config\systemprofile\.cloudflared\config.yml`:
+
+```yaml
+tunnel: <tunnel-uuid>
+credentials-file: C:\Windows\System32\config\systemprofile\.cloudflared\<tunnel-uuid>.json
+ingress:
+  - hostname: boustrategy.com
+    service: http://127.0.0.1:8380
+  - service: http_status:404
+```
+
+The catch-all rule rejects every other hostname. The credential JSON and `cert.pem` are secrets.
+They live only in the two `.cloudflared` directories and are never committed, pasted or logged.
+The DNS record is a proxied apex CNAME created by `cloudflared tunnel route dns`.
+
+`www.boustrategy.com` is a Cloudflare redirect rule to the apex. The tunnel doesn't route it.
+
+Zone settings to keep:
+
+- SSL/TLS: Always Use HTTPS on, minimum TLS 1.2.
+- Speed and optimization: Rocket Loader, Email Address Obfuscation and automatic Web Analytics
+  (RUM) off. They inject scripts, which the CSP blocks, and the launch decision is no analytics.
+- Caching: the default cache level, with no rule that caches HTML or `/api/*`.
+
+### Recovery
+
+| Situation | Effect and action |
+| --- | --- |
+| Reboot | All four tasks start at logon. Until the bot account signs in, the site is down and trading stops too. Sign in, then confirm health. |
+| Sleep | Sleep isn't allowed on this host. If it happens, tasks catch up (`StartWhenAvailable`). Valuation ticks that were missed aren't back-filled. |
+| Network loss | cloudflared reconnects on its own. Health stays ok locally, and Cloudflare shows 1033/530 at the edge until it reconnects. |
+| Broker MCP authorization expired | Valuation fails with a session code and alerts. Disable `boustrategy-live-valuation`, re-authorize the Robinhood MCP interactively under the bot's `CODEX_HOME`, run one `-WhatIf` tick and then one in-session tick, and re-enable. |
+| Rate or terms pressure | Disable valuation. Serving continues with the last observation. |
+| Public server down | Health alerts and restarts the task. Check `public-server-*.log`. |
+| Publication stuck | Health reports `publication`. Restart the publisher task and check `publication-watch-*.log`. |
+| Corrupt public store | Follow the rollback below. |
+| Cloudflare 1016 or TLS errors | Check `Get-Service cloudflared`, `cloudflared tunnel info boustrategy-public` and the DNS CNAME. Repair once, then stop and escalate. |
+
+### Disable public exposure without stopping trading
+
+```powershell
+sc.exe stop cloudflared
+sc.exe config cloudflared start= demand
+```
+
+The site then fails closed at the edge. The server, publisher and all trading tasks keep running.
+Restore with `sc.exe config cloudflared start= auto` and `sc.exe start cloudflared`. To stop the
+whole public stack, also disable and stop the four public tasks as shown above. Trading tasks are
+unaffected either way.
+
+### Rollback
+
+1. Close the route: stop the cloudflared service.
+2. Disable and stop the public server, publisher and health tasks, and kill orphans.
+3. Restore the most recent known-good file from `data/backups/public/` over
+   `data/boustrategy.public.db` while everything is stopped. Never copy a WAL alone. Backups are
+   taken with SQLite's backup API, which keeps opaque public IDs and revocations.
+4. Run `pragma integrity_check`, then republish with `ops/publish-public.ps1`, the smoke above and
+   the HTTP benchmark.
+5. Start the server, publisher and health tasks, confirm health, then start cloudflared.
+
+Leave valuation enabled for a serving-only incident. Disable it for broker authorization, rate,
+identity or data-quality incidents.
+
+### Credential rotation
+
+- **Tunnel credential**: run `cloudflared tunnel delete` and then `create` for a new tunnel, copy
+  the new JSON into the service directory, update `config.yml`, re-route DNS and restart the
+  service.
+- **Robinhood grant**: revoke it in Robinhood and re-authorize under the bot's `CODEX_HOME`. No
+  broker credential exists in this repository.
+- **Discord webhook**: replace it in `ops/digester.local.psd1`.
 
 ## Audit completion, September 8, 2026
 
