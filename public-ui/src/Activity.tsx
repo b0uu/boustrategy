@@ -14,7 +14,7 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
     <summary>
       <span className="stream-kind" aria-hidden="true">Review</span>
       <span className="stream-body">
-        <span className="stream-headline">{item.slot ? <span className="stream-slot">{label(item.slot)} review</span> : 'Portfolio review'}</span>
+        <span className="stream-headline">{item.slot ? `${label(item.slot)} review` : 'Portfolio review'}</span>
         <span className="stream-summary">{summary ?? (item.reason ? label(item.reason) : 'No public session summary was recorded.')}</span>
       </span>
       <Badge value={status} />

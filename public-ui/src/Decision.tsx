@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { PublicError, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary, TextList } from './common'
 import { amount, clock, label, money, publicUrl, ruleValue, weight, when } from './format'
@@ -63,7 +64,13 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
   const narrative = data.narrative
   const xPosts = data.x_posts ?? []
   const regime = data.policy_evaluation.regime_evidence
-  return <div className="trace">
+  const collapseDisclosure = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (!(target instanceof Element) || target.closest('summary, a, button, input, select, textarea, [role="button"]')) return
+    const disclosure = target.closest('details')
+    if (disclosure?.open) disclosure.open = false
+  }
+  return <div className="trace" onClick={collapseDisclosure}>
     <Link className="back" href={back}>← Feed</Link>
     <ResourceNotice resource={resource} name="decision trace" />
     <SectionBoundary resetKey={data} retry={resource.refresh} name="decision trace">
@@ -77,9 +84,9 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
       </header>
       <section className="refined"><div><h2>Refined thesis</h2><p>{narrative?.stages.find(stage => stage.stage === 'refined_thesis')?.summary ?? 'No dedicated public refined thesis was recorded.'}</p></div></section>
       <section aria-labelledby="trace-heading"><div className="section-heading"><h2 id="trace-heading">Decision trace</h2><span>{narrative?.stages.length ?? 0} published stages</span></div>
-        {narrative?.stages.length ? <div className="reasoning-chain">{narrative.stages.map((stage, index) => <details className="reasoning-stage" key={stage.stage} open={index === 0}><summary className="stage-toggle"><Chevron /><span><strong style={{ color: `var(--${stageColors[stage.stage] ?? 'text-2'})` }}>{stageNames[stage.stage] ?? label(stage.stage)}</strong><span className="stage-preview">{stage.summary}</span></span><span className="stage-time">{clock(stage.completed_at ?? stage.started_at)}</span></summary><div className="stage-body"><p>{stage.summary}</p>{stage.started_at && <p className="as-of">Started {when(stage.started_at)}{stage.completed_at ? ` · Completed ${when(stage.completed_at)}` : ''}</p>}{stage.claim_ids.length > 0 && <div className="evidence-links">{stage.claim_ids.map((id, i) => <a key={id} href={`#${id}`}>Evidence {i + 1}</a>)}</div>}</div></details>)}</div> : <Empty>This historical record has a public summary, with no dedicated stage summaries.</Empty>}
+        {narrative?.stages.length ? <div className="reasoning-chain">{narrative.stages.map(stage => <div className="reasoning-stage" key={stage.stage}><div className="stage-row"><span><strong style={{ color: `var(--${stageColors[stage.stage] ?? 'text-2'})` }}>{stageNames[stage.stage] ?? label(stage.stage)}</strong><span className="stage-preview">{stage.summary}</span>{stage.claim_ids.length > 0 && <span className="evidence-links">{stage.claim_ids.map((id, index) => <a key={id} href={`#${id}`}>Evidence {index + 1}</a>)}</span>}</span><span className="stage-time">{clock(stage.completed_at ?? stage.started_at)}</span></div></div>)}</div> : <Empty>This historical record has a public summary, with no dedicated stage summaries.</Empty>}
       </section>
-      <section><h2>Conviction and sizing</h2><p>{narrative?.conviction_rationale ?? 'No public conviction rationale was recorded.'}</p><dl className="detail-grid sizing"><Fact name="Decision-time weight">{weight(data.current_weight)}</Fact><Fact name="Proposed target">{weight(data.proposed_target_weight)}</Fact><Fact name="Final target">{weight(data.final_target_weight)}</Fact></dl><p className="section-note">Target weight is the intended position size, not the amount of an order.</p></section>
+      <section><h2>Conviction and sizing</h2><p>{narrative?.conviction_rationale ?? 'No public conviction rationale was recorded.'}</p><dl className="detail-grid sizing"><Fact name="Decision-time weight">{weight(data.current_weight)}</Fact><Fact name="Proposed target">{weight(data.proposed_target_weight)}</Fact><Fact name="Final target">{weight(data.final_target_weight)}</Fact></dl></section>
       {narrative?.variant_perception && <section><details className="compact-disclosure"><summary><Chevron /> Variant perception</summary><div className="disclosure-body">{(['consensus', 'disagreement', 'evidence', 'falsification'] as const).map(key => <div className="prose-fact" key={key}><h3>{label(key)}</h3><p>{narrative.variant_perception![key] ?? 'Not recorded.'}</p></div>)}</div></details></section>}
       <section><h2>Trigger</h2><p>{narrative?.trigger_summary ?? 'No dedicated public trigger narrative was recorded.'}</p>{data.public_run_id && <Link className="text-button" href={dashboardUrl({ scope: data.mode, tab: 'feed', run_id: data.public_run_id }, '')}>View related decisions →</Link>}</section>
       <section><div className="section-heading"><h2>Sources &amp; claims</h2><span>{narrative?.claims.length ?? data.claims.length} published claims</span></div>
@@ -98,7 +105,7 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         </div> })}</div>
         <p className="section-note">Every source the published record cites, whether or not a claim quotes it.</p>
       </section> : null}
-      <section><div className="section-heading"><h2>X signals</h2>{xPosts.length ? <span>{xPosts.length} linked post{xPosts.length === 1 ? '' : 's'}</span> : null}</div>
+      <section className="x-signals"><div className="section-heading"><h2>X signals</h2>{xPosts.length ? <span>{xPosts.length} linked post{xPosts.length === 1 ? '' : 's'}</span> : null}</div>
         <p>{data.x_usage.used ? narrative?.x_summary || data.x_usage.summary || label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>
         {xPosts.length ? <ul className="x-posts">{xPosts.map(post => { const href = publicUrl(post.url); return <li key={post.url}>
           <span className="source-type">{label('x_' + post.role)}</span>

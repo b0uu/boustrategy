@@ -231,6 +231,20 @@ it('renders long sources safely in native disclosures', async () => {
   const summary = screen.getByText('Variant perception').closest('summary')!; summary.focus()
   expect(summary).toHaveFocus(); expect(summary.parentElement?.tagName).toBe('DETAILS')
 })
+it('keeps thesis stages static and collapses an open disclosure from its body', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Decision trace' })
+  expect(screen.getByText('Initial thesis').closest('details')).toBeNull()
+  const summary = screen.getByText('Variant perception').closest('summary')!
+  fireEvent.click(summary)
+  const details = summary.parentElement!
+  expect(details).toHaveAttribute('open')
+  fireEvent.click(screen.getByText(decision.narrative!.variant_perception!.consensus!))
+  expect(details).not.toHaveAttribute('open')
+})
 it('renders approved markup-like text as text', async () => {
   const item = feed().items[0]
   const decision = data[item.public_id] as Decision

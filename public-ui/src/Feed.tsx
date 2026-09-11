@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowClockwise, FunnelSimple, MagnifyingGlass, X } from '@phosphor-icons/react'
+import { ArrowClockwise, CheckCircle, Clock, FunnelSimple, MagnifyingGlass, ShieldCheck, WarningCircle, X } from '@phosphor-icons/react'
 import { PublicError, readPublic } from './api'
 import { Badge, Empty, RequestIssue } from './common'
 import { ReviewRow, useReviews } from './Activity'
@@ -10,6 +10,21 @@ import type { ActivityItem, DecisionItem, FeedPage, Scope } from './types'
 
 const WINDOW_LIMIT = 500
 const PAGE_LIMIT = 25
+
+function LifecycleMark({ value }: { value: string }) {
+  const text = label(value)
+  const normalized = value.toLowerCase()
+  const failed = ['failed', 'rejected', 'canceled', 'cancelled'].some(state => normalized.includes(state))
+  const icon = normalized.includes('filled')
+    ? <CheckCircle weight="fill" />
+    : failed
+      ? <WarningCircle weight="fill" />
+      : normalized === 'policy_approved'
+        ? <ShieldCheck weight="fill" />
+        : <Clock weight="fill" />
+  const tone = normalized.includes('filled') ? 'success' : failed ? 'error' : 'neutral'
+  return <span className={`lifecycle-mark lifecycle-mark--${tone}`} aria-label={text} data-tooltip={text} tabIndex={0}>{icon}</span>
+}
 
 function useFeed(url: string) {
   const cache = useRef(new Map<string, FeedPage>())
@@ -127,9 +142,10 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
     ...(feed.page?.items ?? []).map((item: DecisionItem) => ({
       key: item.public_id,
       at: Date.parse(item.created_at),
-      node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. View full trace'}>
+      node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. ' + label(item.policy_outcome) + '. ' + label(item.lifecycle) + '. View full trace'}>
         <strong className="mono stream-kind">{item.ticker}</strong>
-        <span className="stream-body"><span className="stream-headline">{label(item.decision)}<Badge value={item.policy_outcome} /><span className="execution-label">{label(item.lifecycle)}</span></span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
+        <span className="stream-body"><span className="stream-headline">{label(item.decision)}</span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
+        <span className="stream-status"><Badge value={item.policy_outcome} /><LifecycleMark value={item.lifecycle} /></span>
         <time dateTime={item.created_at} title={when(item.created_at)}>{when(item.created_at, true)}</time>
         <span className="chevron" aria-hidden="true">&rsaquo;</span>
       </Link>,
