@@ -23,6 +23,8 @@ async function dashboard() { render(<App />); await waitFor(() => expect(rows())
 beforeEach(() => {
   data = structuredClone(fixtures)
   history.replaceState({}, '', '/')
+  localStorage.clear()
+  delete document.documentElement.dataset.theme
   vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(respond(url))))
   vi.stubGlobal('scrollTo', vi.fn())
   vi.stubGlobal('cancelAnimationFrame', clearTimeout)
@@ -48,6 +50,22 @@ it('dismisses agent details when the reader clicks elsewhere', async () => {
   expect(trigger.closest('details')).toHaveAttribute('open')
   fireEvent.pointerDown(document.body)
   expect(trigger.closest('details')).not.toHaveAttribute('open')
+})
+
+it('opens dark, and carries an explicit light choice into the next visit', async () => {
+  await dashboard()
+  expect(document.documentElement.dataset.theme).toBeUndefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Switch to light theme' }))
+  expect(document.documentElement.dataset.theme).toBe('light')
+  expect(localStorage.getItem('boustrategy-theme')).toBe('light')
+  cleanup()
+  delete document.documentElement.dataset.theme // What a fresh page load starts from.
+  render(<App />)
+  const back = await screen.findByRole('button', { name: 'Switch to dark theme' })
+  expect(document.documentElement.dataset.theme).toBe('light')
+  fireEvent.click(back)
+  expect(document.documentElement.dataset.theme).toBeUndefined()
+  expect(localStorage.getItem('boustrategy-theme')).toBe('dark')
 })
 
 it('shows reviews beside decisions so a no-action session is still public work', async () => {

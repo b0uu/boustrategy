@@ -13,7 +13,7 @@ const TOKENS = [
 // Ten starting points. Every text and accent colour clears WCAG AA against its own background
 // (body text aims for 7:1), so a palette can be judged on looks alone.
 const PRESETS: Record<string, Palette> = {
-  'Current dark': {
+  'Cool slate': {
     scheme: 'dark', bg: '#0a0b0d', surface: '#111315', 'surface-2': '#191b1d', border: '#313336', 'border-soft': '#222427',
     text: '#eaebed', 'text-2': '#b4b7bd', 'text-3': '#8c8f94', indigo: '#8eb5ff', 'indigo-bg': '#1d2842',
     coral: '#ff847d', 'coral-bg': '#47211e', green: '#67d283', 'green-bg': '#0f3118', amber: '#ebbd57', 'amber-bg': '#3c2b02',
@@ -65,6 +65,7 @@ const PRESETS: Record<string, Palette> = {
   },
 }
 const NAMES = Object.keys(PRESETS)
+const DEFAULT = 'Warm slate' // What the site ships, so the lab opens on the real theme.
 
 const GROUPS: Array<[string, string[]]> = [
   ['Surfaces', ['bg', 'surface', 'surface-2', 'border', 'border-soft']],
@@ -96,12 +97,12 @@ function apply(palette: Palette) {
 }
 
 export default function ThemeLab() {
-  const [name, setName] = useState<string>(() => localStorage.getItem(`${STORAGE}-name`) ?? NAMES[0])
+  const [name, setName] = useState<string>(() => localStorage.getItem(`${STORAGE}-name`) ?? DEFAULT)
   const [palette, setPalette] = useState<Palette>(() => {
     try {
       const saved = localStorage.getItem(STORAGE)
-      return saved ? { ...PRESETS[NAMES[0]], ...JSON.parse(saved) } : PRESETS[NAMES[0]]
-    } catch { return PRESETS[NAMES[0]] }
+      return saved ? { ...PRESETS[DEFAULT], ...JSON.parse(saved) } : PRESETS[DEFAULT]
+    } catch { return PRESETS[DEFAULT] }
   })
   // Collapsed by default: the preset grid stays visible, and the page behind it is not covered
   // by the token editor while you click through themes.

@@ -16,6 +16,7 @@ import { Policies } from './Policies'
 import { AgentStatus } from './Activity'
 import { DecisionPage } from './Decision'
 import { Link, dashboardUrl, navigate, useLocation } from './navigation'
+import { ThemeToggle } from './theme'
 import type { Overview, Performance as PerformanceData, Scope, Range } from './types'
 import { when } from './format'
 import avatar from './assets/agent-avatar.png'
@@ -95,7 +96,7 @@ export default function App() {
       return () => cancelAnimationFrame(frame)
     }
   }, [href, current.kind])
-  return <><a className="skip-link" href="#main">Skip to content</a><nav className="page-nav" aria-label="Main navigation"><Link href={dashboard.current} aria-current={current.kind === 'dashboard' ? 'page' : undefined}>Agent dashboard</Link></nav><main id="main" tabIndex={-1}>
+  return <><a className="skip-link" href="#main">Skip to content</a><nav className="page-nav" aria-label="Main navigation"><Link href={dashboard.current} aria-current={current.kind === 'dashboard' ? 'page' : undefined}>Agent dashboard</Link><ThemeToggle /></nav><main id="main" tabIndex={-1}>
     {(visited || current.kind === 'dashboard') && <div hidden={current.kind !== 'dashboard' || invalid}><DashboardPage search={new URL(dashboard.current, location.origin).search} /></div>}
     {current.kind === 'decision' && !invalid && <div><Section key={href} name="decision trace"><DecisionPage publicId={current.publicId} legacy={current.legacy} scope={SCOPE} back={dashboard.current} /></Section></div>}
     {(current.kind === 'unknown' || invalid) && <div className="request-state" role="alert"><h1 tabIndex={-1}>{invalid ? 'This dashboard link is invalid' : 'Page not found'}</h1><p>{invalid ? 'The section or performance range is not recognized.' : "This page isn't part of the public dashboard."}</p><Link href="/">Open agent dashboard</Link></div>}

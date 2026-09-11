@@ -1,24 +1,59 @@
+/* Warm slate, the default. /assets/theme-v1.js sets data-theme before first paint, and only a
+   reader's explicit choice of light overrides this. Every colour the page uses is a token, so a
+   theme is exactly this block and its light counterpart. */
 :root {
-  --bg: oklch(0.15 0.004 260);
-  --surface: oklch(0.185 0.005 260);
-  --surface-2: oklch(0.22 0.006 260);
-  --border: oklch(0.32 0.006 260);
-  --border-soft: oklch(0.26 0.006 260);
-  --text: oklch(0.94 0.003 260);
-  --text-2: oklch(0.78 0.008 260);
-  --text-3: oklch(0.65 0.008 260);
-  --indigo: oklch(0.78 0.13 265);
-  --indigo-bg: oklch(0.28 0.05 265);
-  --coral: oklch(0.75 0.15 25);
-  --coral-bg: oklch(0.3 0.06 25);
-  --green: oklch(0.78 0.15 150);
-  --green-bg: oklch(0.28 0.06 150);
-  --amber: oklch(0.82 0.13 85);
-  --amber-bg: oklch(0.3 0.06 85);
+  --bg: #100f0e;
+  --surface: #181614;
+  --surface-2: #211e1b;
+  --border: #3a3531;
+  --border-soft: #2a2623;
+  --text: #efece8;
+  --text-2: #bcb5ad;
+  --text-3: #948c83;
+  --indigo: #a9b3ff;
+  --indigo-bg: #262a55;
+  --coral: #ff8f80;
+  --coral-bg: #46231d;
+  --green: #7bcf8c;
+  --green-bg: #15301c;
+  --amber: #e9bc6b;
+  --amber-bg: #3a2a0d;
+  --link-hover: #cdd3ff;
+  --selection: rgb(169 179 255 / .3);
+  --tooltip-bg: rgb(24 22 20 / .96);
+  --shadow-panel: 0 14px 35px rgb(0 0 0 / .32);
+  --shadow-tooltip: 0 8px 24px rgb(0 0 0 / .28);
+  color-scheme: dark;
+}
+/* Paper. */
+:root[data-theme=light] {
+  --bg: #e9e9ea;
+  --surface: #f4f4f5;
+  --surface-2: #dcdcde;
+  --border: #bfbfc3;
+  --border-soft: #d2d2d6;
+  --text: #15161a;
+  --text-2: #3d4046;
+  --text-3: #5f636b;
+  --indigo: #3434c4;
+  --indigo-bg: #dcdcf7;
+  --coral: #b3261e;
+  --coral-bg: #f7dedc;
+  --green: #15612f;
+  --green-bg: #d7efdd;
+  --amber: #6f4a00;
+  --amber-bg: #f5e4bf;
+  --link-hover: #24248f;
+  --selection: rgb(52 52 196 / .22);
+  --tooltip-bg: rgb(244 244 245 / .97);
+  --shadow-panel: 0 14px 30px rgb(21 22 26 / .16);
+  --shadow-tooltip: 0 8px 20px rgb(21 22 26 / .14);
+  color-scheme: light;
+}
+:root {
   font-family: 'IBM Plex Sans', sans-serif;
   color: var(--text);
   background: var(--bg);
-  color-scheme: dark;
   font-synthesis: none;
   font-size: 14px;
   line-height: 1.55;
@@ -26,9 +61,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 [hidden] { display: none !important; }
-::selection { background: oklch(0.6 0.13 265 / 0.3); }
+::selection { background: var(--selection); }
 a { color: var(--indigo); text-decoration: none; }
-a:hover { color: oklch(0.88 0.13 265); }
+a:hover { color: var(--link-hover); }
 button { font: inherit; color: inherit; cursor: pointer; }
 button, a, summary { -webkit-tap-highlight-color: transparent; transition: background-color 140ms ease, color 140ms ease; }
 :focus-visible { outline: 2px solid var(--indigo); outline-offset: 4px; }
@@ -37,6 +72,8 @@ main { padding-bottom: 32px; }
 .page-nav { display: flex; gap: 20px; padding: 20px 4px 0; }
 .page-nav a, .page-nav > span { font-size: 12.5px; line-height: 29px; color: var(--text-2); border-bottom: 1px solid transparent; padding: 6px 0; }
 .page-nav a[aria-current=page], .page-nav > .is-current { color: var(--text); font-weight: 600; border-bottom-color: var(--text-2); }
+.theme-toggle { margin-left: auto; align-self: center; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; background: none; border: 0; border-radius: 4px; color: var(--text-3); }
+.theme-toggle:hover { color: var(--text); background: var(--surface); }
 h1, h2, h3, p, dl { margin: 0; }
 h1 { font-size: 20px; line-height: 1.4; font-weight: 700; letter-spacing: -.01em; }
 h2, h3 { font-weight: 400; color: var(--text-3); }
@@ -81,7 +118,7 @@ main:focus, h1:focus { outline: none; }
 .profile-meta { margin-left: auto; position: relative; }
 .profile-meta > summary { display: grid; place-items: center; width: 30px; height: 30px; color: var(--text-3); border-radius: 4px; }
 .profile-meta > summary:hover, .profile-meta[open] > summary { color: var(--text); background: var(--surface); }
-.profile-meta > div { position: absolute; z-index: 4; top: 36px; right: 0; width: min(320px, calc(100vw - 40px)); padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: 0 14px 35px rgb(0 0 0 / .28); font-size: 11px; color: var(--text-3); }
+.profile-meta > div { position: absolute; z-index: 4; top: 36px; right: 0; width: min(320px, calc(100vw - 40px)); padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: var(--shadow-panel); font-size: 11px; color: var(--text-3); }
 .profile-meta > div > span { display: block; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border-soft); }
 
 /* --- Shared controls -------------------------------------------------------------- */
@@ -143,7 +180,7 @@ main:focus, h1:focus { outline: none; }
 .chart-cursor { stroke: var(--border); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-point { fill: var(--indigo); }
 .chart-point.is-active { fill: var(--text); }
-.chart-tooltip { position: absolute; z-index: 2; top: 7px; min-width: 142px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: 5px; background: oklch(0.18 0.005 260 / .96); box-shadow: 0 8px 24px rgb(0 0 0 / .24); transform: translateX(-50%); pointer-events: none; }
+.chart-tooltip { position: absolute; z-index: 2; top: 7px; min-width: 142px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: 5px; background: var(--tooltip-bg); box-shadow: var(--shadow-tooltip); transform: translateX(-50%); pointer-events: none; }
 .chart-tooltip.is-start { transform: none; }
 .chart-tooltip.is-end { transform: translateX(-100%); }
 .chart-tooltip > span { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -197,7 +234,7 @@ main:focus, h1:focus { outline: none; }
 .filter-disclosure > summary { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 4px; color: var(--text-3); }
 .filter-disclosure > summary:hover, .filter-disclosure[open] > summary { color: var(--text); background: var(--surface); }
 .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 0; }
-.filter-disclosure[open] .filters { position: absolute; top: 42px; right: 0; width: min(440px, calc(100vw - 40px)); padding: 14px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: 0 14px 35px rgb(0 0 0 / .28); }
+.filter-disclosure[open] .filters { position: absolute; top: 42px; right: 0; width: min(440px, calc(100vw - 40px)); padding: 14px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: var(--shadow-panel); }
 .filters label { display: flex; flex-direction: column; gap: 4px; color: var(--text-3); font-size: 11.5px; }
 .filter-state, .chart-caption { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--text-3); padding: 6px 12px; }
 .chart-caption, .performance-caveat { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -301,7 +338,8 @@ main:focus, h1:focus { outline: none; }
 .stage-toggle { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 11px 4px; width: 100%; border: 0; background: none; text-align: left; border-radius: 6px; }
 .stage-toggle strong { font-size: 13px; font-weight: 600; }
 .stage-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-top: 3px; }
-.stage-toggle[aria-expanded=true] .stage-preview { display: none; }
+/* A native summary carries no aria-expanded, so the open state has to come off the details. */
+.reasoning-stage[open] .stage-preview { display: none; }
 .stage-time { font: 400 11.5px 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; color: var(--text-3); white-space: nowrap; }
 .stage-body { padding: 2px 4px 18px 28px; animation: reveal 160ms ease-out; }
 .claim { border-top: 1px solid var(--border-soft); }
@@ -409,7 +447,7 @@ main:focus, h1:focus { outline: none; }
 }
 
 /* --- Theme lab (development only) --------------------------------------------------- */
-.theme-lab { position: fixed; z-index: 20; right: 16px; bottom: 16px; width: 296px; max-height: calc(100vh - 32px); overflow: auto; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 18px 40px rgb(0 0 0 / .35); font-size: 12px; }
+.theme-lab { position: fixed; z-index: 20; right: 16px; bottom: 16px; width: 296px; max-height: calc(100vh - 32px); overflow: auto; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-panel); font-size: 12px; }
 .theme-lab header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .theme-lab h3 { margin: 12px 0 4px; }
 .theme-lab label { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 3px 0; }
