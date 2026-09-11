@@ -5,8 +5,9 @@ from types import SimpleNamespace
 from typing import Any
 
 from app.reason.codex_runner import research_activity, run_codex
-from app.reason.worker import HUNT_MINIMUM, execute_attempt, hunt_shortfall
+from app.reason.worker import HUNT_MINIMUM, execute_attempt, hunt_shortfall, public_narrative_gap
 from app.schemas.decision_record import InvestmentDecisionRecord
+from app.schemas.public_authoring import PublicNarrative
 from app.schemas.runtime import AuthoredOutput, CandidateConsidered
 from app.storage.database import connect
 from tests.fixtures.decision_records import valid_decision_record_data
@@ -58,6 +59,26 @@ def candidate(
             "reason": "Primary filing did not confirm the claimed demand inflection.",
         }
     )
+
+
+def public_story() -> dict[str, Any]:
+    """A complete, approved public narrative that the dashboard would publish in full."""
+    return {
+        "approved_for_publication": True,
+        "company_name": "NVIDIA Corporation",
+        "stages": [
+            {"stage": stage, "summary": f"Public summary of the {stage.replace('_', ' ')}."}
+            for stage in (
+                "initial_thesis",
+                "counter_thesis",
+                "adversarial_refinement",
+                "refined_thesis",
+                "what_is_priced_in",
+            )
+        ],
+        "conviction_rationale": "Filed results confirm the demand the thesis depends on.",
+        "conditions": {"invalidation": ["Next-quarter guidance falls below $100B."]},
+    }
 
 
 HUNTED = AuthoredOutput(
@@ -243,6 +264,7 @@ def test_an_actionable_decision_must_carry_the_price_the_review_read() -> None:
                     update={
                         "reference_price": 200.0,
                         "reference_price_at": datetime(2026, 9, 11, 19, 0, tzinfo=UTC),
+                        "public_narrative": PublicNarrative.model_validate(public_story()),
                     }
                 )
             ]
@@ -256,6 +278,7 @@ def test_a_review_while_the_market_is_closed_puts_ideas_on_the_watchlist() -> No
         update={
             "reference_price": 200.0,
             "reference_price_at": datetime(2026, 9, 11, 22, 15, tzinfo=UTC),
+            "public_narrative": PublicNarrative.model_validate(public_story()),
         }
     )
     ledger = [candidate(record.ticker, str(record.decision)), candidate("TSM"), candidate("MSFT")]
@@ -268,3 +291,43 @@ def test_a_review_while_the_market_is_closed_puts_ideas_on_the_watchlist() -> No
     watch = [candidate(record.ticker, "WATCHLIST"), candidate("TSM"), candidate("MSFT")]
     researched = AuthoredOutput(candidates_considered=watch, public_summary="Watchlist.")
     assert hunt_shortfall(researched, {"opens": 3}, 3, trading_open=False) is None
+
+
+def test_an_order_needs_a_public_narrative_the_dashboard_would_show_in_full() -> None:
+    base = InvestmentDecisionRecord.model_validate(valid_decision_record_data()).model_copy(
+        update={
+            "reference_price": 200.0,
+            "reference_price_at": datetime(2026, 9, 11, 19, 0, tzinfo=UTC),
+        }
+    )
+
+    def gap(story: dict[str, Any] | None) -> str | None:
+        narrative = PublicNarrative.model_validate(story) if story is not None else None
+        return public_narrative_gap(base.model_copy(update={"public_narrative": narrative}))
+
+    assert gap(public_story()) is None
+    # Empty, as today's NVDA and ORCL reviews left it: nothing reaches the public trace.
+    assert "no approved public_narrative" in str(gap({}))
+    assert "no approved public_narrative" in str(
+        gap({**public_story(), "approved_for_publication": False})
+    )
+    # A required source the worker hasn't registered would withdraw the whole narrative.
+    assert "no approved public_narrative" in str(
+        gap({**public_story(), "required_source_refs": ["sec_10q"]})
+    )
+    four = {**public_story(), "stages": public_story()["stages"][:4]}
+    assert "would not publish stages: what_is_priced_in" in str(gap(four))
+    # A stage citing a claim with an unregistered source is suppressed, so it counts as missing.
+    cited = public_story()
+    cited["claims"] = [
+        {
+            "claim_id": "c1",
+            "text": "Revenue grew.",
+            "source_refs": ["sec_10q"],
+            "approved_for_publication": True,
+        }
+    ]
+    cited["stages"][3] = {**cited["stages"][3], "claim_ids": ["c1"]}
+    assert "would not publish stages: refined_thesis" in str(gap(cited))
+    assert "conviction_rationale" in str(gap({**public_story(), "conviction_rationale": None}))
+    assert "invalidation" in str(gap({**public_story(), "conditions": {"invalidation": []}}))

@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from app.broker.session import BrokerSessionFailure
 from app.broker.valuation import session_window
+from app.public.explanations import narrative_projection
 from app.reason.codex_runner import (
     MAX_PROMPT_BYTES,
     RunnerFailure,
@@ -81,6 +82,14 @@ choosing either bound; never state a bound you did not check.
 Every BUY, ADD, TRIM or SELL record must also set reference_price and reference_price_at: the
 price you read from the opened quote page and the time that page displayed. Execution refuses
 an order once the market is more than 1% away from that price, so it must be the real quote.
+Every BUY, ADD, TRIM or SELL record must include a public_narrative written for readers of the
+public dashboard, because the dashboard never shows your private fields: set
+approved_for_publication to true, give company_name, write all five stages (initial_thesis,
+counter_thesis, adversarial_refinement, refined_thesis, what_is_priced_in) as plain public
+prose that faithfully summarizes that step of your reasoning, add conviction_rationale, and
+add conditions with at least one invalidation condition. Keep it public-safe: no account
+details, private notes or internal identifiers. Leave required_source_refs empty and give
+stages no claim_ids, because sources the worker hasn't registered would suppress them.
 """
 
 
@@ -90,6 +99,36 @@ an order once the market is more than 1% away from that price, so it must be the
 HUNT_MINIMUM = 3
 _MIN_RETRY_SECONDS = 120
 _PRICED_ACTIONS = {"BUY", "ADD", "TRIM", "SELL"}
+
+
+_PUBLIC_STAGES = {
+    "initial_thesis",
+    "counter_thesis",
+    "adversarial_refinement",
+    "refined_thesis",
+    "what_is_priced_in",
+}
+
+
+def public_narrative_gap(decision: InvestmentDecisionRecord) -> str | None:
+    """Say what keeps an order-bearing decision's reasoning off the public trace, if anything.
+
+    The check runs the real publication projection with no registered sources, so a narrative
+    passes only if every stage would actually appear on the dashboard.
+    """
+    projected = narrative_projection(decision.public_narrative, {}, "check")
+    if projected is None:
+        return (
+            "has no approved public_narrative (set approved_for_publication and leave "
+            "required_source_refs empty)"
+        )
+    missing = sorted(_PUBLIC_STAGES - {stage["stage"] for stage in projected["stages"]})
+    if missing:
+        return "public_narrative would not publish stages: " + ", ".join(missing)
+    conditions = projected["conditions"] or {}
+    if not projected["conviction_rationale"] or not conditions.get("invalidation"):
+        return "public_narrative needs conviction_rationale and at least one invalidation condition"
+    return None
 
 
 def hunt_shortfall(
@@ -131,6 +170,10 @@ def hunt_shortfall(
                 f"{decision.decision} {decision.ticker} has no reference_price and "
                 "reference_price_at read from an opened quote page"
             )
+        if decision.decision in _PRICED_ACTIONS:
+            gap = public_narrative_gap(decision)
+            if gap:
+                problems.append(f"{decision.decision} {decision.ticker} {gap}")
     if activity.get("opens", 0) < minimum:
         problems.append(
             f"{activity.get('opens', 0)} pages were opened; open primary sources for each "
