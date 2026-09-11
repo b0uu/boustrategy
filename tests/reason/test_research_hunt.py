@@ -249,3 +249,22 @@ def test_an_actionable_decision_must_carry_the_price_the_review_read() -> None:
         }
     )
     assert hunt_shortfall(priced, {"opens": 3}, 3) is None
+
+
+def test_a_review_while_the_market_is_closed_puts_ideas_on_the_watchlist() -> None:
+    record = InvestmentDecisionRecord.model_validate(valid_decision_record_data()).model_copy(
+        update={
+            "reference_price": 200.0,
+            "reference_price_at": datetime(2026, 9, 11, 22, 15, tzinfo=UTC),
+        }
+    )
+    ledger = [candidate(record.ticker, str(record.decision)), candidate("TSM"), candidate("MSFT")]
+    buy = AuthoredOutput(decisions=[record], candidates_considered=ledger, public_summary="Buy.")
+
+    closed = hunt_shortfall(buy, {"opens": 3}, 3, trading_open=False)
+    assert closed is not None and "while the market is closed" in closed and "WATCHLIST" in closed
+    assert hunt_shortfall(buy, {"opens": 3}, 3, trading_open=True) is None
+
+    watch = [candidate(record.ticker, "WATCHLIST"), candidate("TSM"), candidate("MSFT")]
+    researched = AuthoredOutput(candidates_considered=watch, public_summary="Watchlist.")
+    assert hunt_shortfall(researched, {"opens": 3}, 3, trading_open=False) is None

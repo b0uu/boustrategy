@@ -70,8 +70,8 @@ def _session_returning(payload: dict[str, Any], seen: dict[str, Any]) -> Any:
 
 def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
-    intent = _live_intent(db_path, now - timedelta(hours=15))
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(hours=1))
     conn = connect(db_path)
 
     fresh = pending_live_intents(conn, _profile(), now=now)
@@ -105,8 +105,8 @@ def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -
 
 def test_execute_pending_runs_one_session_per_intent_and_verifies_ledger(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
-    intent = _live_intent(db_path, now - timedelta(hours=15))
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(hours=1))
     seen: dict[str, Any] = {}
     payload = {
         "order_intent_id": intent.order_intent_id,
@@ -140,7 +140,7 @@ def test_execute_pending_runs_one_session_per_intent_and_verifies_ledger(tmp_pat
 
 def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
     intent = _live_intent(db_path, now - timedelta(hours=1))
 
     def failing(prompt: str, **kwargs: Any) -> Any:
@@ -174,7 +174,7 @@ def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_pat
 
 def test_a_block_must_carry_a_known_label(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
     intent = _live_intent(db_path, now - timedelta(hours=1))
     unlabeled = {"order_intent_id": intent.order_intent_id, "outcome": "blocked", "notes": "?"}
 
@@ -201,7 +201,7 @@ def test_a_block_must_carry_a_known_label(tmp_path: Path) -> None:
 
 
 def test_a_fill_triggers_a_snapshot_and_a_snapshot_failure_is_reported(tmp_path: Path) -> None:
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
     taken: list[str] = []
 
     class Snapshot:
@@ -246,7 +246,7 @@ def test_a_fill_triggers_a_snapshot_and_a_snapshot_failure_is_reported(tmp_path:
 
 def test_verify_report_flags_intent_mismatch_and_unexpected_record(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    now = datetime(2026, 9, 10, 13, 32, tzinfo=UTC)
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
     intent = _live_intent(db_path, now)
     conn = connect(db_path)
 
@@ -259,20 +259,26 @@ def test_verify_report_flags_intent_mismatch_and_unexpected_record(tmp_path: Pat
     conn.close()
 
 
-def test_pending_intents_keep_an_overnight_intent_but_drop_a_day_old_one(tmp_path: Path) -> None:
+def test_an_intent_executes_only_in_the_session_it_was_decided(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
-    # Thursday 09:40 ET; Wednesday's close is the staleness boundary.
-    now = datetime(2026, 9, 10, 13, 40, tzinfo=UTC)
+    # Wednesday 18:15 ET, after the close: not executable Thursday, the price has moved on.
     overnight = _live_intent(db_path, datetime(2026, 9, 9, 22, 15, tzinfo=UTC))
-    conn = connect(db_path)
+    # Thursday 10:05 ET, in session: executable for the rest of Thursday's session only.
+    in_session = _live_intent(tmp_path / "second.db", datetime(2026, 9, 10, 14, 5, tzinfo=UTC))
+    thursday = datetime(2026, 9, 10, 14, 40, tzinfo=UTC)
+    conn, second = connect(db_path), connect(tmp_path / "second.db")
 
-    assert [item.order_intent_id for item in pending_live_intents(conn, _profile(), now=now)] == [
-        overnight.order_intent_id
-    ]
-    # The same intent one session later is anchored to a price nobody checked since.
+    assert pending_live_intents(conn, _profile(), now=thursday) == []
+    assert overnight.order_intent_id
+    assert [
+        item.order_intent_id for item in pending_live_intents(second, _profile(), now=thursday)
+    ] == [in_session.order_intent_id]
     friday = datetime(2026, 9, 11, 13, 40, tzinfo=UTC)
-    assert pending_live_intents(conn, _profile(), now=friday) == []
+    saturday = datetime(2026, 9, 12, 15, 0, tzinfo=UTC)
+    assert pending_live_intents(second, _profile(), now=friday) == []
+    assert pending_live_intents(second, _profile(), now=saturday) == []
     conn.close()
+    second.close()
 
 
 def test_execution_attempts_back_off_and_stop_at_the_cap(tmp_path: Path) -> None:

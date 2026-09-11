@@ -15,6 +15,7 @@ from uuid import uuid4
 from pydantic import ValidationError
 
 from app.broker.session import BrokerSessionFailure
+from app.broker.valuation import session_window
 from app.reason.codex_runner import (
     MAX_PROMPT_BYTES,
     RunnerFailure,
@@ -91,11 +92,21 @@ _MIN_RETRY_SECONDS = 120
 _PRICED_ACTIONS = {"BUY", "ADD", "TRIM", "SELL"}
 
 
-def hunt_shortfall(result: AuthoredOutput, activity: dict[str, int], minimum: int) -> str | None:
+def hunt_shortfall(
+    result: AuthoredOutput, activity: dict[str, int], minimum: int, *, trading_open: bool = True
+) -> str | None:
     """Explain why an output doesn't show the required hunt, or return None when it does."""
     if minimum <= 0:
         return None
     problems: list[str] = []
+    if not trading_open:
+        for decision in result.decisions:
+            if decision.decision in _PRICED_ACTIONS:
+                problems.append(
+                    f"{decision.decision} {decision.ticker} was authored while the market is "
+                    "closed; orders come only from in-session reviews, so record it as "
+                    "WATCHLIST with its entry bounds for the next one"
+                )
     candidates = result.candidates_considered
     distinct = {candidate.ticker for candidate in candidates}
     if len(distinct) < minimum:
@@ -190,6 +201,19 @@ def execute_attempt(
         if hashlib.sha256(intake).hexdigest() != run.intake_sha256:
             raise RunnerFailure("intake_changed")
         namespace = (run.reasoning_run_id or run.run_id) + "_" + attempt.attempt_id + "_"
+        # Live orders execute only in the session they were decided in, so a live review that
+        # runs while the market is closed researches and puts ideas on the watchlist instead.
+        trading_open = run.mode != "live" or session_window(clock()).open
+        market = (
+            ""
+            if run.mode != "live"
+            else "\nMarket: open. Orders from this review execute in this session."
+            if trading_open
+            else "\nMarket: closed. Do not author BUY, ADD, TRIM or SELL: an order executes only "
+            "in the session it is decided, and the next open may be far from any price you can "
+            "read now. Review holdings, hunt as usual, and record candidates that clear the bar "
+            "as WATCHLIST with their entry bounds for the next in-session review."
+        )
         prompt = (
             _AUTHORING_CONTRACT
             + "\nDecision namespace: "
@@ -198,6 +222,7 @@ def execute_attempt(
             + attempt.attempt_id
             + "\nMode: "
             + run.mode
+            + market
             + "\nPrepared reasoning run: "
             + (run.reasoning_run_id or "null")
             + "\nINTAKE\n"
@@ -225,7 +250,7 @@ def execute_attempt(
 
         result = author(prompt, attempt_log, timeout_seconds)
         activity = research_activity(attempt_log)
-        shortfall = hunt_shortfall(result, activity, required)
+        shortfall = hunt_shortfall(result, activity, required, trading_open=trading_open)
         passes: list[dict[str, Any]] = [{"activity": activity, "shortfall": shortfall}]
         if shortfall:
             # One second pass, inside the same time budget, told exactly what was missing.
@@ -244,7 +269,7 @@ def execute_attempt(
                 remaining,
             )
             activity = research_activity(second_log)
-            shortfall = hunt_shortfall(result, activity, required)
+            shortfall = hunt_shortfall(result, activity, required, trading_open=trading_open)
             passes.append({"activity": activity, "shortfall": shortfall})
         _record_research(attempt_log, passes, result)
         if shortfall:

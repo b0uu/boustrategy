@@ -12,7 +12,7 @@ import os
 import sqlite3
 from collections.abc import Callable
 from contextlib import closing
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -24,7 +24,13 @@ from app.broker.session import BrokerSessionFailure, run_broker_session
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import OrderIntent
 from app.storage.database import connect
-from app.x.calendar import completed_session, session_close
+from app.x.calendar import (
+    NEW_YORK,
+    CalendarCoverageError,
+    completed_session,
+    is_session,
+    session_close,
+)
 
 DEFAULT_EXECUTION_MODEL = "gpt-5.6-sol"
 PLACED_OUTCOMES = {"submitted", "partially_filled", "filled"}
@@ -110,8 +116,24 @@ def pending_live_intents(
         (profile.execution_profile_id,),
     ).fetchall()
     intents = [OrderIntent.model_validate_json(row[0]) for row in rows]
-    boundary = session_boundary(now)
-    return [intent for intent in intents if boundary is None or intent.created_at >= boundary]
+    # An intent executes only in the session it was decided in. Its guard is anchored to the
+    # price the review read, and the next open can be far from it; an unfilled intent expires at
+    # the close and a later in-session review decides afresh.
+    opened = session_open(now)
+    if opened is None:
+        return []
+    return [intent for intent in intents if intent.created_at >= opened]
+
+
+def session_open(now: datetime) -> datetime | None:
+    """The regular-session open of now's New York trading day, or None on a non-session day."""
+    day = now.astimezone(NEW_YORK).date()
+    try:
+        if not is_session(day):
+            return None
+    except CalendarCoverageError:
+        return None
+    return datetime.combine(day, time(9, 30), NEW_YORK)
 
 
 def attempt_history(ledger: Path, since: datetime | None) -> dict[str, tuple[int, datetime]]:
