@@ -1,5 +1,5 @@
 import { usePublic } from './api'
-import { AsOf, Badge, Chevron, Empty, Fact, ResourceNotice, SectionBoundary, TextList } from './common'
+import { Badge, Chevron, Empty, Fact, ResourceNotice, SectionBoundary, TextList } from './common'
 import { amount, label, money, percent, tone, weight, when } from './format'
 import { decisionUrl, Link } from './navigation'
 import type { Overview, Positions as PositionData, Scope, ThesisReview } from './types'
@@ -16,7 +16,6 @@ function Thesis({ review }: { review: ThesisReview | undefined }) {
 export function Positions({ scope, overview }: { scope: Scope; overview: Overview | null }) {
   const resource = usePublic<PositionData>(`/api/public/v2/portfolios/${scope}/positions`, 'positions')
   const data = resource.data
-  const episodes = overview?.holding_episodes
   let empty = 'No positions were recorded in the latest snapshot.'
   if (data?.status === 'unavailable') empty = "Holdings aren't available yet. This doesn't establish that the account has no positions."
   else if (overview?.portfolio_state === 'all_cash') empty = 'No open positions. The complete recorded balance is cash.'
@@ -42,10 +41,6 @@ export function Positions({ scope, overview }: { scope: Scope; overview: Overvie
           </details>)}
         </> : <Empty>{empty}</Empty>}
         {data.valuation_status !== 'available' && <p className="section-note">Valuation is {label(data.valuation_status)}{data.reason ? `: ${label(data.reason)}` : ''}. Missing quotes and cash aren't treated as zero.</p>}
-        <AsOf at={data.data_as_of} published={data.published_at} />
-        <details className="compact-disclosure"><summary><Chevron /> Holding history</summary>
-          {episodes?.items.length ? <div className="holding-history">{episodes.items.map(episode => <div className="history-row" key={episode.episode_id}><strong className="mono">{episode.ticker}</strong><span>{label(episode.status)}</span><span>First observed {when(episode.first_observed_at, true)}{episode.closed_at ? ` · Closed ${when(episode.closed_at, true)}` : ''}</span></div>)}{episodes.truncated && <p className="section-note">Showing the latest {episodes.items.length} of {episodes.total} observed holding episodes.</p>}</div> : <Empty>{episodes?.reason ? label(episodes.reason) : 'Holding history needs reconciled quantities and activity coverage.'}</Empty>}
-        </details>
         <p className="section-note">Unrealized return uses recorded average cost and price, excluding dividends and fees. {scope === 'paper' ? 'These are paper results, separate from the live portfolio.' : 'Values reflect the recorded live account.'}</p>
       </>}
     </SectionBoundary>

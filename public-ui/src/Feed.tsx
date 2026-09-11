@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { ArrowClockwise, FunnelSimple, MagnifyingGlass, X } from '@phosphor-icons/react'
 import { PublicError, readPublic } from './api'
 import { Badge, Empty, RequestIssue } from './common'
 import { ReviewRow, useReviews } from './Activity'
@@ -101,6 +102,7 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
   const params = new URLSearchParams(search)
   const query = params.get('q') ?? ''
   const [draft, setDraft] = useState(query)
+  const [toolsOpen, setToolsOpen] = useState(query !== '' || ['action', 'policy', 'lifecycle', 'since', 'until', 'run_id'].some(key => params.has(key)))
   const typing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => { setDraft(query); return () => clearTimeout(typing.current) }, [query, search])
   const apiParams = new URLSearchParams({ portfolio_id: scope, limit: String(PAGE_LIMIT) })
@@ -140,15 +142,16 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
   ].sort((a, b) => b.at - a.at)
 
   return <section aria-label="Agent activity and decisions">
-    <form className="feed-tools" onSubmit={event => { event.preventDefault(); submitSearch(draft) }}>
-      <label className="search-label"><span className="sr-only">Search all public decisions</span><input type="search" maxLength={200} placeholder="Search ticker, company or thesis" value={draft} onChange={event => {
+    <button className="feed-tools-toggle" type="button" aria-expanded={toolsOpen} aria-controls="feed-tools" aria-label={toolsOpen ? 'Close search and filters' : 'Search and filter'} onClick={() => setToolsOpen(value => !value)}>{toolsOpen ? <X size={17} /> : <MagnifyingGlass size={17} />}</button>
+    <button className={`feed-refresh-toggle${feed.loading ? ' is-refreshing' : ''}`} type="button" aria-label="Refresh activity" onClick={() => { void feed.request('first'); reviews.refresh() }} disabled={feed.loading}><ArrowClockwise size={17} /></button>
+    <form className={`feed-tools ${toolsOpen ? 'is-open' : 'is-closed'}`} id="feed-tools" aria-hidden={!toolsOpen} onSubmit={event => { event.preventDefault(); submitSearch(draft) }}>
+      <label className="search-label"><span className="sr-only">Search all public decisions</span><MagnifyingGlass size={16} aria-hidden="true" /><input type="search" maxLength={200} placeholder="Search ticker, company or thesis" value={draft} onChange={event => {
         const value = event.target.value
         setDraft(value)
         clearTimeout(typing.current)
         typing.current = setTimeout(() => submitSearch(value, true), 300)
       }} /></label>
-      <button className="text-button" type="submit">Search</button>
-      <details className="filter-disclosure"><summary>Filters <span aria-hidden="true">&rsaquo;</span></summary><div className="filters">
+      <details className="filter-disclosure"><summary aria-label="Filter decisions"><FunnelSimple size={17} /></summary><div className="filters">
         <label>Action<select value={params.get('action') ?? ''} onChange={event => setFilter('action', event.target.value)}><option value="">All actions</option>{['BUY', 'ADD', 'TRIM', 'SELL', 'HOLD', 'PASS', 'WATCHLIST'].map(action => <option key={action}>{action}</option>)}</select></label>
         <label>Policy outcome<select value={params.get('policy') ?? ''} onChange={event => setFilter('policy', event.target.value)}><option value="">All outcomes</option>{['approved', 'rejected', 'unavailable'].map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label>
         <label>Execution<select value={params.get('lifecycle') ?? ''} onChange={event => setFilter('lifecycle', event.target.value)}><option value="">All stages</option>{['broker_filled', 'broker_partially_filled', 'broker_canceled', 'policy_rejected', 'awaiting_paper_price', 'paper_filled'].map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label>
@@ -161,7 +164,6 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
     {feed.error && <RequestIssue error={feed.error} retained={!!feed.page} retry={() => void feed.request(feed.error?.status !== 409 && feed.failedMore ? 'more' : 'first')} />}
     {!feed.page && feed.loading && <p className="empty" role="status">Loading public decisions...</p>}
     {feed.page && <>
-      <div className="feed-count"><span>{feed.page.total.toLocaleString()} public decisions{filtered ? '' : ' · ' + reviews.items.length + ' review' + (reviews.items.length === 1 ? '' : 's')}</span><button className="text-button" onClick={() => { void feed.request('first'); reviews.refresh() }} disabled={feed.loading}>Refresh</button></div>
       {!entries.length && <Empty>{filtered ? params.has('run_id') ? 'This review has no published investment decisions.' : 'No public decisions match these filters.' : 'Nothing has been published yet.'}</Empty>}
       {entries.map(entry => <div key={entry.key}>{entry.node}</div>)}
       {feed.page.next_cursor && feed.page.items.length < WINDOW_LIMIT && <button className="more-button" onClick={() => void feed.request('more')} disabled={feed.more || feed.loading}>{feed.more ? 'Loading more...' : 'Show more decisions'} <span aria-hidden="true">&rsaquo;</span></button>}

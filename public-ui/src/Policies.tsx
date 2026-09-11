@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FunnelSimple, X } from '@phosphor-icons/react'
 import { usePublic } from './api'
 import { Chevron, Empty, Fact, ResourceNotice, SectionBoundary } from './common'
 import { label, ruleValue, thresholdValue, weight, when } from './format'
@@ -43,24 +44,22 @@ export function PolicyChecks({ evaluation }: { evaluation: PolicyEvaluation }) {
 export function Policies({ scope }: { scope: Scope }) {
   const resource = usePublic<PolicyCatalog>(`/api/public/v2/portfolios/${scope}/policy`, 'policy')
   const [category, setCategory] = useState('decision_policy')
+  const [toolsOpen, setToolsOpen] = useState(false)
   const data = resource.data
   const rules = category === 'decision_policy' ? data?.decision_rules : category === 'posture' ? data?.posture : data?.execution_controls
   return <section className="policies" aria-label="Policy catalog">
     <ResourceNotice resource={resource} name="policies" />
     <SectionBoundary resetKey={data} retry={resource.refresh} name="policy catalog">
       {data && (data.status === 'unavailable' ? <Empty>The policy catalog has not been published.</Empty> : <>
-        <div className="policy-meta"><span>Policy set <span className="mono">{data.version ?? 'not recorded'}</span></span><span>{(data.decision_rules?.length ?? 0) + (data.posture?.length ?? 0) + (data.execution_controls?.length ?? 0)} published rules</span>{data.published_at && <span>Published {when(data.published_at)}</span>}</div>
-        <div className="category-controls" aria-label="Policy category">{[['decision_policy', 'Decision policy'], ['posture', 'Posture guidance'], ['execution_control', 'Execution controls']].map(([value, name]) => <button key={value} aria-pressed={value === category} onClick={() => setCategory(value)}>{name}</button>)}</div>
-        <p className="section-note">{category === 'decision_policy' ? 'Deterministic checks apply to recorded proposals. Approval does not establish execution.' : category === 'posture' ? 'Strategy guidance is distinct from a deterministic approval gate.' : 'Account, quote and execution requirements are checked separately from investment policy.'}</p>
+        <button className="policy-tools-toggle" type="button" aria-expanded={toolsOpen} aria-controls="policy-tools" aria-label={toolsOpen ? 'Close policy filter' : 'Filter policy category'} onClick={() => setToolsOpen(value => !value)}>{toolsOpen ? <X size={17} /> : <FunnelSimple size={17} />}</button>
+        <div className="policy-tools" id="policy-tools" hidden={!toolsOpen}><label><span>Category</span><select value={category} onChange={event => setCategory(event.target.value)}><option value="decision_policy">Decision policy</option><option value="posture">Posture guidance</option><option value="execution_control">Execution controls</option></select></label></div>
         {rules?.length ? <>
-          <div className="check-heading rule-heading" aria-hidden="true"><span /><span>Rule</span><span>Threshold</span></div>
           {rules.map(rule => <details className={`policy-row${rule.category === 'execution_control' ? ' policy-row--automated' : ''}`} key={rule.rule_id}>
             <summary><Chevron />
               <span className="rule-copy">
-                <span className="rule-name">{rule.name} <code className="rule-code">{rule.rule_id}</code></span>
-                <span className="rule-description">{rule.description ?? rule.failure_explanation ?? 'The configured profile and recorded preflight determine this control.'}</span>
+                <span className="rule-name">{rule.name}</span>
+                <span className="rule-meta"><code className="rule-code">{rule.rule_id}</code><span className="mono">{thresholdValue(rule.threshold, rule.unit)}</span></span>
               </span>
-              <span className="rule-kind mono">{thresholdValue(rule.threshold, rule.unit)}</span>
             </summary>
             <div className="policy-detail">
               <dl className="detail-grid"><Fact name="Category">{label(rule.category)}</Fact><Fact name="Scope">{label(rule.scope)}</Fact><Fact name="Comparator">{rule.comparator ? label(rule.comparator) : 'Not recorded'}</Fact><Fact name="Version">{rule.version ?? data.version ?? 'Not recorded'}</Fact></dl>

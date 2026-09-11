@@ -24,10 +24,8 @@ The core challenge is building an investment harness that is able to deeply cons
 
 - and explain every actionable and non actionable insight
 
-To see more details and my comprehensive vision + structure, see `boustrategy_spec.md` and docs/ and plans/
+To see more details and my comprehensive vision + structure, see `boustrategy_spec.md` and docs/ 
 
-For a public-facing account of the architecture, labeling work, failures, and path to paper and
-live trading, see [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ## Local operator interface
 

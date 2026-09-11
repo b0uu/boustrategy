@@ -6,8 +6,9 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Info } from '@phosphor-icons/react'
 import { usePublic } from './api'
-import { SectionBoundary } from './common'
+import { Chevron, SectionBoundary } from './common'
 import { Feed } from './Feed'
 import { Performance } from './Performance'
 import { Positions } from './Positions'
@@ -16,6 +17,7 @@ import { AgentStatus } from './Activity'
 import { DecisionPage } from './Decision'
 import { Link, dashboardUrl, navigate, useLocation } from './navigation'
 import type { Overview, Performance as PerformanceData, Scope, Range } from './types'
+import { when } from './format'
 import './styles.css'
 
 // The public dashboard reports one live account. The paper simulation is still published
@@ -30,25 +32,33 @@ function Section({ name, children }: { name: string; children: ReactNode }) {
 
 export function DashboardPage({ search }: { search: string }) {
   const params = new URLSearchParams(search)
-  const range = (params.get('range') ?? 'All') as Range
+  const range = (params.get('range') ?? '1M') as Range
   const tab = params.get('tab') ?? 'feed'
   const [feedVisited, setFeedVisited] = useState(tab === 'feed')
   useEffect(() => { if (tab === 'feed') setFeedVisited(true) }, [tab])
   const [portfolioOpen, setPortfolioOpen] = useState(true)
+  const profileMeta = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const closeProfileMeta = (event: PointerEvent) => {
+      if (profileMeta.current?.open && !profileMeta.current.contains(event.target as Node)) profileMeta.current.removeAttribute('open')
+    }
+    document.addEventListener('pointerdown', closeProfileMeta)
+    return () => document.removeEventListener('pointerdown', closeProfileMeta)
+  }, [])
   const overview = usePublic<Overview>(`/api/public/v2/portfolios/${SCOPE}/overview`, 'overview')
   const performance = usePublic<PerformanceData>(`/api/public/v2/portfolios/${SCOPE}/performance?range=${range}`, 'performance')
   return <>
     <header className="profile"><div className="mark" aria-hidden="true"><svg viewBox="0 0 40 40"><rect x="6" y="24" width="6" height="10" rx="1" /><rect x="17" y="16" width="6" height="18" rx="1" /><rect x="28" y="6" width="6" height="28" rx="1" /></svg></div>
       <div className="profile-copy"><h1 tabIndex={-1}>BouStrategy Agent</h1><div className="handle">@bou-agent</div><p>Let's make money chat</p>
-        <AgentStatus scope={SCOPE} />
+        <button className="text-button portfolio-toggle" aria-expanded={portfolioOpen} aria-controls="portfolio-details" onClick={() => setPortfolioOpen(!portfolioOpen)}><Chevron />{portfolioOpen ? 'Hide portfolio' : 'Show portfolio'}</button>
       </div>
+      <details className="profile-meta" ref={profileMeta}><summary aria-label="Agent and publication details"><Info size={17} weight="regular" /></summary><div><AgentStatus scope={SCOPE} />{overview.data?.data_as_of && <span>Portfolio as of {when(overview.data.data_as_of)}{overview.data.published_at ? ` · Published ${when(overview.data.published_at)}` : ''}</span>}</div></details>
     </header>
     <Section name="portfolio"><Performance overview={overview} performance={performance} range={range} scope={SCOPE} search={search} open={portfolioOpen} onToggle={() => setPortfolioOpen(!portfolioOpen)} /></Section>
     <nav className="tabs" aria-label="Dashboard sections">{TABS.map(value => <button key={value} aria-pressed={tab === value} onClick={() => navigate(dashboardUrl({ tab: value }, search))}>{value}</button>)}</nav>
     {(feedVisited || tab === 'feed') && <div className="dashboard-panel" hidden={tab !== 'feed'}><Section name="decision feed"><Feed scope={SCOPE} search={search} /></Section></div>}
     {tab === 'positions' && <div className="dashboard-panel"><Section name="positions"><Positions scope={SCOPE} overview={overview.data} /></Section></div>}
     {tab === 'policies' && <div className="dashboard-panel"><Section name="policies"><Policies scope={SCOPE} /></Section></div>}
-    <footer className="site-foot"><span>Live account public record</span><span>Decisions, approval and execution are separate.</span></footer>
   </>
 }
 

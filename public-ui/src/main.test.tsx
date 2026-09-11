@@ -38,6 +38,16 @@ it('reports the live account only and never offers the paper simulation', async 
   expect(screen.queryByRole('button', { name: 'Paper simulation' })).not.toBeInTheDocument()
   expect(screen.queryByText(/Simulated results/)).not.toBeInTheDocument()
   expect(vi.mocked(fetch).mock.calls.every(([url]) => !String(url).includes('portfolios/paper'))).toBe(true)
+  expect(screen.queryByText('Decision trace')).not.toBeInTheDocument()
+})
+
+it('dismisses agent details when the reader clicks elsewhere', async () => {
+  await dashboard()
+  const trigger = screen.getByLabelText('Agent and publication details')
+  fireEvent.click(trigger)
+  expect(trigger.closest('details')).toHaveAttribute('open')
+  fireEvent.pointerDown(document.body)
+  expect(trigger.closest('details')).not.toHaveAttribute('open')
 })
 
 it('shows reviews beside decisions so a no-action session is still public work', async () => {
@@ -73,6 +83,7 @@ it('retains loaded feed through trace and Back', async () => {
 })
 it('searches history on Enter and restores URL queries on navigation', async () => {
   await dashboard()
+  fireEvent.click(screen.getByRole('button', { name: 'Search and filter' }))
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'repeat demand' } })
   fireEvent.submit(screen.getByRole('searchbox').closest('form')!)
   await waitFor(() => expect(rows()).toHaveLength(11))
@@ -84,6 +95,7 @@ it('searches history on Enter and restores URL queries on navigation', async () 
 })
 it('debounces search and discards a canceled response arriving last', async () => {
   await dashboard()
+  fireEvent.click(screen.getByRole('button', { name: 'Search and filter' }))
   let resolveOld!: (value: Response) => void
   let signal: AbortSignal | undefined
   vi.mocked(fetch).mockImplementation((input, init) => {
@@ -223,6 +235,11 @@ it('preserves unavailable money, signed zero and tiny decimal quantities', () =>
   expect(amount('-0.000000000000000001')).toBe('-0.000000000000000001')
   expect(publicUrl('https://user:password@example.com')).toBeNull()
 })
+it('shows a missing one-month return as zero in the dashboard metric', async () => {
+  data['live/performance'] = { ...(data['live/performance'] as object), return_percent: null }
+  await dashboard()
+  expect(screen.getByText('1M return').previousElementSibling).toHaveTextContent('0')
+})
 it.each([
   ['unfunded', 'The recorded account balance is zero, with no open positions.'],
   ['all_cash', 'No open positions. The complete recorded balance is cash.'],
@@ -253,6 +270,27 @@ it('handles flat, single and gapped timestamp-spaced charts', () => {
   rerender(<PortfolioChart points={[points[0]]} />)
   expect(document.querySelector('circle')).toHaveAttribute('cx', '300')
   rerender(<PortfolioChart points={[]} />); expect(screen.getByText(/history isn't available/)).toBeVisible()
+})
+it('lets keyboard readers inspect continuous chart observations', () => {
+  const points = [{ at: '2026-06-10T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0' }, { at: '2026-06-11T20:00:00Z', equity: '102', quality: 'complete', return_percent: '2' }]
+  render(<PortfolioChart points={points} />)
+  const chart = screen.getByRole('img')
+  fireEvent.keyDown(chart, { key: 'Home' })
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$100.00')
+  fireEvent.keyDown(chart, { key: 'ArrowRight' })
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$102.00')
+  fireEvent.keyDown(chart, { key: 'Escape' })
+  expect(document.querySelector('.chart-tooltip')).not.toBeInTheDocument()
+})
+it('interpolates a clearly labeled estimate at the exact pointer time', () => {
+  const points = [{ at: '2026-06-10T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0' }, { at: '2026-06-10T22:00:00Z', equity: '102', quality: 'complete', return_percent: '2' }]
+  render(<PortfolioChart points={points} />)
+  const chart = screen.getByRole('img')
+  vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 600, height: 108, top: 0, right: 600, bottom: 108, left: 0, toJSON: () => ({}) })
+  vi.stubGlobal('PointerEvent', MouseEvent)
+  fireEvent.pointerMove(chart, { clientX: 300 })
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$101.00')
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('Estimated')
 })
 it('counts down using server time and waits at zero', async () => {
   vi.useFakeTimers(); const now = Date.now(); const runtime = data['live/runtime'] as Runtime
@@ -313,14 +351,15 @@ it('reads policy checks as one marked table of observed against threshold', asyn
   const inconclusive = [...rendered].filter(node => node.className.includes('inconclusive'))
   expect(inconclusive.length).toBe(decision.policy_evaluation.checks.filter(c => !['passed', 'failed'].includes(c.result)).length)
 })
-it('shows each rule id and description in the closed policy row', async () => {
+it('shows each rule id and threshold without cramped description copy', async () => {
   history.replaceState({}, '', '/?tab=policies')
   render(<App />)
   const rules = (data['live/policy'] as { decision_rules: Array<{ rule_id: string; name: string; failure_explanation: string }> }).decision_rules
   await waitFor(() => expect(document.querySelectorAll('.policy-row')).toHaveLength(rules.length))
   const first = document.querySelector('.policy-row > summary')!
   expect(first.querySelector('.rule-code')).toHaveTextContent(rules[0].rule_id)
-  expect(first.querySelector('.rule-description')).toHaveTextContent(rules[0].failure_explanation)
+  expect(first.querySelector('.rule-meta')).toBeVisible()
+  expect(first.querySelector('.rule-description')).toBeNull()
   expect(screen.getByText(rules[0].name, { exact: false })).toBeVisible()
 })
 it('lists every published source once in the source pack', async () => {
