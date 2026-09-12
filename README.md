@@ -1,37 +1,25 @@
 # BouStrategy
 
-** IN PROGRESS **
-
 ## About
 
-BouStrategy attempts to create an investment agent that revolves around a human-written investment framework. Agents operate under a system that researches, reasons, trades, logs its reasoning, monitors thesis validity. A public dashboard at [boustrategy.com](https://boustrategy.com) displays performance of the trading run operated by BouStrategy agent.  
+BouStrategy is my attempt to create an autonomous investment agent that revolves around an investment framework that aligns with my personal style of investing. Agents operate under a system that researches, reasons, trades, logs its reasoning, and monitors thesis validity. 
 
-The core challenge is building an investment harness that is able to deeply consider and execute upon investment frameworks and constraints. Agents will:
+A public dashboard at [boustrategy.com](https://boustrategy.com) displays the performance of the trading run operated by my own instance of this agent, as well as detailed reasoning & decision traces for each decision. For my first run, I started by funding the Agentic Robinhood account with $100, and after weeks of trial and evaluations, I will further fund.  
 
-- follow a defined mandate
+The main differentiating factor that I wanted for this agent was some factor of sentiment and knowledge from trusted, yet informal sources, as this has always been a crucial point of investment for me in my past. To implement this, I decided to have an input via a curated set of Twitter (X) accounts, which complements the research pipeline.
 
-- differentiate noise from real opportunities,
+## How it works
 
-- avoid spewing consensus takes leading to undifferentiated investment decisions,
+The agentic process starts with a series of structured steps. It first reviews all of the information that it has, including recent tweets from monitored X accounts, ____. It then conducts live research for potential investments with the added context in mind, and reasons within the investment framework, which serves as a core investment strategy. Lastly, based on its evaluation, it makes a decision.
 
-- monitor active theses without forcing trades
+Before a live order can be executed, the decision must pass through our deterministic policy checks and schema validation, which provides us with constraints that limit risk, exposure, and control for source reliability. This is in order to limit the negative impact that could result from a poor agent judgement call.
 
-- act boldly when evidence warrants
+The system records all decisions, including a decision not to trade at all. A pass, watchlist, or decision to continue holding can be as important as a buy or sell because it shows how the agent is responding to the available evidence.
 
-- log every serious decision
+## How informal sources are used
 
-- obey deterministic risk and execution constraints
+If we rely solely on formal company releases or mainstream financial news, there would be lots of crucial information that would be fully missed, and as a result, it would make it much easier to misprice something. 
 
-- and explain every actionable and non actionable insight
+Informal yet trusted sources & opinions are useful to me because they can provide additional context, sentiment, and observations aren't immediately obvious to the public, which is crucial to actually finding an edge, and having some type of edge is the only thing that matters in investing. 
 
-To see more details and my comprehensive vision + structure, see `boustrategy_spec.md` and docs/ 
-
-
-## Local operator interface
-
-On Windows, double-click `start-boustrategy.cmd` to open the private personal operator panel and
-test surface in your browser. The interface guides digesting, session preparation, and reasoning
-while leaving the X and agent steps under human control. See [the operator
-guide](docs/reasoning/OPERATOR_GUIDE.md) for the short walkthrough. The public dashboard
-(`app/public/`, `public-ui/`) is documented in [docs/public-release.md](docs/public-release.md).
-Retired subsystems are listed in [docs/archive/README.md](docs/archive/README.md).
+As I continue to develop this, I hope to add even more points of informal sourcing such as relevant tech newsletters, private discord servers, and more. 
