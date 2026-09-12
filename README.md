@@ -1,5 +1,8 @@
 # BouStrategy
 
+<img width="1501" height="759" alt="image" src="https://github.com/user-attachments/assets/6872014a-2871-4b28-9d8d-74aeeba3b9b5" />
+
+
 ## About
 
 BouStrategy is my attempt to create an autonomous investment agent that revolves around an investment framework that aligns with my personal style of investing. Agents operate under a system that researches, reasons, trades, logs its reasoning, and monitors thesis validity. 
