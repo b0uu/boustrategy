@@ -13,7 +13,7 @@ The main differentiating factor that I wanted for this agent was some factor of 
 
 ## How it works
 
-The agentic process starts with a series of structured steps. It first reviews all of the information that it has, including recent tweets from monitored X accounts, ____. It then conducts live research for potential investments with the added context in mind, and reasons within the investment framework, which serves as a core investment strategy. Lastly, based on its evaluation, it makes a decision.
+The agentic process starts with a series of structured steps. It first reviews all of the information that it has, including recent tweets from monitored X accounts, and more. It then conducts live research for potential investments with the added context in mind, and reasons within the investment framework, which serves as a core investment strategy. Lastly, based on its evaluation, it makes a decision.
 
 Before a live order can be executed, the decision must pass through our deterministic policy checks and schema validation, which provides us with constraints that limit risk, exposure, and control for source reliability. This is in order to limit the negative impact that could result from a poor agent judgement call.
 
