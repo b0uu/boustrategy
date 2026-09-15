@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
+import { ArrowUpRight } from '@phosphor-icons/react'
 import { PublicError, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary, TextList } from './common'
 import { amount, clock, label, money, publicUrl, ruleValue, weight, when } from './format'
@@ -89,12 +90,14 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
       <section><h2>Conviction and sizing</h2><p>{narrative?.conviction_rationale ?? 'No public conviction rationale was recorded.'}</p><dl className="detail-grid sizing"><Fact name="Weight at decision">{weight(data.current_weight)}</Fact><Fact name="Proposed target weight">{weight(data.proposed_target_weight)}</Fact><Fact name="Final target weight">{weight(data.final_target_weight)}</Fact></dl></section>
       {narrative?.variant_perception && <section><details className="compact-disclosure"><summary><Chevron /> Variant perception</summary><div className="disclosure-body">{(['consensus', 'disagreement', 'evidence', 'falsification'] as const).map(key => <div className="prose-fact" key={key}><h3>{label(key)}</h3><p>{narrative.variant_perception![key] ?? 'Not recorded.'}</p></div>)}</div></details></section>}
       <section><h2>Trigger</h2><p>{narrative?.trigger_summary ?? 'No dedicated public trigger narrative was recorded.'}</p>{data.public_run_id && <Link className="text-button" href={dashboardUrl({ scope: data.mode, tab: 'feed', run_id: data.public_run_id }, '')}>View related decisions →</Link>}</section>
-      <section><div className="section-heading"><h2>Sources &amp; claims</h2><span>{narrative?.claims.length ?? data.claims.length} published claims</span></div>
+      <section><div className="section-heading"><h2>Sources &amp; claims</h2><span>{narrative?.claims.length || data.claims.length} published claim{(narrative?.claims.length || data.claims.length) === 1 ? '' : 's'}</span></div>
         {narrative?.claims.map(claim => <details className="claim" key={claim.public_id} id={claim.public_id}><summary><Chevron /><span className="source-type">Evidence</span><span>{claim.claim}</span></summary><div className="claim-detail">
           {claim.source_ids.map(id => { const source = narrative.sources.find(item => item.public_id === id); const href = publicUrl(source?.url); return source ? <div className="source-entry" key={id}><strong>{href ? <a href={href} target="_blank" rel="noopener noreferrer">{source.title} ↗</a> : source.title}</strong><p>{source.publisher} · {label(source.source_type)}{source.published_on ? ` · ${source.published_on}` : ''}</p>{source.excerpt && <blockquote>{source.excerpt}</blockquote>}</div> : <p key={id}>Source metadata unavailable.</p> })}
           {claim.evidence_confidence !== null && <p className="section-note">Model-assessed evidence support: {weight(claim.evidence_confidence)}. This isn't the probability of a profitable trade.</p>}
         </div></details>)}
-        {!narrative && data.claims.map((claim, index) => <details className="claim" key={index}><summary><Chevron /><span className="source-type">{label(claim.source_type)}</span><span>{claim.claim}</span></summary><div className="claim-detail">Source timestamp {when(claim.source_timestamp)}. No approved source link was recorded.</div></details>)}
+        {/* An approved narrative usually links no claims (reviews can't register sources), so the
+            record's published claims still show rather than an empty section. */}
+        {!narrative?.claims.length && data.claims.map((claim, index) => <details className="claim" key={index}><summary><Chevron /><span className="source-type">{label(claim.source_type)}</span><span>{claim.claim}</span></summary><div className="claim-detail">Source timestamp {when(claim.source_timestamp)}. No approved source link was recorded.</div></details>)}
         {!narrative?.claims.length && !data.claims.length && <Empty>No public claims were recorded.</Empty>}
       </section>
       {narrative?.sources.length ? <section><div className="section-heading"><h2>Source pack</h2><span>{narrative.sources.length} published source{narrative.sources.length === 1 ? '' : 's'}</span></div>
@@ -106,13 +109,13 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         <p className="section-note">Every source the published record cites, whether or not a claim quotes it.</p>
       </section> : null}
       <section className="x-signals"><div className="section-heading"><h2>X signals</h2>{xPosts.length ? <span>{xPosts.length} linked post{xPosts.length === 1 ? '' : 's'}</span> : null}</div>
-        <p>{data.x_usage.used ? narrative?.x_summary || data.x_usage.summary || label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>
+        <p className="x-summary">{data.x_usage.used ? narrative?.x_summary || data.x_usage.summary || label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>
         {xPosts.length ? <ul className="x-posts">{xPosts.map(post => { const href = publicUrl(post.url); return <li key={post.url}>
-          <strong>{href ? <a href={href} target="_blank" rel="noopener noreferrer">@{post.handle} on X ↗</a> : `@${post.handle}`}</strong>
+          <strong>{href ? <a className="external-link" href={href} target="_blank" rel="noopener noreferrer">@{post.handle} on X<ArrowUpRight size={11} weight="bold" aria-hidden="true" /></a> : `@${post.handle}`}</strong>
           <span className="x-post-role">{label('x_' + post.role)}</span>
           {post.summary && <span className="x-post-summary">{post.summary}</span>}
         </li> })}</ul> : null}
-        {data.x_usage.used && <p className="quiet">{data.x_usage.confirmed_outside_x ? 'Confirmation outside X was recorded.' : 'Confirmation outside X was not recorded.'}</p>}
+        {data.x_usage.used && <p className="quiet x-confirmation">{data.x_usage.confirmed_outside_x ? 'Confirmation outside X was recorded.' : 'Confirmation outside X was not recorded.'}</p>}
       </section>
       <section><h2>Invalidation criteria</h2><TextList items={narrative?.conditions?.invalidation} empty="No public invalidation criteria were recorded." /></section>
       {data.theme && <section><h2>Strategy &amp; themes</h2><div className="tags mono">{[data.theme, data.regime && `regime_${data.regime.toLowerCase()}`].filter(Boolean).map(tag => <span key={tag as string}>{tag}</span>)}</div></section>}

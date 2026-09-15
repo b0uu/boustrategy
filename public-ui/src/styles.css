@@ -373,13 +373,17 @@ main:focus, h1:focus { outline: none; }
 /* The handle leads, its role sits beside it as a quiet tag, and the summary runs full width
    underneath — instead of a narrow label column forcing the post into a ragged third of the row. */
 .x-signals .section-heading { margin-bottom: 5px; }
-.x-posts { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px solid var(--border-soft); }
-.x-posts li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; align-items: baseline; padding: 0; font-size: 12.5px; }
-.x-posts li + li { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+/* Every post, and the closing confirmation note, sits below an identical divider with identical
+   padding, so the list reads as equal items. `.trace ul` and `.trace li` outrank a bare `.x-posts`,
+   which once erased the space around the first divider, so these rules carry `.trace` too. */
+.trace .x-signals > .x-summary { margin: 0; }
+.trace .x-posts { margin: 14px 0 0; padding: 0; }
+.trace .x-posts li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; padding: 14px 0; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
 .trace .x-posts li::before { content: none; }
 .x-post-role { justify-self: start; padding: 2px 7px; border-radius: 3px; background: var(--surface-2); color: var(--text-3); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .x-post-summary { grid-column: 1 / -1; color: var(--text-2); line-height: 1.6; min-width: 0; overflow-wrap: anywhere; }
-.x-signals > .quiet { display: block; margin-top: 16px; }
+.trace .x-signals > .x-confirmation { display: block; margin: 0; padding-top: 14px; border-top: 1px solid var(--border-soft); font-size: 11.5px; color: var(--text-3); }
+.trace .x-signals > .x-summary + .x-confirmation { margin-top: 14px; }
 .source-pack .source-published { font: 400 11px 'IBM Plex Mono', monospace; color: var(--text-3); white-space: nowrap; }
 .prose-fact + .prose-fact, .source-entry + .source-entry { margin-top: 14px; }
 .source-entry { overflow-wrap: anywhere; }
@@ -459,7 +463,7 @@ main:focus, h1:focus { outline: none; }
   .disclosure-body { padding-left: 12px; }
   .as-of { max-width: 100%; overflow-wrap: anywhere; }
   .source-pack > div { grid-template-columns: 70px minmax(0, 1fr); }
-  .x-posts li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .trace .x-posts li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .source-pack .source-published { grid-column: 2; }
 }
 @media (max-width: 380px) {

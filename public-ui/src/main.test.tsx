@@ -466,10 +466,24 @@ it('links the X posts behind a decision with their role, never their text', asyn
   render(<App />)
   await screen.findByRole('heading', { name: 'X signals' })
   for (const post of decision.x_posts!) {
-    const link = screen.getByRole('link', { name: `@${post.handle} on X ↗` })
+    const link = screen.getByRole('link', { name: `@${post.handle} on X` })
     expect(link).toHaveAttribute('href', post.url)
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   }
   expect(screen.getByText('Triggered this review')).toBeVisible()
   expect(screen.getByText('Counter-evidence')).toBeVisible()
+})
+
+it('lists the record claims when the approved narrative links none', async () => {
+  const item = feed().items.find(entry => (data[entry.public_id] as Decision | undefined)?.narrative)!
+  const decision = data[item.public_id] as Decision
+  decision.narrative = { ...decision.narrative!, claims: [], sources: [] }
+  decision.claims = [{ claim: 'Backlog reached $24.1 billion of firmly committed orders.', source_type: 'SEC', source_timestamp: '2026-07-31T11:00:00Z' }]
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+
+  expect(await screen.findByText('Backlog reached $24.1 billion of firmly committed orders.')).toBeInTheDocument()
+  expect(screen.getByText('1 published claim')).toBeVisible()
+  expect(screen.queryByText('No public claims were recorded.')).not.toBeInTheDocument()
 })
