@@ -74,8 +74,23 @@ def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -
     intent = _live_intent(db_path, now - timedelta(hours=1))
     conn = connect(db_path)
 
+    from app.broker.lifecycle import append_execution_event
+    from app.schemas.broker_execution import BrokerExecutionEvent
+
     fresh = pending_live_intents(conn, _profile(), now=now)
     save_execution_packet(conn, live_execution_packet(intent))
+    append_execution_event(
+        conn,
+        BrokerExecutionEvent(
+            broker_event_id="ber_1_reviewed",
+            broker_execution_record_id="ber_1",
+            order_intent_id=intent.order_intent_id,
+            execution_packet_id=f"ep_codex_{intent.order_intent_id}",
+            execution_profile_id="codex",
+            status="REVIEWED",
+            occurred_at=datetime(2026, 8, 26, 14, 0, 10, tzinfo=UTC),
+        ),
+    )
     save_broker_execution_record(
         conn,
         BrokerExecutionRecord(

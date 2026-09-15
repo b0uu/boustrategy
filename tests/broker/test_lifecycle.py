@@ -49,7 +49,6 @@ def _event(intent_id: str, status: str, offset: int, event_id: str) -> BrokerExe
 
 
 def _save_submitted_record(conn: sqlite3.Connection, intent: OrderIntent) -> None:
-    save_execution_packet(conn, live_execution_packet(intent))
     save_broker_execution_record(
         conn,
         BrokerExecutionRecord(
@@ -74,13 +73,14 @@ def _save_submitted_record(conn: sqlite3.Connection, intent: OrderIntent) -> Non
 def test_execution_lifecycle_is_append_only_and_idempotent() -> None:
     conn = connect(":memory:")
     intent = _live_intent(conn)
+    save_execution_packet(conn, live_execution_packet(intent))
     reviewed = _event(intent.order_intent_id, "REVIEWED", 0, "event_reviewed")
-    _save_submitted_record(conn, intent)
     submitted = _event(intent.order_intent_id, "SUBMITTED", 1, "event_submitted")
     filled = _event(intent.order_intent_id, "FILLED", 2, "event_filled")
 
     assert append_execution_event(conn, reviewed) is True
     assert append_execution_event(conn, reviewed) is False
+    _save_submitted_record(conn, intent)
     assert append_execution_event(conn, submitted) is True
     assert append_execution_event(conn, filled) is True
 
@@ -205,8 +205,9 @@ def test_legacy_offset_timestamps_sort_by_instant() -> None:
 
     conn = connect(":memory:")
     intent = _live_intent(conn)
-    _save_submitted_record(conn, intent)
+    save_execution_packet(conn, live_execution_packet(intent))
     append_execution_event(conn, _event(intent.order_intent_id, "REVIEWED", 0, "review"))
+    _save_submitted_record(conn, intent)
     append_execution_event(conn, _event(intent.order_intent_id, "SUBMITTED", 1, "submit"))
     older_offset = datetime(2026, 8, 26, 15, 0, tzinfo=timezone(timedelta(hours=1)))
     conn.execute(

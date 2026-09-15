@@ -96,7 +96,8 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
 - **REVIEWED event.** `python -m app.broker.run event --in <file>` with
   `{"broker_event_id":"bev_<packet>_reviewed","broker_execution_record_id":"ber_<packet>",
   "order_intent_id","execution_packet_id","execution_profile_id","status":"REVIEWED",
-  "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`.
+  "occurred_at":<now>,"detail":<review summary>}`. It must be recorded before `expires_at`: the
+  review is where quote freshness is enforced.
 - **Place once.** `place_equity_order` with the identical reviewed fields, after the final quote
   check above, plus `ref_id` set to the UUID derived from the packet, which Robinhood requires
   in UUID form: `python -c "import uuid,sys; print(uuid.uuid5(uuid.NAMESPACE_URL, sys.argv[1]))" <execution_packet_id>`.
@@ -107,7 +108,9 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   "execution_profile_id","account_alias","ticker","side","order_type":"LIMIT",
   "requested_notional":<packet notional, not quantity times price>,"limit_price":<limit>,"submitted_at":<now>,
   "status":"SUBMITTED","broker_order_id":<broker id>,"execution_price":0}`, then append the
-  `SUBMITTED` event (`bev_<packet>_submitted`).
+  `SUBMITTED` event (`bev_<packet>_submitted`). Record it right after placement: `submitted_at`
+  must fall within 120 seconds of the `REVIEWED` event. The packet may expire in between; never
+  skip the record because it did.
 - **Reconcile.** Poll `get_equity_orders` by order id about every 20 seconds for up to five
   minutes. Append `FILLED` (detail `execution_price=<average>`), `PARTIALLY_FILLED`, `CANCELED`
   or `FAILED` events (`bev_<packet>_<status>`) with the broker's timestamps. An order still open

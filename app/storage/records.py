@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta
 
 from app.orders.create_order_intent import INTENT_SIDES
 from app.performance.storage import ingest
@@ -266,6 +267,12 @@ def get_order_intent(
     return OrderIntent.model_validate_json(row[0])
 
 
+# Quote freshness is enforced at review, which must be recorded before the packet expires, and
+# placement re-checks the ask against limit_price. Placing and recording then take a few more
+# tool calls, so a submission only has to follow its review closely rather than beat the expiry.
+SUBMISSION_AFTER_REVIEW = timedelta(seconds=120)
+
+
 def save_broker_execution_record(
     conn: sqlite3.Connection,
     record: BrokerExecutionRecord,
@@ -301,8 +308,20 @@ def save_broker_execution_record(
         raise ValueError("broker execution limit price does not match its execution packet")
     if record.submitted_at < packet.created_at:
         raise ValueError("broker submission precedes packet creation")
-    if record.submitted_at >= packet.expires_at:
-        raise ValueError("broker execution packet expired before submission")
+    review = conn.execute(
+        """
+        SELECT occurred_at FROM broker_execution_events
+        WHERE broker_execution_record_id = ? AND execution_packet_id = ? AND status = 'REVIEWED'
+        """,
+        (record.broker_execution_record_id, record.execution_packet_id),
+    ).fetchone()
+    if review is None:
+        raise ValueError("broker execution packet was never reviewed")
+    reviewed_at = datetime.fromisoformat(review[0])
+    if record.submitted_at < reviewed_at:
+        raise ValueError("broker submission precedes its review")
+    if record.submitted_at - reviewed_at > SUBMISSION_AFTER_REVIEW:
+        raise ValueError("broker submission came too long after its review")
 
     record_json = record.model_dump_json()
     existing = conn.execute(

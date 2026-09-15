@@ -1,12 +1,14 @@
+import sqlite3
 from datetime import UTC, datetime
 
 import pytest
 
+from app.broker.lifecycle import append_execution_event
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
-from app.schemas.broker_execution import BrokerExecutionRecord
+from app.schemas.broker_execution import BrokerExecutionEvent, BrokerExecutionRecord
 from app.schemas.live_execution import LiveExecutionPacket
-from app.schemas.order_intent import ExecutionMode
+from app.schemas.order_intent import ExecutionMode, OrderIntent
 from app.storage.database import connect
 from app.storage.records import (
     get_broker_execution_record,
@@ -103,6 +105,7 @@ def test_broker_execution_requires_live_intent_and_round_trips() -> None:
     save_order_intent(conn, intent)
     save_decision_record(conn, valid_decision_record())
     save_execution_packet(conn, live_execution_packet(intent))
+    _review(conn, intent, datetime(2026, 8, 26, 14, 0, tzinfo=UTC))
     record = BrokerExecutionRecord(
         broker_execution_record_id="be_001",
         order_intent_id=intent.order_intent_id,
@@ -126,6 +129,73 @@ def test_broker_execution_requires_live_intent_and_round_trips() -> None:
     assert first is True
     assert second is False
     assert get_broker_execution_record(conn, "be_001") == record
+
+
+def _review(conn: sqlite3.Connection, intent: OrderIntent, at: datetime) -> None:
+    append_execution_event(
+        conn,
+        BrokerExecutionEvent(
+            broker_event_id="be_001_reviewed",
+            broker_execution_record_id="be_001",
+            order_intent_id=intent.order_intent_id,
+            execution_packet_id=f"ep_codex_{intent.order_intent_id}",
+            execution_profile_id="codex",
+            status="REVIEWED",
+            occurred_at=at,
+        ),
+    )
+
+
+def _submission(intent: OrderIntent, submitted_at: datetime) -> BrokerExecutionRecord:
+    return BrokerExecutionRecord(
+        broker_execution_record_id="be_001",
+        order_intent_id=intent.order_intent_id,
+        execution_packet_id=f"ep_codex_{intent.order_intent_id}",
+        execution_profile_id="codex",
+        account_alias="codex-agentic",
+        ticker=intent.ticker,
+        side=intent.side,
+        order_type=intent.order_type,
+        requested_notional=12.0,
+        limit_price=200.0,
+        submitted_at=submitted_at,
+        status="SUBMITTED",
+        broker_order_id="rh_001",
+        execution_price=0.0,
+    )
+
+
+def test_broker_submission_is_bounded_by_its_review_not_the_packet_expiry() -> None:
+    # Regression, 2026-09-15: a MU add was reviewed 25s before its packet expired, filled at the
+    # broker, and then couldn't be recorded because recording the submission took past the expiry.
+    conn = connect(":memory:")
+    intent = create_order_intent(
+        valid_decision_record(),
+        PolicyResult(approved=True),
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+    save_order_intent(conn, intent)
+    save_decision_record(conn, valid_decision_record())
+    save_execution_packet(conn, live_execution_packet(intent))
+
+    with pytest.raises(ValueError, match="never reviewed"):
+        save_broker_execution_record(
+            conn, _submission(intent, datetime(2026, 8, 26, 14, 1, tzinfo=UTC))
+        )
+    _review(conn, intent, datetime(2026, 8, 26, 14, 1, 30, tzinfo=UTC))
+    with pytest.raises(ValueError, match="precedes its review"):
+        save_broker_execution_record(
+            conn, _submission(intent, datetime(2026, 8, 26, 14, 1, tzinfo=UTC))
+        )
+    with pytest.raises(ValueError, match="too long after its review"):
+        save_broker_execution_record(
+            conn, _submission(intent, datetime(2026, 8, 26, 14, 4, tzinfo=UTC))
+        )
+
+    # The fixture packet expires at 14:02; this submission follows its 14:01:30 review by 40s.
+    after_expiry = _submission(intent, datetime(2026, 8, 26, 14, 2, 10, tzinfo=UTC))
+    assert save_broker_execution_record(conn, after_expiry) is True
 
 
 def test_broker_execution_rejects_paper_intent() -> None:
