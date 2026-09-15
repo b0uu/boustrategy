@@ -1,6 +1,6 @@
-/* Warm slate, the default. /assets/theme-v1.js sets data-theme before first paint, and only a
-   reader's explicit choice of light overrides this. Every colour the page uses is a token, so a
-   theme is exactly this block and its light counterpart. */
+/* Warm slate, the dark theme. Light is the site default: /assets/theme-v2.js sets
+   data-theme=light before first paint unless the reader explicitly chose dark. Every colour the
+   page uses is a token, so a theme is exactly this block and its light counterpart. */
 :root {
   --bg: #100f0e;
   --surface: #181614;

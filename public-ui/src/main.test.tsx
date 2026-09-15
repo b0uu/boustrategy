@@ -52,20 +52,21 @@ it('dismisses agent details when the reader clicks elsewhere', async () => {
   expect(trigger.closest('details')).not.toHaveAttribute('open')
 })
 
-it('opens dark, and carries an explicit light choice into the next visit', async () => {
+it('opens light, stores only an explicit choice, and carries dark into the next visit', async () => {
+  localStorage.setItem('boustrategy-theme', 'dark') // The retired v1 key held dark for every visitor.
   await dashboard()
-  expect(document.documentElement.dataset.theme).toBeUndefined()
-  fireEvent.click(screen.getByRole('button', { name: 'Switch to light theme' }))
   expect(document.documentElement.dataset.theme).toBe('light')
-  expect(localStorage.getItem('boustrategy-theme')).toBe('light')
+  expect(localStorage.getItem('boustrategy-theme-v2')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Switch to dark theme' }))
+  expect(document.documentElement.dataset.theme).toBeUndefined()
+  expect(localStorage.getItem('boustrategy-theme-v2')).toBe('dark')
   cleanup()
-  delete document.documentElement.dataset.theme // What a fresh page load starts from.
   render(<App />)
-  const back = await screen.findByRole('button', { name: 'Switch to dark theme' })
-  expect(document.documentElement.dataset.theme).toBe('light')
-  fireEvent.click(back)
+  const back = await screen.findByRole('button', { name: 'Switch to light theme' })
   expect(document.documentElement.dataset.theme).toBeUndefined()
-  expect(localStorage.getItem('boustrategy-theme')).toBe('dark')
+  fireEvent.click(back)
+  expect(document.documentElement.dataset.theme).toBe('light')
+  expect(localStorage.getItem('boustrategy-theme-v2')).toBe('light')
 })
 
 it('shows reviews beside decisions so a no-action session is still public work', async () => {
