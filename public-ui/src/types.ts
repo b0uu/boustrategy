@@ -44,7 +44,7 @@ export interface Positions extends Metadata { portfolio_id: Scope; mode?: Scope;
 export interface ChartPoint { at: string; equity: DecimalValue; return_percent: DecimalValue; quality: string }
 export interface Performance extends Metadata {
   portfolio_id: Scope; range: Range; status: string; reason: string | null; return_percent: DecimalValue
-  investment_pnl?: DecimalValue; net_external_flows?: DecimalValue; observed_drawdown_percent?: DecimalValue
+  investment_pnl?: DecimalValue; net_external_flows?: DecimalValue; observed_drawdown_percent?: DecimalValue; contributed_capital?: DecimalValue
   start_at?: string; end_at?: string; requested_start_at?: string; range_is_partial?: boolean; period_label?: string
   history: ChartPoint[]; benchmarks?: Array<{ ticker: string; primary: boolean; status: string; reason: string | null; return_percent: DecimalValue; convention: string }>
   chart_sampling?: { status: string; reason: string | null; source_points: number; limit: number }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Empty, ResourceNotice, SectionBoundary } from './common'
 import type { Resource } from './api'
 import { amount, label, money, numeric, percent, tone, weight, when } from './format'
@@ -6,6 +6,17 @@ import { dashboardUrl, navigate } from './navigation'
 import type { ChartPoint, Overview, Performance as PerformanceData, Range, Scope } from './types'
 
 const RANGES = ['1M', '3M', 'YTD', 'All'] as const
+// A reader's preference, not shared state: percent unless they chose dollars on this browser.
+const RETURN_UNIT = 'boustrategy-return-unit'
+type ReturnUnit = 'percent' | 'dollars'
+
+function savedUnit(): ReturnUnit {
+  try {
+    return localStorage.getItem(RETURN_UNIT) === 'dollars' ? 'dollars' : 'percent'
+  } catch {
+    return 'percent' // Site data is blocked; the reader gets the default each visit.
+  }
+}
 const WIDTH = 600
 const HEIGHT = 108
 
@@ -105,12 +116,20 @@ export function Performance({ overview, performance, range, scope, search, open 
   const allocation = data?.allocation ?? []
   const barAvailable = allocation.length > 0 && allocation.every(item => item.weight !== null && item.weight >= 0 && item.weight <= 1) && Math.abs(allocation.reduce((sum, item) => sum + (item.weight ?? 0), 0) - 1) < .001
   const single = result?.reason === 'single_observation'
+  const [unit, setUnit] = useState<ReturnUnit>(savedUnit)
+  useEffect(() => {
+    try {
+      localStorage.setItem(RETURN_UNIT, unit)
+    } catch { /* nothing to remember the choice with */ }
+  }, [unit])
+  const shown = unit === 'percent' ? result?.return_percent : result?.investment_pnl
   return <section className={`performance${performance.stale || overview.stale ? ' is-updating' : ''}`} aria-label="Live portfolio">
     <ResourceNotice resource={overview} name="portfolio overview" />
     <div className="metrics">
       <div><strong title={money(data?.equity)}>{money(data?.equity, true)}</strong><span>Portfolio value</span></div>
-      <div><strong className={tone(result?.return_percent)}>{result?.return_percent == null ? '0' : percent(result.return_percent)}</strong><span>{range} return{single ? ' · since first record' : ''}</span></div>
-      <div><strong>{data ? data.reviews_today.toLocaleString() : 'Unavailable'}</strong><span>Reviews today <span className="quiet">{data ? `${data.decisions_today} decision${data.decisions_today === 1 ? '' : 's'}` : 'ET'}</span></span></div>
+      {/* A missing return is shown as missing: a zero would claim the account broke even. */}
+      <div className="return-metric"><strong className={tone(shown)} title={shown == null && result?.reason ? label(result.reason) : undefined}>{shown == null ? '—' : unit === 'percent' ? percent(shown) : `${(numeric(shown) ?? 0) >= .005 ? '+' : ''}${money(shown)}`}</strong><span className="metric-label">Return{single ? ' · since first record' : ''}<span className="unit-toggle" role="group" aria-label="Show return as"><button type="button" aria-label="Percent" aria-pressed={unit === 'percent'} onClick={() => setUnit('percent')}>%</button><button type="button" aria-label="Dollars" aria-pressed={unit === 'dollars'} onClick={() => setUnit('dollars')}>$</button></span></span></div>
+      <div><strong>{data ? data.decisions_today.toLocaleString() : 'Unavailable'}</strong><span>{data?.decisions_today === 1 ? 'Decision today' : 'Decisions today'}</span></div>
     </div>
     <div className="portfolio-details" id="portfolio-details" hidden={!open}>
       <ResourceNotice resource={performance} name="performance history" />

@@ -267,10 +267,23 @@ it('preserves unavailable money, signed zero and tiny decimal quantities', () =>
   expect(amount('-0.000000000000000001')).toBe('-0.000000000000000001')
   expect(publicUrl('https://user:password@example.com')).toBeNull()
 })
-it('shows a missing one-month return as zero in the dashboard metric', async () => {
+it('shows a missing return as missing, and counts today in decisions', async () => {
   data['live/performance'] = { ...(data['live/performance'] as object), return_percent: null }
   await dashboard()
-  expect(screen.getByText('1M return').previousElementSibling).toHaveTextContent('0')
+  expect(document.querySelector('.return-metric strong')).toHaveTextContent('—')
+  expect(screen.queryByText(/Reviews today/)).not.toBeInTheDocument()
+  expect(screen.getByText(/^Decisions? today$/).previousElementSibling).toHaveTextContent(String((data['live/overview'] as Overview).decisions_today))
+})
+it('switches the return between percent and dollars and remembers the choice', async () => {
+  data['live/performance'] = { ...(data['live/performance'] as object), status: 'available', reason: 'contributed_capital_basis', return_percent: '-0.960000', investment_pnl: '-0.96' }
+  await dashboard()
+  const value = () => document.querySelector('.return-metric strong')
+  expect(value()).toHaveTextContent('-0.96%')
+  expect(value()).not.toHaveAttribute('title')
+  fireEvent.click(screen.getByRole('button', { name: 'Dollars' }))
+  expect(value()).toHaveTextContent('-$0.96')
+  expect(screen.getByRole('button', { name: 'Dollars' })).toHaveAttribute('aria-pressed', 'true')
+  expect(localStorage.getItem('boustrategy-return-unit')).toBe('dollars')
 })
 it.each([
   ['unfunded', 'The recorded account balance is zero, with no open positions.'],
@@ -327,7 +340,8 @@ it('interpolates a clearly labeled estimate at the exact pointer time', () => {
 it('counts down using server time and waits at zero', async () => {
   vi.useFakeTimers(); const now = Date.now(); const runtime = data['live/runtime'] as Runtime
   runtime.server_now = new Date(now + 60000).toISOString()
-  runtime.schedules = [{ schedule_mode: 'scheduled', enabled: true, paused: false, timezone: 'America/New_York', revision: 1, next_due_at: new Date(now + 65000).toISOString(), observer_as_of: runtime.server_now, observer_max_age_seconds: 180, grace_seconds: 1800, reason: null }]
+  // An hour-old observation: the scheduler only ticks inside review windows, so it must not hide the countdown.
+  runtime.schedules = [{ schedule_mode: 'scheduled', enabled: true, paused: false, timezone: 'America/New_York', revision: 1, next_due_at: new Date(now + 65000).toISOString(), observer_as_of: new Date(now - 3600000).toISOString(), observer_max_age_seconds: 180, grace_seconds: 1800, reason: null }]
   vi.mocked(fetch).mockImplementation(input => {
     runtime.server_now = new Date(Date.now() + 60000).toISOString()
     return Promise.resolve(respond(String(input)))
