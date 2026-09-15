@@ -175,6 +175,16 @@ def test_reporting_allows_unfunded_but_not_nonfinite_or_false_complete_values() 
         )
 
 
+def test_complete_balance_tolerates_half_a_cent_of_rounding_per_position() -> None:
+    held = [position("0.1", "100"), position("0.1", "100", ticker="MU")]
+
+    rounded = valuation("rounded", 10, "100.01", cash="80", positions=held)
+
+    assert rounded.complete
+    with pytest.raises(ValidationError, match="does not reconcile"):
+        valuation("drifted", 10, "100.02", cash="79.99", positions=held)
+
+
 def test_immutable_corrections_are_idempotent_and_cannot_fork_or_change_account(
     tmp_path: Path,
 ) -> None:

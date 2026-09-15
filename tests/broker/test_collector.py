@@ -232,6 +232,61 @@ def test_valuation_is_incomplete_when_a_quote_or_cash_is_missing(tmp_path: Path)
     conn.close()
 
 
+def test_valuation_with_cent_rounding_across_holdings_is_complete(tmp_path: Path) -> None:
+    # Regression, 2026-09-15: four holdings rounded to the cent missed broker equity by $0.01,
+    # so most valuations were marked incomplete and the public allocation disappeared.
+    conn = connect(tmp_path / "boustrategy.db")
+    holdings = [
+        ("NVDA", 0.091571, 211.87, 19.40),
+        ("MU", 0.015901, 929.8, 14.78),
+        ("AVGO", 0.028689, 341.145, 9.79),
+        ("ETN", 0.037911, 392.93, 14.90),
+    ]
+
+    def payload(equity: float, quoted: datetime) -> dict[str, Any]:
+        return {
+            "broker_account_fingerprint": FINGERPRINT,
+            "account_number_last4": "0001",
+            "account_equity": equity,
+            "buying_power": 40.37,
+            "cash": 40.37,
+            "positions": [
+                {
+                    "ticker": ticker,
+                    "market_value": value,
+                    "quantity": quantity,
+                    "average_cost": price,
+                    "price": price,
+                    "quote_at": quoted.isoformat(),
+                }
+                for ticker, quantity, price, value in holdings
+            ],
+            "broker_reported_at": None,
+        }
+
+    first = datetime(2026, 9, 15, 14, 52, 43, tzinfo=UTC)
+    later = first + timedelta(minutes=15)
+    rounded = collect_snapshot(
+        conn,
+        _profile(),
+        now=first,
+        session=_session(payload(99.23, first - timedelta(seconds=13)), {}),
+        codex_home=tmp_path,
+    )
+    drifted = collect_snapshot(
+        conn,
+        _profile(),
+        now=later,
+        session=_session(payload(99.30, later - timedelta(seconds=13)), {}),
+        codex_home=tmp_path,
+    )
+
+    assert rounded.reporting is not None and rounded.reporting.complete is True
+    assert drifted.reporting is not None and drifted.reporting.complete is False
+    assert [p.price_quality for p in drifted.reporting.positions or []] == ["current"] * 4
+    conn.close()
+
+
 def test_valuation_after_the_close_is_recorded_as_a_session_close(tmp_path: Path) -> None:
     conn = connect(tmp_path / "boustrategy.db")
     payload = {

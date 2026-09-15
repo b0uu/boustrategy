@@ -70,6 +70,15 @@ class Observation(ReportingModel):
         return self
 
 
+# Equity, cash and each position's value are rounded to the cent from unrounded broker figures,
+# so a true balance can miss by up to half a cent for every one of those rounded amounts.
+HALF_CENT = Decimal("0.005")
+
+
+def balance_reconciles(parts: Decimal, equity: Decimal, position_count: int) -> bool:
+    return abs(equity - parts) <= HALF_CENT * (position_count + 2)
+
+
 class ValuationObservation(Observation):
     kind: Literal["valuation"] = "valuation"
     equity: Money | None = Field(default=None, ge=0)
@@ -114,7 +123,7 @@ class ValuationObservation(Observation):
                         Decimal(0),
                     )
                 )
-                if total != self.equity:
+                if not balance_reconciles(total, self.equity, len(self.positions)):
                     raise ValueError("complete balance does not reconcile")
             return self
 

@@ -27,7 +27,7 @@ from app.schemas.live_execution import (
     LivePortfolioSnapshot,
     LivePosition,
 )
-from app.schemas.reporting import ReportingPosition, ValuationObservation
+from app.schemas.reporting import ReportingPosition, ValuationObservation, balance_reconciles
 from app.storage.database import connect
 from app.storage.records import save_live_portfolio_snapshot
 from app.x.calendar import NEW_YORK, is_session, previous_session, session_close
@@ -163,7 +163,11 @@ def _valuation(
         (item.market_value for item in reporting_positions if item.market_value is not None),
         Decimal(0),
     )
-    complete = cash is not None and priced and cash + held == equity
+    complete = (
+        cash is not None
+        and priced
+        and balance_reconciles(cash + held, equity, len(reporting_positions))
+    )
     return ValuationObservation(
         observation_id=f"val_{profile.execution_profile_id}_{stamp}",
         external_event_id=f"broker_valuation_{profile.execution_profile_id}_{stamp}",
