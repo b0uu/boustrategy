@@ -67,6 +67,17 @@ if (Test-Path -LiteralPath $ProfilesFile) {
 }
 Write-Log "live profiles included: $Included"
 
+# The broker exposes no transfer history, so the live return is measured on the capital the
+# maintainer reports putting in. Change ContributedCapital when cash is added or withdrawn.
+$PublicConfigFile = Join-Path $RepoRoot "ops\public.local.psd1"
+if (Test-Path -LiteralPath $PublicConfigFile) {
+    $PublicConfig = Import-PowerShellDataFile -LiteralPath $PublicConfigFile
+    if ($PublicConfig.ContributedCapital) {
+        $PublishArgs += @("--live-contributed-capital", [string]$PublicConfig.ContributedCapital)
+        Write-Log "live return basis: contributed capital $($PublicConfig.ContributedCapital)"
+    }
+}
+
 # A watcher orphaned by a stopped task would keep writing beside a new one.
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
     Where-Object { $_.CommandLine -match 'app\.public\.publication' -and $_.CommandLine -match '--watch' } |

@@ -19,4 +19,9 @@
     # How long the health check waits for the publisher to catch up with a source change
     # before calling publication stuck.
     PublicationSettleSeconds = 30
+
+    # Capital put into the live account, in dollars. The broker exposes no transfer history,
+    # so while this is set the public return is equity divided by this figure, minus one.
+    # Update it when cash is added or withdrawn, then restart boustrategy-public-publisher.
+    ContributedCapital       = "100"
 }

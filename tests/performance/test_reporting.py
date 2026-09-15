@@ -175,6 +175,27 @@ def test_reporting_allows_unfunded_but_not_nonfinite_or_false_complete_values() 
         )
 
 
+def test_contributed_capital_is_the_return_basis_without_flow_coverage(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+    start, end = valuation("start", 10, "100"), valuation("end", 12, "99.03")
+    incomplete = valuation("partial", 11, "99.50", complete=False, cash=None)
+
+    uncovered = materialize(conn, [start, end])[1]["All"]
+    overview, ranges = materialize(conn, [start, incomplete, end], Decimal("100"))
+
+    assert uncovered["reason"] == "external_flow_coverage_missing"
+    assert overview["return_percent"] == "-0.970000"
+    assert ranges["1M"]["reason"] == "contributed_capital_basis"
+    assert ranges["1M"]["contributed_capital"] == "100"
+    assert ranges["1M"]["investment_pnl"] == "-0.97"
+    assert [point["return_percent"] for point in ranges["All"]["history"]] == [
+        "0.000000",
+        None,
+        "-0.970000",
+    ]
+    conn.close()
+
+
 def test_complete_balance_tolerates_half_a_cent_of_rounding_per_position() -> None:
     held = [position("0.1", "100"), position("0.1", "100", ticker="MU")]
 

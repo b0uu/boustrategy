@@ -132,8 +132,32 @@ def holding_episodes(
 
 
 def materialize(
-    conn: sqlite3.Connection, observations: list[ReportingObservation]
+    conn: sqlite3.Connection,
+    observations: list[ReportingObservation],
+    contributed_capital: Decimal | None = None,
 ) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
+    # The broker exposes no transfer history, so the maintainer reports the capital they put in.
+    # While that figure is set it is the return basis for every range and chart point, replacing
+    # linked returns, until the maintainer changes it.
+    def on_capital(value: ValuationObservation, metric: dict[str, Any]) -> dict[str, Any]:
+        if contributed_capital is None:
+            return metric
+        if not value.complete or value.equity is None:
+            return {
+                "status": "unavailable",
+                "reason": "incomplete_valuation",
+                "return_percent": None,
+            }
+        factor = value.equity / contributed_capital
+        return {
+            "status": "available",
+            "reason": "contributed_capital_basis",
+            "return_percent": str(((factor - 1) * 100).quantize(Decimal("0.000001"))),
+            "investment_pnl": str((value.equity - contributed_capital).quantize(Decimal("0.01"))),
+            "growth_factor": str(factor),
+            "contributed_capital": str(contributed_capital),
+        }
+
     values = sorted(
         (
             o
@@ -304,21 +328,22 @@ def materialize(
             )
         eligible = [value for value in values if value.occurred_at >= cutoff]
         start = eligible[0] if eligible else latest
-        computed = linked_return(start, latest, all_values, flows, coverage)
+        computed = on_capital(latest, linked_return(start, latest, all_values, flows, coverage))
         history: list[dict[str, Any]] = []
         peak = Decimal(1)
         drawdown = Decimal(0)
         for value in eligible:
             if value.phase != "session_close" and value not in (start, latest):
                 continue
-            metric = (
+            metric = on_capital(
+                value,
                 linked_return(start, value, all_values, flows, coverage)
                 if value != start
                 else {
                     "status": "available" if start.complete and start.equity else "unavailable",
                     "return_percent": "0",
                     "growth_factor": "1",
-                }
+                },
             )
             factor = Decimal(metric["growth_factor"]) if metric["status"] == "available" else None
             if factor is not None:

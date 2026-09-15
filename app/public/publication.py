@@ -10,6 +10,7 @@ import json
 import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -182,6 +183,7 @@ def publish(
     *,
     live_profiles: tuple[str, ...] = (),
     live_account_id: str | None = None,
+    live_contributed_capital: Decimal | None = None,
     rebuild: bool = False,
 ) -> dict[str, int]:
     if Path(source_path).resolve() == Path(public_path).resolve():
@@ -213,13 +215,20 @@ def publish(
             # The public file needs identity equality, not profile IDs or account fingerprints.
             identity = hashlib.sha256(
                 json.dumps(
-                    {"profiles": sorted(live_profiles), "account": live_account_id},
+                    {
+                        "profiles": sorted(live_profiles),
+                        "account": live_account_id,
+                        # Changing the return basis must republish every return.
+                        "contributed_capital": str(live_contributed_capital)
+                        if live_contributed_capital is not None
+                        else None,
+                    },
                     sort_keys=True,
                 ).encode("utf-8")
             ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 10,
+                    "version": 11,
                     "accounting_clock": accounting_clock,
                     "identity": identity,
                     "changes": changes,
@@ -1060,7 +1069,11 @@ def publish(
                     if not observations:
                         observations = reconstructed
                 if observations:
-                    reporting, ranges = materialize(source, observations)
+                    reporting, ranges = materialize(
+                        source,
+                        observations,
+                        live_contributed_capital if portfolio["mode"] == "live" else None,
+                    )
                 if paper_issue:
                     reporting = {
                         "status": "unavailable",
@@ -1195,6 +1208,11 @@ def main() -> None:
     parser.add_argument("--public-db", required=True)
     parser.add_argument("--live-profile", action="append", default=[])
     parser.add_argument("--live-account-id")
+    parser.add_argument(
+        "--live-contributed-capital",
+        type=Decimal,
+        help="capital the maintainer put into the live account; the return basis while set",
+    )
     parser.add_argument("--watch", type=float, metavar="SECONDS")
     parser.add_argument("--rebuild", action="store_true")
     args = parser.parse_args()
@@ -1217,6 +1235,7 @@ def main() -> None:
                     args.public_db,
                     live_profiles=tuple(args.live_profile),
                     live_account_id=args.live_account_id,
+                    live_contributed_capital=args.live_contributed_capital,
                     rebuild=args.rebuild,
                 )
             ),
