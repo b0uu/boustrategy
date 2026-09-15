@@ -325,8 +325,12 @@ def runtime_status(conn: sqlite3.Connection, scope: str, now: datetime) -> dict[
     result: dict[str, Any] = json.loads(row[0])
     for schedule in result["schedules"]:
         observed = schedule.get("observer_as_of")
+        due = schedule.get("next_due_at")
+        # The observer only ticks inside a review window, so its age matters once a review is due.
         if (
             observed
+            and due
+            and now >= datetime.fromisoformat(due)
             and not 0
             <= (now - datetime.fromisoformat(observed)).total_seconds()
             <= schedule["observer_max_age_seconds"]

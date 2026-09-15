@@ -139,6 +139,10 @@ def due_at(schedule: ScheduleRevision, session: date) -> datetime | None:
 
 def preview(conn: sqlite3.Connection, schedule: ScheduleRevision, now: datetime) -> dict[str, Any]:
     reason = authority_reason(conn, schedule, now)
+    # A scheduler task observes only while a review window is open, so an observation that has
+    # aged out between windows says nothing about the next review. It still blocks claiming
+    # (authority_reason) and is reported once that review is due without a fresh observation.
+    stale = reason == "observer_stale"
     result: dict[str, Any] = {
         "schedule_mode": schedule.schedule_mode,
         "timezone": schedule.timezone,
@@ -154,7 +158,7 @@ def preview(conn: sqlite3.Connection, schedule: ScheduleRevision, now: datetime)
         (schedule.schedule_id,),
     ).fetchone()
     result["observer_as_of"] = row[0] if row else None
-    if reason:
+    if reason and not stale:
         return result
     day = now.astimezone(NEW_YORK).date()
     try:
@@ -171,7 +175,7 @@ def preview(conn: sqlite3.Connection, schedule: ScheduleRevision, now: datetime)
                 and (occurrence is None or occurrence[0] == "waiting")
             ):
                 result["next_due_at"] = due.isoformat()
-                result["reason"] = "due" if due <= now else None
+                result["reason"] = ("observer_stale" if stale else "due") if due <= now else None
                 return result
             day += timedelta(days=1)
     except CalendarCoverageError:

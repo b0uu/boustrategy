@@ -92,7 +92,9 @@ export function AgentStatus({ scope }: { scope: Scope }) {
   const data = runtime.data
   const active = data?.active_run
   const schedules = data?.schedules ?? []
-  const schedule = schedules.filter(item => item.enabled && !item.paused && item.schedule_mode === 'scheduled' && item.next_due_at && (!item.reason || item.reason === 'due') && item.observer_as_of && now >= Date.parse(item.observer_as_of) && now - Date.parse(item.observer_as_of) <= item.observer_max_age_seconds * 1000).sort((a, b) => Date.parse(a.next_due_at!) - Date.parse(b.next_due_at!))[0]
+  // The scheduler only observes inside a review window, so an aged observation between reviews
+  // doesn't hide the countdown; the server reports a stale observer once a review is actually due.
+  const schedule = schedules.filter(item => item.enabled && !item.paused && item.schedule_mode === 'scheduled' && item.next_due_at && (!item.reason || item.reason === 'due')).sort((a, b) => Date.parse(a.next_due_at!) - Date.parse(b.next_due_at!))[0]
   const due = schedule?.next_due_at ?? null
   const seconds = due ? Math.max(0, Math.ceil((Date.parse(due) - now) / 1000)) : null
   useEffect(() => {
@@ -107,7 +109,7 @@ export function AgentStatus({ scope }: { scope: Scope }) {
   const authority = data?.status === 'unavailable'
     ? label(data.reason ?? 'runtime_not_published')
     : scheduled.length
-      ? `${scheduled.length} scheduled review${scheduled.length === 1 ? '' : 's'} · ${label(scheduled[0].reason ?? 'observer_stale')}`
+      ? `${scheduled.length} scheduled review${scheduled.length === 1 ? '' : 's'} · ${label(scheduled.find(item => item.reason)?.reason ?? 'no_review_scheduled')}`
       : label(data?.schedule_mode ?? 'manual')
   const countdown = seconds === null ? null : seconds > 3600 ? `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
   return <div className="agent-status">

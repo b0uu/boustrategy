@@ -149,6 +149,42 @@ def test_worker_records_cleanup_failure_and_finishes_attempt(tmp_path: Path) -> 
     conn.close()
 
 
+def test_preview_keeps_the_next_review_between_scheduler_windows(tmp_path: Path) -> None:
+    # The scheduler task only observes inside a review window. Between windows its observation
+    # ages out, which used to hide the next review behind "observation is out of date".
+    conn = connect(tmp_path / "source.db")
+    schedule = ScheduleRevision(
+        schedule_id="paper-close",
+        revision=1,
+        mode="paper",
+        account_id="paper",
+        configured_at=NOW - timedelta(hours=3),
+        schedule_mode="scheduled",
+        enabled=True,
+    )
+    save_schedule(conn, schedule)
+    observe(
+        conn,
+        SchedulerObservation(
+            schedule_id=schedule.schedule_id,
+            revision=1,
+            observed_at=NOW - timedelta(hours=2),
+            observer="worker",
+            configured=True,
+            enabled=True,
+        ),
+    )
+
+    between_windows = preview(conn, schedule, NOW - timedelta(minutes=30))
+    due_without_observer = preview(conn, schedule, NOW + timedelta(minutes=1))
+
+    assert datetime.fromisoformat(between_windows["next_due_at"]) == NOW
+    assert between_windows["reason"] is None
+    assert datetime.fromisoformat(due_without_observer["next_due_at"]) == NOW
+    assert due_without_observer["reason"] == "observer_stale"
+    conn.close()
+
+
 def test_inactive_preview_observation_pause_and_revised_waiting_occurrence(tmp_path: Path) -> None:
     conn = connect(tmp_path / "source.db")
     schedule = ScheduleRevision(
