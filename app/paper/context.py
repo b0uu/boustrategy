@@ -3,6 +3,7 @@ from datetime import date
 
 from app.paper.broker import cash_balance, validate_paper_ledger
 from app.policy.decision_policy import PortfolioContext
+from app.storage.short_watchlist import short_watchlist_history
 
 
 def position_tickers(conn: sqlite3.Connection) -> list[str]:
@@ -51,4 +52,9 @@ def portfolio_context(
         buy_add_trades_today=counts.get("BUY", 0),
         sell_trim_trades_today=counts.get("SELL", 0),
         primary_theme_weights=theme_weights,
+        short_watchlist_tickers=sorted(
+            call.ticker
+            for call in short_watchlist_history(conn, "PAPER")
+            if call.removed_at is None
+        ),
     )

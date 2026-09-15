@@ -64,6 +64,13 @@ latter should read as rubber-stamping. When reviewing the
 extraordinary-frequency metric, weigh it against how long and how deep
 the regime has been RED, not as a raw count.
 
+### Short ideas (SHORT_WATCHLIST)
+
+A short recommendation carries 0 weight and never trades, so it has no sizing
+tier. Its conviction bar is the Max tier's: only a short you would size at
+18-20% if the account could short deserves a SHORT_WATCHLIST. Anything less is
+a PASS.
+
 ## How tuning works
 
 1. Edit a dial above.
@@ -81,3 +88,5 @@ the regime has been RED, not as a raw count.
   market, which would otherwise chill the reasoning worker from
   clearing the extraordinary bar repeatedly during a genuine sustained
   drawdown out of fear of tripping the rubber-stamp metric.
+- 2026-09-13: added SHORT_WATCHLIST short recommendations at a Max-tier
+  conviction bar. They carry no weight and never trade.

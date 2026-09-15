@@ -1,5 +1,5 @@
 from app.policy.decision_policy import PortfolioContext, evaluate_decision_policy
-from app.schemas.decision_record import RegimeState
+from app.schemas.decision_record import InvestmentDecisionRecord, RegimeState
 from tests.fixtures.decision_records import decision_record_with, valid_decision_record
 
 
@@ -56,6 +56,44 @@ def test_rejects_buy_without_source_claims():
 
     assert not result.approved
     assert "missing_source_claims" in result.reasons
+
+
+def short_watchlist(**overrides: object) -> InvestmentDecisionRecord:
+    return decision_record_with(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="Bull case: backlog could re-accelerate.",
+        what_is_priced_in="Consensus still prices a second-half recovery.",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+        **overrides,
+    )
+
+
+def test_evidenced_short_watchlist_is_approved():
+    result = evaluate_decision_policy(short_watchlist())
+
+    assert result.approved
+
+
+def test_rejects_short_watchlist_without_evidence():
+    result = evaluate_decision_policy(
+        short_watchlist(source_claims=[], thesis_invalidation_criteria=[])
+    )
+
+    assert not result.approved
+    assert {"missing_source_claims", "missing_invalidation_criteria"} <= set(result.reasons)
+
+
+def test_short_removal_requires_the_ticker_on_the_short_watchlist():
+    removal = decision_record_with(
+        decision="SHORT_WATCHLIST_REMOVE", proposed_target_weight=0.0, final_target_weight=0.0
+    )
+
+    listed = evaluate_decision_policy(removal, portfolio_context(short_watchlist_tickers=["NVDA"]))
+    unlisted = evaluate_decision_policy(removal, portfolio_context(short_watchlist_tickers=["AMD"]))
+
+    assert listed.approved
+    assert unlisted.reasons == ["short_watchlist_entry_missing"]
 
 
 def test_rejects_equity_target_weight_above_twenty_percent():

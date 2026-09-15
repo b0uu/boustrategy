@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from app.policy.decision_policy import PortfolioContext
 from app.schemas.live_execution import LivePortfolioSnapshot
+from app.storage.short_watchlist import short_watchlist_history
 from app.x.calendar import NEW_YORK
 
 
@@ -48,4 +49,9 @@ def live_portfolio_context(
         buy_add_trades_today=counts.get("BUY", 0),
         sell_trim_trades_today=counts.get("SELL", 0),
         primary_theme_weights=theme_weights,
+        short_watchlist_tickers=sorted(
+            call.ticker
+            for call in short_watchlist_history(conn, "LIVE", snapshot.execution_profile_id)
+            if call.removed_at is None
+        ),
     )

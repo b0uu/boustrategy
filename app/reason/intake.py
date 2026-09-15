@@ -7,6 +7,7 @@ from pathlib import Path
 from app.events.store import upcoming_events
 from app.paper.broker import cash_balance
 from app.paper.context import _latest_close, portfolio_context
+from app.storage.short_watchlist import short_watchlist_history
 from app.x.calendar import completed_through
 
 _DAILY_DIGEST = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
@@ -195,12 +196,31 @@ def build_intake(
     )
     if not calendar:
         lines.append("None.")
+    shorts = [
+        call
+        for call in short_watchlist_history(conn, "LIVE" if live else "PAPER")
+        if call.removed_at is None
+    ]
+    lines.extend(["", "## Short watchlist", ""])
+    for call in shorts:
+        first, latest = call.declarations[0], call.declarations[-1]
+        lines.append(
+            f"- {call.ticker}: declared {first.declared_at.date().isoformat()} at "
+            f"{first.reference_price if first.reference_price is not None else 'no recorded price'}"
+            f", last declared {latest.declared_at.date().isoformat()} (`{latest.decision_id}`)"
+        )
+        lines.extend(
+            f"  - invalidation: {criterion}" for criterion in latest.thesis_invalidation_criteria
+        )
+    if not shorts:
+        lines.append("None.")
     lines.extend(
         [
             "",
             "## Required runtime reading",
             "",
             "- `docs/mandate.md`",
+            "- `docs/strategy_beliefs.md`",
             "- `docs/risk_policy.md`",
             "- `docs/risk_posture.md`",
             "- `docs/source_policy.md`",

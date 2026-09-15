@@ -96,16 +96,7 @@ Every serious decision should map to at least one strategy belief and one theme.
 
 ### Strategy beliefs
 
-Thesis should map to specific 'strategy beliefs'. 
-
-- **SB-001: Bull markets are reflexive:** In GREEN regimes, price momentum, narrative acceleration, institutional attention, and capital flows can reinforce each other.
-- **SB-002: Direct AI infrastructure exposure is preferred:** Favor semiconductors, data centers, power, networking, cloud infrastructure, and bottleneck suppliers over vague "AI-enabled" exposure.
-- **SB-003: Momentum needs backing:** Price strength should not be the entire thesis
-- **SB-004: Market reaction to news:** In a bullish regime, good news should be rewarded more than bad news is punished.
-- **SB-005: X alpha as narrative:** X can detect velocity, disagreement, crowding, and early themes, but X sentiment shouldn't be the entire thesis, double check.
-- **SB-006: Few positions with conviction over constant activity:** Once exposure is in range, default to monitoring unless thesis invalidation or extraordinary opportunity appears.
-- **SB-007: Losses do not automatically invalidate a thesis:** Review losses against price action, source evidence, regime behavior, and thesis invalidation criteria.
-- **SB-008: Wins do not automatically validate a thesis:** Review major winners for process quality.
+Thesis should map to specific 'strategy beliefs'. The beliefs (SB-001 onward) are defined in `docs/strategy_beliefs.md`, which the reasoning agent reads at runtime. Add or change beliefs there, not here.
 
 ### Core themes
 
@@ -378,7 +369,7 @@ Workflow:
 3. Refine or reject initial thesis: Improve judgement. If the counter-thesis is strong, reevaluate stance without automatically neutering boldness.
 4. Alternative investment review: selected ticker/ETF, other similar investments
 5. Refined thesis: thesis, confidence, sizing, invalidation, add/trim/exit triggers.
-6. Final decision: BUY / ADD / TRIM / SELL / HOLD / PASS / WATCHLIST.
+6. Final decision: BUY / ADD / TRIM / SELL / HOLD / PASS / WATCHLIST / SHORT_WATCHLIST / SHORT_WATCHLIST_REMOVE.
 
 Early exit if mandate fails, source quality is insufficient, causal link is missing, no actionable expression exists, idea is late-consensus hype, regime disallows the action, or invalidation criteria cannot be identified.
 
@@ -427,7 +418,7 @@ States: WATCHLIST, BUY, ADD, HOLD, TRIM, SELL, POSTMORTEM.
 
 ### Investment Decision Record
 
-The Investment Decision Record is the core audit artifact. One record represents one ticker/ETF decision only. Allowed decisions: BUY, ADD, TRIM, SELL, HOLD, PASS, WATCHLIST.
+The Investment Decision Record is the core audit artifact. One record represents one ticker/ETF decision only. Allowed decisions: BUY, ADD, TRIM, SELL, HOLD, PASS, WATCHLIST, SHORT_WATCHLIST, SHORT_WATCHLIST_REMOVE. SHORT_WATCHLIST is a high-conviction short recommendation that never becomes an order; SHORT_WATCHLIST_REMOVE ends one, and the pair dates each call.
 
 ```json
 {
@@ -435,7 +426,7 @@ The Investment Decision Record is the core audit artifact. One record represents
   "created_at": "timestamp",
   "ticker": "string",
   "asset_type": "EQUITY | ETF",
-  "decision": "BUY | ADD | TRIM | SELL | HOLD | PASS | WATCHLIST",
+  "decision": "BUY | ADD | TRIM | SELL | HOLD | PASS | WATCHLIST | SHORT_WATCHLIST | SHORT_WATCHLIST_REMOVE",
   "theme_ids": ["string"],
   "strategy_belief_ids": ["string"],
   "trigger_id": "string",
@@ -613,6 +604,7 @@ The dashboard should showcase agent process along with nice P&L display (hopeful
 Current strategy and record docs:
 
 - `docs/mandate.md`
+- `docs/strategy_beliefs.md`
 - `docs/risk_posture.md`
 - `docs/risk_policy.md`
 - `docs/source_policy.md`

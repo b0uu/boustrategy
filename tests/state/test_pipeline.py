@@ -84,6 +84,24 @@ def test_non_actionable_approved_creates_no_intent() -> None:
     assert outcome.order_intent_id is None
 
 
+def test_approved_short_watchlist_is_recorded_without_an_intent() -> None:
+    conn = connect(":memory:")
+    record = decision_record_with(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="Bull case: backlog could re-accelerate.",
+        what_is_priced_in="Consensus still prices a second-half recovery.",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+    )
+
+    outcome = process_decision(conn, record.model_dump(mode="json"))
+
+    assert outcome.final_status == DecisionStatus.POLICY_APPROVED
+    assert outcome.order_intent_id is None
+    assert get_order_intent(conn, "oi_dec_001") is None
+    assert get_decision_record(conn, "dec_001") is not None
+
+
 def test_rerun_is_idempotent() -> None:
     conn = connect(":memory:")
     data = valid_decision_record_data()

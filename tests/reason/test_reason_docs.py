@@ -12,6 +12,7 @@ def test_prompt_required_guardrails() -> None:
         # anyone recording that the sign-off was revoked.
         assert "PENDING HUMAN CHECKPOINT 5 SIGN-OFF" not in text
         assert "docs/mandate.md" in text
+        assert "docs/strategy_beliefs.md" in text
         assert "docs/risk_policy.md" in text
         assert "docs/risk_posture.md" in text
         assert "docs/source_policy.md" in text

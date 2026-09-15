@@ -40,6 +40,8 @@ def evaluate_decision_policy(
     checks: list[RuleCheck] = []
     increasing = record.decision in _EXPOSURE_INCREASING
     actionable = record.decision in {Decision.BUY, Decision.ADD, Decision.TRIM, Decision.SELL}
+    # A short recommendation places no order but must meet the same evidence bar as one.
+    evidenced = actionable or record.decision == Decision.SHORT_WATCHLIST
 
     def check(
         rule_id: str,
@@ -128,13 +130,13 @@ def evaluate_decision_policy(
     )
     check(
         "missing_invalidation_criteria",
-        applicable=actionable,
+        applicable=evidenced,
         observed=len(record.thesis_invalidation_criteria),
         passed=bool(record.thesis_invalidation_criteria),
     )
     check(
         "missing_source_claims",
-        applicable=actionable,
+        applicable=evidenced,
         observed=len(record.source_claims),
         passed=bool(record.source_claims),
     )
@@ -144,7 +146,7 @@ def evaluate_decision_policy(
     }
     check(
         "x_signal_not_confirmed_outside_x",
-        applicable=actionable and record.x_signal_usage.used and supporting_x,
+        applicable=evidenced and record.x_signal_usage.used and supporting_x,
         observed=record.x_signal_usage.confirmed_outside_x,
         passed=record.x_signal_usage.confirmed_outside_x,
     )
@@ -193,6 +195,14 @@ def evaluate_decision_policy(
         observed=theme_weight,
         passed=theme_weight is not None and not (theme_weight > MAX_PRIMARY_THEME_WEIGHT),
         missing=portfolio is None,
+    )
+    shorted = portfolio.short_watchlist_tickers if portfolio else None
+    check(
+        "short_watchlist_entry_missing",
+        applicable=record.decision == Decision.SHORT_WATCHLIST_REMOVE,
+        observed=shorted is not None and record.ticker in shorted,
+        passed=shorted is not None and record.ticker in shorted,
+        missing=shorted is None,
     )
     reasons = [item.rule_id for item in checks if item.result == "failed"]
     return PolicyResult(approved=not reasons, reasons=reasons, checks=checks)

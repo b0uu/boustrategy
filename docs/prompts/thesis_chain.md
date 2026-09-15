@@ -1,7 +1,8 @@
 # Thesis-chain reasoning prompt
 
-Before reasoning, read `docs/mandate.md`, `docs/risk_policy.md`,
-`docs/risk_posture.md`, and `docs/source_policy.md` at runtime. Treat those
+Before reasoning, read `docs/mandate.md`, `docs/strategy_beliefs.md`,
+`docs/risk_policy.md`, `docs/risk_posture.md`, and `docs/source_policy.md` at
+runtime. Treat those
 files as authoritative and current. Apply the mandate's decisive stance: reach a clear conclusion without turning uncertainty into unactionable insights. Apply the risk posture's conviction tiers, sizing appetite, and rule that unjustified undersizing is a violation. Do not rely on limits or thresholds remembered from an earlier session.
 
 For every candidate, work through this chain. Each numbered step names the
@@ -138,6 +139,14 @@ JSON at step 7.
    tested against the broker's own live ask at placement, not against the
    number you saw. Not having a real-time feed is therefore never a reason to
    leave the bound empty or to decline the trade.
+   For a SHORT_WATCHLIST, run this chain in the bearish direction: the initial
+   thesis is the case for the price falling, and the counter-thesis is the bull
+   case. Skip tier sizing, since both target weights are 0, but meet the
+   Max-tier conviction bar in `docs/risk_posture.md`. Set `entry_price_min` to
+   the lowest price at which the short thesis still holds, and record
+   `reference_price` from an opened quote page so the call can be scored.
+   A SHORT_WATCHLIST_REMOVE needs the reason for removal in `refined_thesis`
+   and the same `reference_price`, so the call's end is scored too.
 9. Produce raw JSON matching the exact current `InvestmentDecisionRecord`
    schema. Do not invent fields or omit required fields.
 10. Save that JSON to a file and finish by running

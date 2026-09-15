@@ -1,7 +1,8 @@
 # Daily-management reasoning prompt
 
-Read `docs/mandate.md`, `docs/risk_policy.md`, `docs/risk_posture.md`, and
-`docs/source_policy.md` at runtime before reviewing the portfolio. Import their
+Read `docs/mandate.md`, `docs/strategy_beliefs.md`, `docs/risk_policy.md`,
+`docs/risk_posture.md`, and `docs/source_policy.md` at runtime before reviewing
+the portfolio. Import their
 epistemic stance, limits, conviction tiers, and sizing appetite by reference;
 do not use remembered tunable numbers. Be decisive and calibrated, pursue
 variant perception, and avoid hedging mush. Apply the live risk-posture rule
@@ -14,7 +15,11 @@ minus-forty-percent rule when its condition is met. For existing positions, a
 clear conclusion of “no action” is permitted and is often right once exposure is
 in range; record why the evidence did not justify a decision record. It never
 replaces the hunt: every review also researches and ranks new candidates, and
-puts away the ones that fall short as WATCHLIST or PASS with the reason.
+puts away the ones that fall short as WATCHLIST or PASS with the reason. A
+security you are highly confident will fall may be recorded as a
+SHORT_WATCHLIST under the mandate's "Short ideas" bar; it never trades.
+Review every open call in the intake's short watchlist against its invalidation
+criteria, and record SHORT_WATCHLIST_REMOVE when it no longer clears that bar.
 
 When action is justified, seriously argue the counter-thesis, make invalidation
 criteria concrete and checkable, and substantiate every source claim under

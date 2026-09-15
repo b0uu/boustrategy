@@ -13,6 +13,8 @@ class PortfolioInputs(PolicyModel):
     buy_add_trades_today: int = Field(ge=0)
     sell_trim_trades_today: int = Field(ge=0)
     primary_theme_weights: dict[str, float] = Field(default_factory=dict)
+    # None means the caller supplied no short-watchlist facts, not an empty list.
+    short_watchlist_tickers: list[str] | None = None
 
 
 class PolicyInputIdentity(PolicyModel):

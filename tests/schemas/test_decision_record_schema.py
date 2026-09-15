@@ -59,6 +59,60 @@ def test_non_actionable_decision_does_not_require_refined_thesis():
     assert record.decision == "WATCHLIST"
 
 
+def test_short_watchlist_records_a_researched_short_with_no_weight():
+    data = valid_decision_record_data()
+    data.update(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="Bull case: backlog could re-accelerate.",
+        what_is_priced_in="Consensus still prices a second-half recovery.",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+    )
+
+    record = InvestmentDecisionRecord.model_validate(data)
+
+    assert record.decision == "SHORT_WATCHLIST"
+
+
+def test_short_watchlist_cannot_carry_weight():
+    data = valid_decision_record_data()
+    data.update(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="Bull case.",
+        what_is_priced_in="Recovery priced.",
+    )
+
+    with pytest.raises(ValidationError, match="target weights must be 0"):
+        InvestmentDecisionRecord.model_validate(data)
+
+
+def test_short_watchlist_requires_a_counter_thesis():
+    data = valid_decision_record_data()
+    data.update(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="",
+        what_is_priced_in="Recovery priced.",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+    )
+
+    with pytest.raises(ValidationError, match="counter_thesis"):
+        InvestmentDecisionRecord.model_validate(data)
+
+
+def test_short_removal_must_give_its_reason():
+    data = valid_decision_record_data()
+    data.update(
+        decision="SHORT_WATCHLIST_REMOVE",
+        refined_thesis="",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+    )
+
+    with pytest.raises(ValidationError, match="SHORT_WATCHLIST_REMOVE"):
+        InvestmentDecisionRecord.model_validate(data)
+
+
 def test_x_usage_requires_summary_when_used():
     data = valid_decision_record_data()
     data["x_signal_usage"] = {

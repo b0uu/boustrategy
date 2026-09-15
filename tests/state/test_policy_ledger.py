@@ -29,7 +29,7 @@ def test_ledger_exact_inputs_versions_and_injected_clock() -> None:
     assert record.portfolio == context and record.authored_schema_version is None
     assert record.validator_version and len(record.validator_schema_sha256) == 64
     assert record.evaluated_at == NOW
-    assert len(record.checks) == 14
+    assert len(record.checks) == 15
     assert all(check.name for check in record.checks)
     assert {row[0] for row in conn.execute("SELECT occurred_at FROM status_events")} == {
         NOW.isoformat()

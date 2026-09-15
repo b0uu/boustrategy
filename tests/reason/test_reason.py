@@ -100,6 +100,7 @@ def test_intake_renders_every_section_and_does_not_mutate_database(tmp_path: Pat
         "## Paper portfolio",
         "## Today's intake quota state",
         "## Upcoming calendar (7 days)",
+        "## Short watchlist",
         "## Required runtime reading",
     ):
         assert section in bundle

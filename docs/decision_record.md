@@ -71,6 +71,8 @@ This would be valid schema but rejected due to policy evaluation.
 - source claim confidence is between 0 and 1
 - final target weight does not exceed proposed target weight
 - actionable decisions have a refined thesis
+- SHORT_WATCHLIST decisions have a refined thesis, counter-thesis, and `what_is_priced_in`, and both target weights are 0
+- SHORT_WATCHLIST_REMOVE decisions explain the removal in `refined_thesis`, and both target weights are 0
 - X usage fields are internally consistent across `used`, `usage_type`, and `confirmed_outside_x`
 - `extraordinary_opportunity=true` requires a non-empty `extraordinary_justification`
 - `primary_theme_id` must be one of `theme_ids` and is required for BUY and ADD
@@ -81,9 +83,20 @@ This would be valid schema but rejected due to policy evaluation.
 - reject BUY or ADD with stock target weight above 20%.
 - reject BUY or ADD with ETF target weight above 50%.
 - reject BUY or ADD without strategy belief IDs.
-- reject actionable decisions without invalidation criteria.
-- reject actionable decisions without source claims.
-- reject actionable decisions whose thesis used X (idea source or confirmation) without outside-X confirmation.
+- reject actionable and SHORT_WATCHLIST decisions without invalidation criteria.
+- reject actionable and SHORT_WATCHLIST decisions without source claims.
+- reject actionable and SHORT_WATCHLIST decisions whose thesis used X (idea source or confirmation) without outside-X confirmation.
+- SHORT_WATCHLIST is a recommendation for a short the account cannot take; it never creates an order intent.
+- reject SHORT_WATCHLIST_REMOVE for a ticker that isn't on the short watchlist (requires portfolio context).
+
+## Short watchlist history
+
+The short watchlist is not stored separately. `app/storage/short_watchlist.py`
+rebuilds it from policy-approved records for one execution mode: a call opens at
+its first SHORT_WATCHLIST, collects every later SHORT_WATCHLIST for that ticker
+as a dated declaration with its reference price, and closes at a
+SHORT_WATCHLIST_REMOVE with that record's date and price. A later
+SHORT_WATCHLIST opens a new call.
 - reject BUY/ADD once 2 buy-side trades have executed today; TRIM/SELL are never quota-blocked but a 10-trade/day circuit breaker exists as a malfunction brake (requires portfolio context).
 - reject BUY at 10 existing holdings — the ~7-holding goal lives in the mandate, not policy; reject BUY/ADD that would push a single primary theme above 60% of the portfolio (requires portfolio context).
 

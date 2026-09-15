@@ -17,6 +17,7 @@ from app.storage.runtime import save_run
 
 _REQUIRED_DOCUMENTS = (
     "docs/mandate.md",
+    "docs/strategy_beliefs.md",
     "docs/risk_policy.md",
     "docs/risk_posture.md",
     "docs/source_policy.md",

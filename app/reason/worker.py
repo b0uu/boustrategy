@@ -94,6 +94,18 @@ When X shaped a decision (x_signal_usage.used), list the specific posts in publi
 x_posts: each post's https://x.com/<handle>/status/<id> URL from the intake, its role
 (idea_source, supporting, counter_evidence or context) and a one-line summary in your own words
 of what it contributed; never quote post text. Set x_summary to how X was used overall.
+This account is long-only, but you may record a SHORT_WATCHLIST: a short you would take if
+you could. It never becomes an order, so use it only at the highest conviction, when research
+shows the price is likely to fall and the expected value is clearly high. Both target weights
+are 0. It needs the same evidence as an order: source claims, invalidation criteria, a counter-
+thesis (the bull case), what_is_priced_in, reference_price and reference_price_at from an opened
+quote page, entry_price_min as the lowest price at which the short thesis still holds, and a
+complete public_narrative. It is allowed while the market is closed.
+Review every call in the intake's short watchlist. Recording SHORT_WATCHLIST again for a listed
+ticker reaffirms it. When a call no longer clears the bar (the thesis played out, was invalidated,
+or conviction fell), record SHORT_WATCHLIST_REMOVE for that ticker: the reason in refined_thesis,
+both target weights 0, and reference_price and reference_price_at from an opened quote page. Only
+a ticker on the short watchlist can be removed.
 """
 
 
@@ -103,6 +115,9 @@ of what it contributed; never quote post text. Set x_summary to how X was used o
 HUNT_MINIMUM = 3
 _MIN_RETRY_SECONDS = 120
 _PRICED_ACTIONS = {"BUY", "ADD", "TRIM", "SELL"}
+# Short calls are scored from the prices they were declared and removed at, so both carry one.
+_PRICED_CALLS = _PRICED_ACTIONS | {"SHORT_WATCHLIST", "SHORT_WATCHLIST_REMOVE"}
+_NARRATED_CALLS = _PRICED_ACTIONS | {"SHORT_WATCHLIST"}
 
 
 _PUBLIC_STAGES = {
@@ -171,12 +186,12 @@ def hunt_shortfall(
             problems.append(
                 f"{decision.decision} {decision.ticker} is not recorded in candidates_considered"
             )
-        if decision.decision in _PRICED_ACTIONS and decision.reference_price is None:
+        if decision.decision in _PRICED_CALLS and decision.reference_price is None:
             problems.append(
                 f"{decision.decision} {decision.ticker} has no reference_price and "
                 "reference_price_at read from an opened quote page"
             )
-        if decision.decision in _PRICED_ACTIONS:
+        if decision.decision in _NARRATED_CALLS:
             gap = public_narrative_gap(decision)
             if gap:
                 problems.append(f"{decision.decision} {decision.ticker} {gap}")

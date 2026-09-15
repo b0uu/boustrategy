@@ -21,6 +21,9 @@ class Decision(StrEnum):
     HOLD = "HOLD"
     PASS = "PASS"
     WATCHLIST = "WATCHLIST"
+    # A short recommendation the account can't act on: long-only execution never sees it.
+    SHORT_WATCHLIST = "SHORT_WATCHLIST"
+    SHORT_WATCHLIST_REMOVE = "SHORT_WATCHLIST_REMOVE"
 
 
 class OperatingMode(StrEnum):
@@ -193,6 +196,17 @@ class InvestmentDecisionRecord(BaseModel):
         }
         if self.decision in actionable_decisions and not self.refined_thesis.strip():
             raise ValueError("refined_thesis is required for actionable decisions")
+
+        if self.decision == Decision.SHORT_WATCHLIST:
+            for name in ("refined_thesis", "counter_thesis", "what_is_priced_in"):
+                if not getattr(self, name).strip():
+                    raise ValueError(f"{name} is required for SHORT_WATCHLIST decisions")
+        if self.decision == Decision.SHORT_WATCHLIST_REMOVE and not self.refined_thesis.strip():
+            raise ValueError("refined_thesis must explain a SHORT_WATCHLIST_REMOVE")
+        if self.decision in {Decision.SHORT_WATCHLIST, Decision.SHORT_WATCHLIST_REMOVE} and (
+            self.proposed_target_weight or self.final_target_weight
+        ):
+            raise ValueError(f"{self.decision} holds no position, so target weights must be 0")
 
         if self.extraordinary_opportunity and not self.extraordinary_justification.strip():
             raise ValueError(

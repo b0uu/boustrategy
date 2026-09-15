@@ -60,6 +60,19 @@ def test_hold_raises():
         create_order_intent(record, approved)
 
 
+def test_short_watchlist_never_becomes_an_order():
+    record = decision_record_with(
+        decision="SHORT_WATCHLIST",
+        counter_thesis="Bull case.",
+        what_is_priced_in="Recovery priced.",
+        proposed_target_weight=0.0,
+        final_target_weight=0.0,
+    )
+
+    with pytest.raises(ValueError, match="not actionable"):
+        create_order_intent(record, approved)
+
+
 def test_created_at_is_timezone_aware():
     record = valid_decision_record()
 

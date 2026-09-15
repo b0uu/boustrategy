@@ -1,6 +1,6 @@
 # Project
 
-BouStrategy is an autonomous investment decision harness where LLM reasoning produces Investment Decision Records that must pass schema validation (`app/schemas/`) and then deterministic policy checks (`app/policy/`) before any order can exist. See `boustrategy_spec.md` for the vision, `docs/decision_record.md` for the record backbone, and `docs/mandate.md`, `docs/risk_policy.md`, and `docs/source_policy.md` for the maintainer-owned source of truth; code, schemas, and prompts must stay consistent with these strategy documents, and agents must not edit them without explicit instruction.
+BouStrategy is an autonomous investment decision harness where LLM reasoning produces Investment Decision Records that must pass schema validation (`app/schemas/`) and then deterministic policy checks (`app/policy/`) before any order can exist. See `boustrategy_spec.md` for the vision, `docs/decision_record.md` for the record backbone, and `docs/mandate.md`, `docs/strategy_beliefs.md`, `docs/risk_policy.md`, and `docs/source_policy.md` for the maintainer-owned source of truth; code, schemas, and prompts must stay consistent with these strategy documents, and agents must not edit them without explicit instruction.
 
 # Commands
 

@@ -293,6 +293,79 @@ def test_a_review_while_the_market_is_closed_puts_ideas_on_the_watchlist() -> No
     assert hunt_shortfall(researched, {"opens": 3}, 3, trading_open=False) is None
 
 
+def test_a_short_call_carries_its_price_and_story_and_may_be_made_while_closed() -> None:
+    record = InvestmentDecisionRecord.model_validate(
+        {
+            **valid_decision_record_data(),
+            "decision": "SHORT_WATCHLIST",
+            "counter_thesis": "Bull case: backlog could re-accelerate.",
+            "what_is_priced_in": "Consensus still prices a second-half recovery.",
+            "proposed_target_weight": 0.0,
+            "final_target_weight": 0.0,
+        }
+    )
+    ledger = [candidate(record.ticker, "SHORT_WATCHLIST"), candidate("TSM"), candidate("MSFT")]
+    unpriced = AuthoredOutput(
+        decisions=[record], candidates_considered=ledger, public_summary="One short idea."
+    )
+
+    shortfall = hunt_shortfall(unpriced, {"opens": 3}, 3)
+    assert shortfall is not None and "has no reference_price" in shortfall
+    assert "public_narrative" in shortfall
+
+    priced = unpriced.model_copy(
+        update={
+            "decisions": [
+                record.model_copy(
+                    update={
+                        "reference_price": 200.0,
+                        "reference_price_at": datetime(2026, 9, 11, 22, 15, tzinfo=UTC),
+                        "public_narrative": PublicNarrative.model_validate(public_story()),
+                    }
+                )
+            ]
+        }
+    )
+    assert hunt_shortfall(priced, {"opens": 3}, 3, trading_open=False) is None
+
+
+def test_a_short_removal_records_its_price_without_a_public_story() -> None:
+    record = InvestmentDecisionRecord.model_validate(
+        {
+            **valid_decision_record_data(),
+            "decision": "SHORT_WATCHLIST_REMOVE",
+            "proposed_target_weight": 0.0,
+            "final_target_weight": 0.0,
+        }
+    )
+    ledger = [
+        candidate(record.ticker, "SHORT_WATCHLIST_REMOVE"),
+        candidate("TSM"),
+        candidate("MSFT"),
+    ]
+    output = AuthoredOutput(
+        decisions=[record], candidates_considered=ledger, public_summary="Removed a short."
+    )
+
+    shortfall = hunt_shortfall(output, {"opens": 3}, 3, trading_open=False)
+    assert shortfall is not None and "has no reference_price" in shortfall
+    assert "public_narrative" not in shortfall
+
+    priced = output.model_copy(
+        update={
+            "decisions": [
+                record.model_copy(
+                    update={
+                        "reference_price": 95.0,
+                        "reference_price_at": datetime(2026, 9, 11, 22, 15, tzinfo=UTC),
+                    }
+                )
+            ]
+        }
+    )
+    assert hunt_shortfall(priced, {"opens": 3}, 3, trading_open=False) is None
+
+
 def test_an_order_needs_a_public_narrative_the_dashboard_would_show_in_full() -> None:
     base = InvestmentDecisionRecord.model_validate(valid_decision_record_data()).model_copy(
         update={

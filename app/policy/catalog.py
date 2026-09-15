@@ -24,8 +24,10 @@ RULE_LABELS = {
     "equity_target_weight_exceeds_limit": "The proposed equity position exceeds the entry limit.",
     "etf_target_weight_exceeds_limit": "The proposed ETF position exceeds the entry limit.",
     "missing_strategy_belief_mapping": "Increasing exposure requires a strategy-belief mapping.",
-    "missing_invalidation_criteria": "An actionable decision needs thesis-invalidation criteria.",
-    "missing_source_claims": "An actionable decision needs source claims.",
+    "missing_invalidation_criteria": (
+        "An actionable or short-watchlist decision needs thesis-invalidation criteria."
+    ),
+    "missing_source_claims": "An actionable or short-watchlist decision needs source claims.",
     "x_signal_not_confirmed_outside_x": (
         "Thesis-supporting X evidence needs confirmation outside X."
     ),
@@ -36,6 +38,7 @@ RULE_LABELS = {
     "sell_trim_circuit_breaker_tripped": "The daily sell/trim circuit breaker is reached.",
     "max_holdings_reached": "A new holding would exceed the holding-count limit.",
     "primary_theme_concentration_exceeded": "The proposed theme exposure exceeds the entry limit.",
+    "short_watchlist_entry_missing": "Only a ticker on the short watchlist can be removed from it.",
 }
 
 
@@ -140,6 +143,14 @@ RULES = {
             "lte",
             "fraction",
             "proposal",
+        ),
+        (
+            "short_watchlist_entry_missing",
+            "Short watchlist entry",
+            True,
+            "eq",
+            "boolean",
+            "portfolio",
         ),
     )
 }
