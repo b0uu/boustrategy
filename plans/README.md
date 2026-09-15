@@ -345,6 +345,7 @@ backlog so nobody re-audits them.
 | 039 | [Launch the public dashboard and poll live valuations every 15 minutes](039-launch-public-dashboard-and-poll-live-valuations.md) | P0 | L | none (038 DONE) | DONE (2026-09-11; live at https://boustrategy.com via named tunnel `boustrategy-public`; commits 47a4a98..33cd7c3; evidence in `docs/public-release.md`; benchmark feed p95 accepted as host-bound) |
 | 040 | [Make scheduled reviews research and hunt like the 2026-08-26 session](040-autonomous-research-reviews.md) | P0 | M | 039 | DONE (2026-09-11; commits 246c69b..ebdb4e7, deployed 14:31 ET; high effort, research-first contract, hunt ledger gate with one retry, doctrine sentence; intake candidate list deferred by maintainer; shadow run on the 09-11 midday intake: MU and ORCL BUY, CVX WATCHLIST) |
 | 041 | [Short watchlist removal monitor, performance report and dashboard view](041-short-watchlist-view-and-removal-monitor.md) | P1 | M-L | short watchlist change committed | PLANNED (2026-09-14; not to be built until the maintainer says so; four maintainer decisions listed in the plan) |
+| 042 | [Use Robinhood where only the broker knows, and direct APIs for market data](042-make-more-use-of-robinhood-tools.md) | P2 | L (phased) | none (phase 3 pairs with 041) | PLANNED (2026-09-15, revised same day: order cancellation, tax lots/P&L, alerts, watchlists, maybe scans; market data moved to a future 043) |
 
 Recommended order: 032, 033, 034, 035, 036 (037 is done). All are independent
 except that 032 and 034 both bump the publication checkpoint version; each
