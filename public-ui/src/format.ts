@@ -34,6 +34,12 @@ export function when(value: string | null | undefined, short = false) {
   if (!value || !Number.isFinite(Date.parse(value))) return 'Time unavailable'
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', dateStyle: short ? 'medium' : 'medium', ...(short ? {} : { timeStyle: 'short' as const }) }).format(new Date(value)) + (short ? '' : ' ET')
 }
+// A session date (YYYY-MM-DD) is a calendar day, not an instant: formatting it as a New York time
+// would turn midnight UTC into the previous evening, so it is formatted in UTC.
+export function sessionDay(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value ?? 'Date unavailable'
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', dateStyle: 'medium' }).format(new Date(value + 'T00:00:00Z'))
+}
 // A dense right-hand column wants the clock alone; the full timestamp stays in the body.
 export function clock(value: string | null | undefined) {
   if (!value || !Number.isFinite(Date.parse(value))) return null

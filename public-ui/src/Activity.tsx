@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { PublicError, readPublic, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary } from './common'
-import { label, when } from './format'
+import { label, sessionDay, when } from './format'
 import { dashboardUrl, Link } from './navigation'
 import type { ActivityItem, ActivityPage, Metadata, Runtime, Scope } from './types'
 
@@ -18,7 +18,7 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
         <span className="stream-summary">{summary ?? (item.reason ? label(item.reason) : 'No public session summary was recorded.')}</span>
       </span>
       <Badge value={status} />
-      <time dateTime={item.session_date}>{item.session_date}</time>
+      <time dateTime={item.session_date}>{sessionDay(item.session_date)}</time>
       <Chevron />
     </summary>
     <div className="disclosure-body">

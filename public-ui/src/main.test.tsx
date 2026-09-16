@@ -268,6 +268,12 @@ it('preserves unavailable money, signed zero and tiny decimal quantities', () =>
   expect(amount('-0.000000000000000001')).toBe('-0.000000000000000001')
   expect(publicUrl('https://user:password@example.com')).toBeNull()
 })
+it('formats a review session date as its own calendar day, like decision dates', async () => {
+  const { sessionDay } = await import('./format')
+  // Midnight UTC is the previous evening in New York; a session date must not slip a day.
+  expect(sessionDay('2026-09-15')).toBe('Sep 15, 2026')
+  expect(sessionDay('not-a-date')).toBe('not-a-date')
+})
 it('shows a missing return as missing, and counts today in decisions', async () => {
   data['live/performance'] = { ...(data['live/performance'] as object), return_percent: null }
   await dashboard()
