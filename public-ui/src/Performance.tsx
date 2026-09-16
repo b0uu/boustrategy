@@ -19,6 +19,7 @@ function savedUnit(): ReturnUnit {
 }
 const WIDTH = 600
 const HEIGHT = 108
+const INSET = 6
 
 export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   const frame = useRef<SVGSVGElement | null>(null)
@@ -30,7 +31,8 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   const values = valid.map(point => numeric(point.equity)!)
   const low = Math.min(...values), high = Math.max(...values)
   const single = valid.length === 1
-  const x = (point: ChartPoint) => (last === first ? WIDTH / 2 : (Date.parse(point.at) - first) / (last - first) * WIDTH)
+  // Inset both ends: drawn edge to edge, the latest point sits half under the container's edge.
+  const x = (point: ChartPoint) => (last === first ? WIDTH / 2 : INSET + (Date.parse(point.at) - first) / (last - first) * (WIDTH - INSET * 2))
   const yValue = (value: number) => (high === low ? 54 : 96 - (value - low) / (high - low) * 84)
   const y = (point: ChartPoint) => yValue(numeric(point.equity)!)
   const segments: ChartPoint[][] = []
