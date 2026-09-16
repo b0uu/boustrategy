@@ -1,7 +1,7 @@
 import argparse
 from datetime import datetime
 
-from app.events.fetch import FOMC_COVERAGE_END
+from app.events.fetch import FOMC_COVERAGE_END, EarningsUnavailable
 from app.events.store import parse_watchlist, refresh_earnings, sync_fomc, upcoming_events
 from app.paper.context import position_tickers
 from app.storage.database import connect
@@ -22,7 +22,10 @@ def main() -> None:
             if not tickers:
                 print("Watchlist empty. Approve tickers in docs/watchlist.md.")
             for ticker in tickers:
-                print(f"{ticker}: {refresh_earnings(conn, ticker)} earnings dates")
+                try:
+                    print(f"{ticker}: {refresh_earnings(conn, ticker)} earnings dates")
+                except EarningsUnavailable as error:
+                    print(f"{ticker}: earnings calendar unavailable ({error.__cause__})")
             print(f"FOMC: {sync_fomc(conn, FOMC_COVERAGE_END)} meeting days")
         else:
             for event_date, event_type, ticker, label in upcoming_events(

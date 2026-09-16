@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.events.fetch import FomcCoverageError
+from app.events.fetch import EarningsUnavailable, FomcCoverageError, fetch_earnings_dates
 from app.events.store import (
     parse_watchlist,
     refresh_earnings,
@@ -100,6 +100,37 @@ def test_earnings_refresh_replaces_future_only(tmp_path: Path) -> None:
     assert conn.execute(
         "SELECT event_date FROM calendar_events WHERE ticker = 'NVDA' ORDER BY event_date"
     ).fetchall() == [("2026-07-01",), ("2026-08-20",)]
+
+
+def test_a_broken_earnings_feed_is_named_and_keeps_the_stored_dates(tmp_path: Path) -> None:
+    # Regression, 2026-09-16: yfinance's scrape raised KeyError('Earnings Date') from inside
+    # pandas, which aborted the whole morning preparation and cost the session its review.
+    conn = connect(tmp_path / "synthetic.db")
+    conn.executemany(
+        """
+        INSERT INTO calendar_events
+            (event_type, ticker, event_date, label, source, fetched_at)
+        VALUES ('earnings', 'NVDA', ?, 'known', 'yfinance', '2026-09-01')
+        """,
+        [("2026-09-20",)],
+    )
+
+    def broken(_: str) -> list[date]:
+        raise KeyError(["Earnings Date"])
+
+    with pytest.raises(EarningsUnavailable):
+        fetch_earnings_dates("NVDA", fetcher=broken, today=date(2026, 9, 16))
+    with pytest.raises(EarningsUnavailable):
+        refresh_earnings(
+            conn,
+            "NVDA",
+            fetcher=lambda ticker: fetch_earnings_dates(ticker, broken, date(2026, 9, 16)),
+            today=date(2026, 9, 16),
+        )
+
+    assert conn.execute(
+        "SELECT event_date FROM calendar_events WHERE ticker = 'NVDA'"
+    ).fetchall() == [("2026-09-20",)]
 
 
 def test_upcoming_uses_half_open_day_window(tmp_path: Path) -> None:

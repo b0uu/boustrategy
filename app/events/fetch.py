@@ -48,6 +48,10 @@ class FomcCoverageError(ValueError):
     pass
 
 
+class EarningsUnavailable(RuntimeError):
+    """One ticker's earnings calendar could not be read; callers continue without it."""
+
+
 def fomc_dates(through: date) -> tuple[date, ...]:
     if not FOMC_COVERAGE_START <= through <= FOMC_COVERAGE_END:
         raise FomcCoverageError(f"FOMC calendar coverage ends at {FOMC_COVERAGE_END}")
@@ -64,7 +68,13 @@ def fetch_earnings_dates(
     today: date | None = None,
 ) -> list[date]:
     today = today or date.today()
-    earnings = fetcher(ticker)
-    if earnings is None:
-        return []
-    return sorted({index.date() for index in earnings.index if index.date() >= today})
+    # yfinance scrapes a page it does not control: a layout change raises from inside pandas
+    # (2026-09-16: KeyError 'Earnings Date'). That is a fetch failure, not an empty calendar, so it
+    # is named rather than swallowed, and the caller keeps the dates it already stored.
+    try:
+        earnings = fetcher(ticker)
+        if earnings is None:
+            return []
+        return sorted({index.date() for index in earnings.index if index.date() >= today})
+    except Exception as error:
+        raise EarningsUnavailable(f"earnings calendar unavailable for {ticker}") from error

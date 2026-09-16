@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict
 
 from app.broker.config import get_live_profile, load_live_profiles
-from app.events.fetch import FOMC_COVERAGE_END
+from app.events.fetch import FOMC_COVERAGE_END, EarningsUnavailable
 from app.events.store import parse_watchlist, refresh_earnings, sync_fomc
 from app.paper.broker import settle
 from app.paper.context import portfolio_context, position_tickers
@@ -55,6 +55,7 @@ class PreparationResult(BaseModel):
     completed_digest_runs: list[str]
     refreshed_price_bars: dict[str, int]
     refreshed_calendar_events: dict[str, int]
+    earnings_unavailable: list[str] = []
     fills_created: int
     intents_awaiting_price: int
     trigger_counts: dict[str, int]
@@ -129,9 +130,15 @@ def prepare_session(
 
     completed_date = completed_through(on_date, datetime.now(UTC))
     fills, awaiting = settle(conn, through_date=completed_date)
-    calendar_counts = {
-        ticker: refresh_earnings(conn, ticker, today=on_date) for ticker in tracked_tickers
-    }
+    # One ticker's earnings feed breaking must not cost the session its review: the calendar is
+    # context, while prices, regime, triggers and the intake are what the review runs on.
+    calendar_counts: dict[str, int] = {}
+    earnings_unavailable: list[str] = []
+    for ticker in tracked_tickers:
+        try:
+            calendar_counts[ticker] = refresh_earnings(conn, ticker, today=on_date)
+        except EarningsUnavailable:
+            earnings_unavailable.append(ticker)
     calendar_counts["FOMC"] = sync_fomc(conn, FOMC_COVERAGE_END)
     trigger_counts = evaluate_triggers(conn, tracked_tickers, completed_date)
     published, score = score_date(conn, completed_date)
@@ -143,6 +150,7 @@ def prepare_session(
         completed_digest_runs=completed_runs,
         refreshed_price_bars=refreshed,
         refreshed_calendar_events=calendar_counts,
+        earnings_unavailable=earnings_unavailable,
         fills_created=fills,
         intents_awaiting_price=awaiting,
         trigger_counts=trigger_counts,
