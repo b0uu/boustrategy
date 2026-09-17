@@ -132,6 +132,20 @@ becomes an order, and it holds no weight.
   price at which the short thesis still holds, so later reviews can judge
   whether the call was right. Shorts are rare by design, and their frequency and
   hit rate will be tracked like extraordinary opportunities.
+- **Write the exit when you write the call.** Every SHORT_WATCHLIST carries
+  `short_removal_conditions`: `cover_below`, the price at which the short has
+  played out; `stop_above`, the price that proves it wrong; and `review_by`, a
+  backstop date no more than 30 days out. The reference price you read must sit
+  between the two prices. The date is only a backstop, not the whole test — a
+  call is also re-judged when the price moves through either bound, when new
+  information lands, and when your own conviction changes.
+- **Answer a due call in the review that sees it.** A call whose close has
+  reached `cover_below` or `stop_above`, or whose `review_by` has arrived, is
+  marked REMOVAL DUE in the intake. Remove it, or re-underwrite it with fresh
+  conditions the current price does not already trip. A call already
+  re-underwritten once must be removed rather than extended again. Prices are
+  judged on completed daily closes, never intraday touches, so the call does not
+  turn on when the harness happened to look.
 - **Remove calls explicitly.** Every review sees the open short calls with
   their invalidation criteria. When one no longer clears the bar (the thesis
   played out, was invalidated, or conviction fell), record a

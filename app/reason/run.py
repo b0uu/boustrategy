@@ -32,6 +32,7 @@ from app.storage.records import (
     save_reasoning_run,
 )
 from app.storage.runtime import get_run, immediate, validate_fence
+from app.storage.short_watchlist import short_call_report, short_watchlist_history
 from app.triggers.evaluate import evaluate_triggers
 from app.triggers.store import mark_triggers
 from app.x.calendar import NEW_YORK, completed_session, completed_through, is_session, session_close
@@ -112,8 +113,16 @@ def prepare_session(
     completed_runs = _completed_digest_runs(conn, on_date, digest_path)
 
     pending = _pending_intent_dates(conn)
+    # Open short calls are tracked like holdings: their removal conditions are judged on closes,
+    # so the monitor needs their bars refreshed even though the account holds no position.
+    shorts = {
+        call.ticker
+        for mode in ("PAPER", "LIVE")
+        for call in short_watchlist_history(conn, mode)
+        if call.removed_at is None
+    }
     tracked_tickers = sorted(
-        set(parse_watchlist(watchlist_path)) | set(position_tickers(conn)) | set(pending)
+        set(parse_watchlist(watchlist_path)) | set(position_tickers(conn)) | set(pending) | shorts
     )
     default_start = on_date - timedelta(days=35)
     refresh_starts = {
@@ -442,6 +451,12 @@ def main() -> None:
     intake_parser.add_argument("--date")
     intake_parser.add_argument("--out", required=True)
 
+    shorts_parser = subparsers.add_parser("shorts")
+    shorts_parser.add_argument("--date")
+    shorts_parser.add_argument("--mode", choices=("live", "paper"), default="live")
+    shorts_parser.add_argument("--profile")
+    shorts_parser.add_argument("--json", action="store_true")
+
     live_prepare_parser = subparsers.add_parser("prepare-live")
     live_prepare_parser.add_argument("--date")
     live_prepare_parser.add_argument("--slot", required=True)
@@ -480,6 +495,22 @@ def main() -> None:
             print(result.model_dump_json())
         elif args.command == "intake":
             print(build_intake(conn, on_date, args.out))
+        elif args.command == "shorts":
+            report = short_call_report(conn, args.mode.upper(), args.profile, on_date)
+            if args.json:
+                print(json.dumps(report, indent=1))
+            elif not report:
+                print("No short calls recorded.")
+            else:
+                for item in report:
+                    ended = item["removed_at"] or "open"
+                    percent = item["short_return_percent"]
+                    print(
+                        f"{item['ticker']:6} {item['status']:8} declared {item['declared_at']} at "
+                        f"{item['declared_price']} -> {item['end_price']} ({ended}), "
+                        f"{'n/a' if percent is None else format(percent, '+.2f') + '%'}, "
+                        f"{item['days_listed']}d, due={item['due'] or 'no'}"
+                    )
         elif args.command == "prepare-live":
             payload = json.loads(Path(args.runs).read_text(encoding="utf-8"))
             profiles = [

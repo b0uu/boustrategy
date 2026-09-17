@@ -8,6 +8,7 @@ from app.policy.catalog import (
     MAX_HOLDINGS,
     MAX_PRIMARY_THEME_WEIGHT,
     MAX_SELL_TRIM_TRADES_PER_DAY,
+    MAX_SHORT_REVIEW_DAYS,
     POLICY_VERSION,
     RULES,
 )
@@ -203,6 +204,28 @@ def evaluate_decision_policy(
         observed=shorted is not None and record.ticker in shorted,
         passed=shorted is not None and record.ticker in shorted,
         missing=shorted is None,
+    )
+    # Re-listing a ticker already on the watchlist only says something new when the bound moved.
+    watchlist = portfolio.watchlist_entries if portfolio else None
+    duplicate = (
+        watchlist is not None
+        and record.ticker in watchlist
+        and watchlist[record.ticker] == record.entry_price_max
+    )
+    check(
+        "watchlist_entry_restated",
+        applicable=record.decision == Decision.WATCHLIST,
+        observed=not duplicate,
+        passed=not duplicate,
+        missing=watchlist is None,
+    )
+    conditions = record.short_removal_conditions
+    horizon = (conditions.review_by - record.created_at.date()).days if conditions else None
+    check(
+        "short_review_horizon_exceeded",
+        applicable=conditions is not None,
+        observed=horizon,
+        passed=horizon is not None and horizon <= MAX_SHORT_REVIEW_DAYS,
     )
     reasons = [item.rule_id for item in checks if item.result == "failed"]
     return PolicyResult(approved=not reasons, reasons=reasons, checks=checks)

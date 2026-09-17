@@ -7,7 +7,7 @@ import subprocess
 import time
 import traceback
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from app.broker.session import BrokerSessionFailure
 from app.broker.valuation import session_window
+from app.prices.cache import get_daily_prices
 from app.public.explanations import narrative_projection
 from app.reason.codex_runner import (
     MAX_PROMPT_BYTES,
@@ -25,11 +26,11 @@ from app.reason.codex_runner import (
 )
 from app.reason.run import submit_decision
 from app.reason.runtime_prepare import live_readiness
-from app.schemas.decision_record import InvestmentDecisionRecord
+from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import ExecutionMode
 from app.schemas.public_authoring import ThesisReview
-from app.schemas.runtime import AuthoredOutput, RuntimeAttempt
+from app.schemas.runtime import AuthoredOutput, RuntimeAttempt, RuntimeRun
 from app.storage.public_records import save_thesis_review
 from app.storage.runtime import (
     LeaseLost,
@@ -42,6 +43,8 @@ from app.storage.runtime import (
     immediate,
     validate_fence,
 )
+from app.storage.short_watchlist import short_removal_status, short_watchlist_history
+from app.x.calendar import NEW_YORK
 
 _AUTHORING_CONTRACT = """Every review is a research session. Research by default with your web
 tools before you conclude anything; the intake is where ideas start, not where they end. It
@@ -100,12 +103,22 @@ shows the price is likely to fall and the expected value is clearly high. Both t
 are 0. It needs the same evidence as an order: source claims, invalidation criteria, a counter-
 thesis (the bull case), what_is_priced_in, reference_price and reference_price_at from an opened
 quote page, entry_price_min as the lowest price at which the short thesis still holds, and a
-complete public_narrative. It is allowed while the market is closed.
-Review every call in the intake's short watchlist. Recording SHORT_WATCHLIST again for a listed
-ticker reaffirms it. When a call no longer clears the bar (the thesis played out, was invalidated,
-or conviction fell), record SHORT_WATCHLIST_REMOVE for that ticker: the reason in refined_thesis,
+complete public_narrative. It also needs short_removal_conditions: cover_below (the price at which
+the short has played out), stop_above (the price that proves it wrong) and review_by (a backstop
+date within 30 days). The reference price must sit between the two prices. It is allowed while the
+market is closed.
+Review every call in the intake's short watchlist. A call marked REMOVAL DUE must be answered in
+this review: remove it, or re-underwrite it with fresh conditions the current price does not
+already trip. A call already re-underwritten once must be removed rather than extended again.
+Recording SHORT_WATCHLIST again for a listed ticker reaffirms it. When a call no longer clears
+the bar (the thesis played out, was invalidated, or conviction fell), record
+SHORT_WATCHLIST_REMOVE for that ticker: the reason in refined_thesis,
 both target weights 0, and reference_price and reference_price_at from an opened quote page. Only
 a ticker on the short watchlist can be removed.
+
+The intake lists the open watchlist entries. A ticker already listed is already on record: restate
+it with WATCHLIST only to change its entry bound, and otherwise act on it, PASS on it, or leave it
+as it stands. Re-recording a listed ticker with the same entry_price_max is rejected.
 """
 
 
@@ -203,6 +216,63 @@ def hunt_shortfall(
     return "; ".join(problems) or None
 
 
+def unanswered_short_calls(
+    conn: sqlite3.Connection, run: RuntimeRun, on_date: date, result: AuthoredOutput
+) -> str | None:
+    """Say which due short calls this review walked past, if any.
+
+    A call that has met one of its removal conditions must be removed, or re-underwritten with
+    fresh conditions that the new price no longer trips. A call already re-underwritten once (two
+    or more declarations) must be removed rather than extended again.
+    """
+    mode = "LIVE" if run.mode == "live" else "PAPER"
+    profile = run.execution_profile_id if run.mode == "live" else None
+    answered = {
+        decision.ticker: decision
+        for decision in result.decisions
+        if decision.decision in {Decision.SHORT_WATCHLIST, Decision.SHORT_WATCHLIST_REMOVE}
+    }
+    problems = []
+    for call in short_watchlist_history(conn, mode, profile):
+        if call.removed_at is not None:
+            continue
+        bars = get_daily_prices(conn, call.ticker, end=on_date)
+        close = bars[-1].close if bars else None
+        due = short_removal_status(call, close, on_date)
+        if not due:
+            continue
+        answer = answered.get(call.ticker)
+        if answer is None:
+            problems.append(
+                f"short call {call.ticker} is due for removal ({', '.join(due)}) and this review "
+                "neither removed it nor re-underwrote it"
+            )
+        elif answer.decision == Decision.SHORT_WATCHLIST and len(call.declarations) >= 2:
+            problems.append(
+                f"short call {call.ticker} has already been re-underwritten once and is due "
+                f"again ({', '.join(due)}); it must be removed"
+            )
+        elif answer.decision == Decision.SHORT_WATCHLIST and short_removal_status(
+            call.model_copy(
+                update={
+                    "declarations": [
+                        *call.declarations[:-1],
+                        call.declarations[-1].model_copy(
+                            update={"removal_conditions": answer.short_removal_conditions}
+                        ),
+                    ]
+                }
+            ),
+            close,
+            on_date,
+        ):
+            problems.append(
+                f"short call {call.ticker} was re-underwritten with conditions the current price "
+                "already trips; give it conditions that hold or remove it"
+            )
+    return "; ".join(problems) or None
+
+
 def _record_research(
     log_dir: Path, passes: list[dict[str, Any]], result: AuthoredOutput | None
 ) -> None:
@@ -229,6 +299,23 @@ def _refresh_snapshot(collector: Callable[[], object]) -> None:
         collector()
     except (BrokerSessionFailure, ValueError, OSError) as error:
         raise RunnerFailure("snapshot_stale") from error
+
+
+def _review_shortfall(
+    conn: sqlite3.Connection,
+    run: RuntimeRun,
+    result: AuthoredOutput,
+    activity: dict[str, int],
+    required: int,
+    trading_open: bool,
+    clock: Callable[[], datetime],
+) -> str | None:
+    """Everything the trusted worker demands of a review: the hunt, and its due short calls."""
+    parts = [
+        hunt_shortfall(result, activity, required, trading_open=trading_open),
+        unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
+    ]
+    return "; ".join(part for part in parts if part) or None
 
 
 def execute_attempt(
@@ -314,7 +401,7 @@ def execute_attempt(
 
         result = author(prompt, attempt_log, timeout_seconds)
         activity = research_activity(attempt_log)
-        shortfall = hunt_shortfall(result, activity, required, trading_open=trading_open)
+        shortfall = _review_shortfall(conn, run, result, activity, required, trading_open, clock)
         passes: list[dict[str, Any]] = [{"activity": activity, "shortfall": shortfall}]
         if shortfall:
             # One second pass, inside the same time budget, told exactly what was missing.
@@ -333,7 +420,9 @@ def execute_attempt(
                 remaining,
             )
             activity = research_activity(second_log)
-            shortfall = hunt_shortfall(result, activity, required, trading_open=trading_open)
+            shortfall = _review_shortfall(
+                conn, run, result, activity, required, trading_open, clock
+            )
             passes.append({"activity": activity, "shortfall": shortfall})
         _record_research(attempt_log, passes, result)
         if shortfall:

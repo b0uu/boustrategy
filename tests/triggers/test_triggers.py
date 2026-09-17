@@ -1,13 +1,16 @@
+import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from app.prices.cache import PriceBar, upsert_daily_prices
+from app.state.pipeline import process_decision
 from app.storage.database import connect
 from app.triggers.evaluate import evaluate_triggers
 from app.triggers.store import insert_trigger, mark_triggers, trigger_id
 from app.x.posts import XPost, insert_new_posts
+from tests.storage.test_short_watchlist import RECEIVED, paper_context, short_call
 
 
 def _bars(count: int, final_close: float = 100.0, final_volume: int = 100) -> list[PriceBar]:
@@ -65,6 +68,29 @@ def test_consumed_trigger_is_not_resurrected(tmp_path: Path) -> None:
         ]
         == "consumed"
     )
+
+
+def test_a_short_call_whose_cover_price_is_reached_raises_one_trigger(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    # The call covers below 96; the last close of 95 has met that condition.
+    bars = _bars(2, final_close=95.0)
+    upsert_daily_prices(conn, bars)
+    process_decision(
+        conn,
+        short_call("s1", "SHORT_WATCHLIST", 1, 120.0),
+        paper_context(conn),
+        received_at=RECEIVED,
+    )
+
+    first = evaluate_triggers(conn, ["NVDA"], bars[-1].bar_date)
+    second = evaluate_triggers(conn, ["NVDA"], bars[-1].bar_date)
+    details = conn.execute(
+        "SELECT details_json FROM trigger_events WHERE trigger_type = 'short_removal_due'"
+    ).fetchone()
+
+    assert first["short_removal_due"] == 1
+    assert second.get("short_removal_due", 0) == 0
+    assert json.loads(details[0])["due"] == ["cover_below_hit"]
 
 
 def test_volume_requires_twenty_prior_bars(tmp_path: Path) -> None:

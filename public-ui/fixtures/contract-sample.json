@@ -2,8 +2,8 @@
   "live/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.033965+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.317063+00:00",
     "allocation": [
       {
         "asset_class": "cash",
@@ -31,7 +31,7 @@
       "status": "available"
     },
     "data_as_of": "2026-06-12T20:00:00+00:00",
-    "decision_count_date": "2026-09-11",
+    "decision_count_date": "2026-09-17",
     "decision_counts": {
       "approved": 44,
       "rejected": 11,
@@ -97,8 +97,8 @@
   "live/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.040382+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.330209+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "status": "available",
@@ -110,7 +110,7 @@
         "asset_class": "equity",
         "average_cost": "145",
         "holding_episode_id": "holding_52952b9c4fd8fb825c6d8e21",
-        "latest_decision_id": "dec_b3bdb19d673d4f539d5e9504392e0f3e",
+        "latest_decision_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
         "latest_price": "158",
         "latest_public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "market_value": "3179.75",
@@ -134,8 +134,8 @@
   "live/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.044854+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.362342+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "benchmarks": [
@@ -229,8 +229,8 @@
   "live/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.051272+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.390315+00:00",
     "portfolio_id": "live",
     "status": "available",
     "current_asset_exposure": [
@@ -307,7 +307,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_d917d0a923c24d2398477101ace98d98",
+          "public_id": "dec_d19ef594d3d745febe54f0765b39748b",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -338,7 +338,7 @@
       {
         "category": "decision_policy",
         "comparator": "gte",
-        "failure_explanation": "An actionable decision needs thesis-invalidation criteria.",
+        "failure_explanation": "An actionable or short-watchlist decision needs thesis-invalidation criteria.",
         "name": "Thesis-invalidation criteria",
         "rule_id": "missing_invalidation_criteria",
         "scope": "decision",
@@ -350,7 +350,7 @@
       {
         "category": "decision_policy",
         "comparator": "gte",
-        "failure_explanation": "An actionable decision needs source claims.",
+        "failure_explanation": "An actionable or short-watchlist decision needs source claims.",
         "name": "Source claims",
         "rule_id": "missing_source_claims",
         "scope": "decision",
@@ -428,6 +428,42 @@
         "scope": "proposal",
         "threshold": 0.6,
         "unit": "fraction",
+        "version": "decision-policy-1",
+        "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "Only a ticker on the short watchlist can be removed from it.",
+        "name": "Short watchlist entry",
+        "rule_id": "short_watchlist_entry_missing",
+        "scope": "portfolio",
+        "threshold": true,
+        "unit": "boolean",
+        "version": "decision-policy-1",
+        "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "lte",
+        "failure_explanation": "A short call must be reviewed again within the horizon.",
+        "name": "Short review horizon",
+        "rule_id": "short_review_horizon_exceeded",
+        "scope": "decision",
+        "threshold": 30,
+        "unit": "count",
+        "version": "decision-policy-1",
+        "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "A ticker already on the watchlist can only be restated with a different entry bound.",
+        "name": "Watchlist restatement",
+        "rule_id": "watchlist_entry_restated",
+        "scope": "portfolio",
+        "threshold": true,
+        "unit": "boolean",
         "version": "decision-policy-1",
         "last_triggered": null
       }
@@ -495,11 +531,11 @@
   "live/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.060839+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.398073+00:00",
     "portfolio_id": "live",
     "active_run": null,
-    "as_of": "2026-09-11T20:59:55.935045+00:00",
+    "as_of": "2026-09-17T22:05:17.048598+00:00",
     "latest_run": {
       "attempt_count": 1,
       "attempts_truncated": false,
@@ -508,7 +544,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_20f76b6c7dfa431e9b27f872fc9e58ad",
+        "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -518,7 +554,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_a2a201e64e734765a578ff81514d1aff",
+      "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -530,8 +566,8 @@
   "live/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.067309+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.403787+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -542,7 +578,7 @@
           "finished_at": "2026-06-10T21:45:25+00:00",
           "heartbeat_at": "2026-06-10T21:45:00Z",
           "observed_model": null,
-          "public_id": "attempt_20f76b6c7dfa431e9b27f872fc9e58ad",
+          "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
           "reason": null,
           "requested_model": "fixture-model-a",
           "stage": "finished",
@@ -552,7 +588,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_a2a201e64e734765a578ff81514d1aff",
+        "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -563,11 +599,21 @@
     "total": 1,
     "activity_revision": 1
   },
+  "live/shorts": {
+    "api_version": 2,
+    "revision": 0,
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.419023+00:00",
+    "portfolio_id": "live",
+    "status": "available",
+    "reason": null,
+    "items": []
+  },
   "live/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.072240+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.426291+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -578,7 +624,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_b3bdb19d673d4f539d5e9504392e0f3e",
+        "public_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -598,8 +644,8 @@
   "paper/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.593421+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.846096+00:00",
     "capabilities": {
       "cash": false,
       "quantities": true,
@@ -607,7 +653,7 @@
     },
     "cash": null,
     "data_as_of": null,
-    "decision_count_date": "2026-09-11",
+    "decision_count_date": "2026-09-17",
     "decision_counts": {
       "approved": 3,
       "rejected": 1,
@@ -629,8 +675,8 @@
   "paper/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.603101+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.854238+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "status": "unavailable",
@@ -642,8 +688,8 @@
   "paper/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.647536+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.859453+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "benchmarks": [],
@@ -658,8 +704,8 @@
   "paper/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.667961+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.864921+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "current_asset_exposure": [],
@@ -713,7 +759,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_52d9543ddb1248958774b0bf8a0be6cd",
+          "public_id": "dec_ff625466b27b458486d17a683c9c0391",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -744,7 +790,7 @@
       {
         "category": "decision_policy",
         "comparator": "gte",
-        "failure_explanation": "An actionable decision needs thesis-invalidation criteria.",
+        "failure_explanation": "An actionable or short-watchlist decision needs thesis-invalidation criteria.",
         "name": "Thesis-invalidation criteria",
         "rule_id": "missing_invalidation_criteria",
         "scope": "decision",
@@ -756,7 +802,7 @@
       {
         "category": "decision_policy",
         "comparator": "gte",
-        "failure_explanation": "An actionable decision needs source claims.",
+        "failure_explanation": "An actionable or short-watchlist decision needs source claims.",
         "name": "Source claims",
         "rule_id": "missing_source_claims",
         "scope": "decision",
@@ -836,6 +882,42 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "Only a ticker on the short watchlist can be removed from it.",
+        "name": "Short watchlist entry",
+        "rule_id": "short_watchlist_entry_missing",
+        "scope": "portfolio",
+        "threshold": true,
+        "unit": "boolean",
+        "version": "decision-policy-1",
+        "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "lte",
+        "failure_explanation": "A short call must be reviewed again within the horizon.",
+        "name": "Short review horizon",
+        "rule_id": "short_review_horizon_exceeded",
+        "scope": "decision",
+        "threshold": 30,
+        "unit": "count",
+        "version": "decision-policy-1",
+        "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "A ticker already on the watchlist can only be restated with a different entry bound.",
+        "name": "Watchlist restatement",
+        "rule_id": "watchlist_entry_restated",
+        "scope": "portfolio",
+        "threshold": true,
+        "unit": "boolean",
+        "version": "decision-policy-1",
+        "last_triggered": null
       }
     ],
     "execution_controls": [
@@ -901,11 +983,11 @@
   "paper/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.692532+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.868935+00:00",
     "portfolio_id": "paper",
     "active_run": null,
-    "as_of": "2026-09-11T20:59:55.935045+00:00",
+    "as_of": "2026-09-17T22:05:17.048598+00:00",
     "latest_run": {
       "attempt_count": 2,
       "attempts_truncated": false,
@@ -914,7 +996,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_8102113ac18546d0be261cb7ef0560b0",
+        "public_id": "attempt_ca3cb8f484c14c948f5d02cd3fcacc7a",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -924,7 +1006,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_5864904bac504ace88fe11363d296a0f",
+      "public_id": "run_4f3674280611481288c45e8fd2bc222e",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -936,8 +1018,8 @@
   "paper/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.797805+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.874021+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -948,7 +1030,7 @@
           "finished_at": "2026-06-10T21:45:30+00:00",
           "heartbeat_at": "2026-06-10T21:45:12Z",
           "observed_model": null,
-          "public_id": "attempt_8102113ac18546d0be261cb7ef0560b0",
+          "public_id": "attempt_ca3cb8f484c14c948f5d02cd3fcacc7a",
           "reason": null,
           "requested_model": "fixture-model-b",
           "stage": "finished",
@@ -958,7 +1040,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_5864904bac504ace88fe11363d296a0f",
+        "public_id": "run_4f3674280611481288c45e8fd2bc222e",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -969,11 +1051,21 @@
     "total": 1,
     "activity_revision": 1
   },
+  "paper/shorts": {
+    "api_version": 2,
+    "revision": 0,
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.878010+00:00",
+    "portfolio_id": "paper",
+    "status": "available",
+    "reason": null,
+    "items": []
+  },
   "paper/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.848204+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.885079+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -984,7 +1076,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_d56a400fd6504995a9fc2f061ab3da8e",
+        "public_id": "dec_9eba20d518fc47fc99bc0a7154134410",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1004,8 +1096,8 @@
   "decision/detail": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.078796+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.440845+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -1072,9 +1164,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_64c072e6b80d45a0de19ceaa",
+          "public_id": "claim_345158e6f3e9e0478b5e567b",
           "source_ids": [
-            "src_8ac414ec2b0d4abcb8cb81b19eafa499"
+            "src_d5575392d62d488b8de7b224d65d94d9"
           ]
         }
       ],
@@ -1098,7 +1190,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_8ac414ec2b0d4abcb8cb81b19eafa499",
+          "public_id": "src_d5575392d62d488b8de7b224d65d94d9",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -1109,7 +1201,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_64c072e6b80d45a0de19ceaa"
+            "claim_345158e6f3e9e0478b5e567b"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -1118,7 +1210,7 @@
         },
         {
           "claim_ids": [
-            "claim_64c072e6b80d45a0de19ceaa"
+            "claim_345158e6f3e9e0478b5e567b"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -1127,7 +1219,7 @@
         },
         {
           "claim_ids": [
-            "claim_64c072e6b80d45a0de19ceaa"
+            "claim_345158e6f3e9e0478b5e567b"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -1136,7 +1228,7 @@
         },
         {
           "claim_ids": [
-            "claim_64c072e6b80d45a0de19ceaa"
+            "claim_345158e6f3e9e0478b5e567b"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -1145,7 +1237,7 @@
         },
         {
           "claim_ids": [
-            "claim_64c072e6b80d45a0de19ceaa"
+            "claim_345158e6f3e9e0478b5e567b"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -1156,7 +1248,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_64c072e6b80d45a0de19ceaa"
+          "claim_345158e6f3e9e0478b5e567b"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -1278,7 +1370,7 @@
           "category": "decision_policy",
           "comparator": "gte",
           "explanation": null,
-          "failure_explanation": "An actionable decision needs thesis-invalidation criteria.",
+          "failure_explanation": "An actionable or short-watchlist decision needs thesis-invalidation criteria.",
           "headroom": 0.0,
           "name": "Thesis-invalidation criteria",
           "observed": 1,
@@ -1293,7 +1385,7 @@
           "category": "decision_policy",
           "comparator": "gte",
           "explanation": null,
-          "failure_explanation": "An actionable decision needs source claims.",
+          "failure_explanation": "An actionable or short-watchlist decision needs source claims.",
           "headroom": 0.0,
           "name": "Source claims",
           "observed": 1,
@@ -1393,6 +1485,51 @@
           "threshold": 0.6,
           "unit": "fraction",
           "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "Only a ticker on the short watchlist can be removed from it.",
+          "headroom": null,
+          "name": "Short watchlist entry",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "short_watchlist_entry_missing",
+          "scope": "portfolio",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A ticker already on the watchlist can only be restated with a different entry bound.",
+          "headroom": null,
+          "name": "Watchlist restatement",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "watchlist_entry_restated",
+          "scope": "portfolio",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
+          "comparator": "lte",
+          "explanation": null,
+          "failure_explanation": "A short call must be reviewed again within the horizon.",
+          "headroom": null,
+          "name": "Short review horizon",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "short_review_horizon_exceeded",
+          "scope": "decision",
+          "threshold": 30,
+          "unit": "count",
+          "version": "decision-policy-1"
         }
       ],
       "evaluated_at": "2026-06-10T21:45:00+00:00",
@@ -1404,13 +1541,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "5e6a20c098c0e39334f28abd5b31e27aa048d02aefcb492a653c04e9193628f4",
+      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_b3bdb19d673d4f539d5e9504392e0f3e",
+    "public_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -1443,8 +1580,8 @@
   "activity/detail": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-11T20:59:55.935045+00:00",
-    "server_now": "2026-09-11T20:59:56.587397+00:00",
+    "published_at": "2026-09-17T22:05:17.048598+00:00",
+    "server_now": "2026-09-17T22:05:17.840455+00:00",
     "portfolio_id": "live",
     "attempt_count": 1,
     "attempts": [
@@ -1453,7 +1590,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_20f76b6c7dfa431e9b27f872fc9e58ad",
+        "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -1465,7 +1602,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_a2a201e64e734765a578ff81514d1aff",
+    "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",

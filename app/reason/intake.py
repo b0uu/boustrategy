@@ -7,7 +7,9 @@ from pathlib import Path
 from app.events.store import upcoming_events
 from app.paper.broker import cash_balance
 from app.paper.context import _latest_close, portfolio_context
-from app.storage.short_watchlist import short_watchlist_history
+from app.prices.cache import get_daily_prices
+from app.storage.short_watchlist import short_removal_status, short_watchlist_history
+from app.storage.watchlist import open_watchlist_entries
 from app.x.calendar import completed_through
 
 _DAILY_DIGEST = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
@@ -196,6 +198,24 @@ def build_intake(
     )
     if not calendar:
         lines.append("None.")
+    watchlist = open_watchlist_entries(conn, "LIVE" if live else "PAPER")
+    lines.extend(["", "## Watchlist", ""])
+    for ticker, entry in sorted(watchlist.items()):
+        bounds = (
+            f"{entry.entry_price_min if entry.entry_price_min is not None else 'none'} to "
+            f"{entry.entry_price_max if entry.entry_price_max is not None else 'none'}"
+        )
+        lines.append(
+            f"- {ticker}: listed {entry.listed_at.date().isoformat()}, last stated "
+            f"{entry.restated_at.date().isoformat()} (`{entry.decision_id}`), stated "
+            f"{entry.statements}x, entry band {bounds}"
+        )
+    if not watchlist:
+        lines.append("None.")
+    lines.append(
+        "These are already on the watchlist. Restate one only to change its entry bound; "
+        "otherwise act on it, pass on it, or leave it listed."
+    )
     shorts = [
         call
         for call in short_watchlist_history(conn, "LIVE" if live else "PAPER")
@@ -204,11 +224,26 @@ def build_intake(
     lines.extend(["", "## Short watchlist", ""])
     for call in shorts:
         first, latest = call.declarations[0], call.declarations[-1]
+        bars = get_daily_prices(conn, call.ticker, end=on_date)
+        last_close = bars[-1].close if bars else None
         lines.append(
             f"- {call.ticker}: declared {first.declared_at.date().isoformat()} at "
             f"{first.reference_price if first.reference_price is not None else 'no recorded price'}"
             f", last declared {latest.declared_at.date().isoformat()} (`{latest.decision_id}`)"
+            f", last close {last_close if last_close is not None else 'unavailable'}"
         )
+        conditions = latest.removal_conditions
+        if conditions is not None:
+            lines.append(
+                f"  - removal conditions: cover below {conditions.cover_below}, stop above "
+                f"{conditions.stop_above}, review by {conditions.review_by.isoformat()}"
+            )
+        due = short_removal_status(call, last_close, on_date)
+        if due:
+            lines.append(
+                f"  - REMOVAL DUE ({', '.join(due)}): remove it or re-underwrite it with new "
+                "conditions in this review"
+            )
         lines.extend(
             f"  - invalidation: {criterion}" for criterion in latest.thesis_invalidation_criteria
         )

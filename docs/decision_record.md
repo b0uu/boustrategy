@@ -73,6 +73,8 @@ This would be valid schema but rejected due to policy evaluation.
 - actionable decisions have a refined thesis
 - SHORT_WATCHLIST decisions have a refined thesis, counter-thesis, and `what_is_priced_in`, and both target weights are 0
 - SHORT_WATCHLIST_REMOVE decisions explain the removal in `refined_thesis`, and both target weights are 0
+- SHORT_WATCHLIST decisions carry `short_removal_conditions` (`cover_below`, `stop_above`, `review_by`); every other decision omits it
+- `cover_below` < `reference_price` < `stop_above`, and `review_by` falls after the record's creation date
 - X usage fields are internally consistent across `used`, `usage_type`, and `confirmed_outside_x`
 - `extraordinary_opportunity=true` requires a non-empty `extraordinary_justification`
 - `primary_theme_id` must be one of `theme_ids` and is required for BUY and ADD
@@ -88,6 +90,8 @@ This would be valid schema but rejected due to policy evaluation.
 - reject actionable and SHORT_WATCHLIST decisions whose thesis used X (idea source or confirmation) without outside-X confirmation.
 - SHORT_WATCHLIST is a recommendation for a short the account cannot take; it never creates an order intent.
 - reject SHORT_WATCHLIST_REMOVE for a ticker that isn't on the short watchlist (requires portfolio context).
+- reject SHORT_WATCHLIST whose `review_by` is more than 30 days after the record's creation date.
+- reject WATCHLIST for a ticker already on the watchlist unless `entry_price_max` differs from its latest statement (requires portfolio context).
 
 ## Short watchlist history
 
@@ -97,6 +101,14 @@ its first SHORT_WATCHLIST, collects every later SHORT_WATCHLIST for that ticker
 as a dated declaration with its reference price, and closes at a
 SHORT_WATCHLIST_REMOVE with that record's date and price. A later
 SHORT_WATCHLIST opens a new call.
+
+Each declaration carries the removal conditions recorded with it, and the latest
+declaration governs. `short_removal_status` names every condition an open call
+has already met — `cover_below_hit`, `stop_above_hit`, `review_by_reached` —
+judged on completed daily closes rather than intraday touches, so the answer does
+not depend on when the harness looked. A due call raises a `short_removal_due`
+trigger, is flagged REMOVAL DUE in the intake, and a review that neither removes
+nor re-underwrites it is rejected as an unanswered call.
 - reject BUY/ADD once 2 buy-side trades have executed today; TRIM/SELL are never quota-blocked but a 10-trade/day circuit breaker exists as a malfunction brake (requires portfolio context).
 - reject BUY at 10 existing holdings — the ~7-holding goal lives in the mandate, not policy; reject BUY/ADD that would push a single primary theme above 60% of the portfolio (requires portfolio context).
 

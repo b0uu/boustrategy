@@ -9,6 +9,9 @@ MAX_BUY_ADD_TRADES_PER_DAY_BRAKE = 5
 MAX_SELL_TRIM_TRADES_PER_DAY = 10
 MAX_HOLDINGS = 10
 MAX_PRIMARY_THEME_WEIGHT = 0.60
+# A short call must be looked at again within this many days. The price conditions are the real
+# triggers; this is only the backstop that stops a forgotten call sitting unexamined.
+MAX_SHORT_REVIEW_DAYS = 30
 
 POLICY_VERSION = "decision-policy-1"
 VALIDATOR_VERSION = "decision-record-public-1"
@@ -39,6 +42,10 @@ RULE_LABELS = {
     "max_holdings_reached": "A new holding would exceed the holding-count limit.",
     "primary_theme_concentration_exceeded": "The proposed theme exposure exceeds the entry limit.",
     "short_watchlist_entry_missing": "Only a ticker on the short watchlist can be removed from it.",
+    "short_review_horizon_exceeded": "A short call must be reviewed again within the horizon.",
+    "watchlist_entry_restated": (
+        "A ticker already on the watchlist can only be restated with a different entry bound."
+    ),
 }
 
 
@@ -147,6 +154,22 @@ RULES = {
         (
             "short_watchlist_entry_missing",
             "Short watchlist entry",
+            True,
+            "eq",
+            "boolean",
+            "portfolio",
+        ),
+        (
+            "short_review_horizon_exceeded",
+            "Short review horizon",
+            MAX_SHORT_REVIEW_DAYS,
+            "lte",
+            "count",
+            "decision",
+        ),
+        (
+            "watchlist_entry_restated",
+            "Watchlist restatement",
             True,
             "eq",
             "boolean",

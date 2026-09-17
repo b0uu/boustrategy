@@ -11,7 +11,7 @@ export class PublicError extends Error {
   }
 }
 
-export type ResourceKind = 'overview' | 'positions' | 'performance' | 'policy' | 'runtime' | 'activity' | 'run' | 'feed' | 'decision'
+export type ResourceKind = 'overview' | 'positions' | 'performance' | 'policy' | 'runtime' | 'activity' | 'run' | 'feed' | 'decision' | 'shorts'
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 const array = (value: unknown): value is unknown[] => Array.isArray(value)
 const text = (value: unknown): value is string => typeof value === 'string'
@@ -24,6 +24,7 @@ function valid(value: unknown, kind: ResourceKind): value is Metadata {
   if (kind === 'overview') return text(value.status) && typeof value.decisions_today === 'number' && object(value.decision_counts) && object(value.capabilities)
   if (kind === 'performance') return array(value.history) && value.history.every(p => object(p) && text(p.at) && Number.isFinite(Date.parse(p.at))) && text(value.status)
   if (kind === 'policy') return value.status === 'unavailable' || (array(value.decision_rules) && value.decision_rules.every(p => object(p) && text(p.rule_id) && text(p.name)))
+  if (kind === 'shorts') return array(value.items) && value.items.every(c => object(c) && text(c.ticker) && text(c.status)) && text(value.status)
   if (kind === 'runtime') return array(value.schedules) && value.schedules.every(s => object(s) && text(s.schedule_mode))
   if (kind === 'activity') return array(value.items) && value.items.every(r => object(r) && text(r.public_id) && text(r.status)) && typeof value.total === 'number'
   if (kind === 'run') return text(value.public_id) && text(value.status) && array(value.attempts)

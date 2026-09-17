@@ -41,6 +41,15 @@ export interface Overview extends Metadata {
   holding_episodes?: { status: string; reason?: string; items: Episode[]; total?: number; truncated?: boolean }
 }
 export interface Positions extends Metadata { portfolio_id: Scope; mode?: Scope; status: string; valuation_status: string; reason: string | null; data_as_of: string | null; items: Position[] }
+// A short the account would take if it could. Long-only execution never acts on one.
+export interface ShortCall {
+  ticker: string; status: string; declared_at: string; declared_price: number | null
+  declarations: string[]; latest_declared_at: string; removed_at: string | null
+  end_price: number | null; ended_at: string | null; short_return_percent: number | null
+  days_listed: number; due: string[]
+  removal_conditions: { cover_below: number; stop_above: number; review_by: string } | null
+}
+export interface ShortCalls extends Metadata { portfolio_id: Scope; status: string; reason: string | null; items: ShortCall[] }
 export interface ChartPoint { at: string; equity: DecimalValue; return_percent: DecimalValue; quality: string }
 export interface Performance extends Metadata {
   portfolio_id: Scope; range: Range; status: string; reason: string | null; return_percent: DecimalValue

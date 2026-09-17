@@ -302,6 +302,11 @@ def test_a_short_call_carries_its_price_and_story_and_may_be_made_while_closed()
             "what_is_priced_in": "Consensus still prices a second-half recovery.",
             "proposed_target_weight": 0.0,
             "final_target_weight": 0.0,
+            "short_removal_conditions": {
+                "cover_below": 150.0,
+                "stop_above": 260.0,
+                "review_by": "2026-06-30",
+            },
         }
     )
     ledger = [candidate(record.ticker, "SHORT_WATCHLIST"), candidate("TSM"), candidate("MSFT")]

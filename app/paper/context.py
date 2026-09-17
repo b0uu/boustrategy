@@ -4,6 +4,7 @@ from datetime import date
 from app.paper.broker import cash_balance, validate_paper_ledger
 from app.policy.decision_policy import PortfolioContext
 from app.storage.short_watchlist import short_watchlist_history
+from app.storage.watchlist import open_watchlist_entries
 
 
 def position_tickers(conn: sqlite3.Connection) -> list[str]:
@@ -57,4 +58,8 @@ def portfolio_context(
             for call in short_watchlist_history(conn, "PAPER")
             if call.removed_at is None
         ),
+        watchlist_entries={
+            ticker: entry.entry_price_max
+            for ticker, entry in open_watchlist_entries(conn, "PAPER").items()
+        },
     )

@@ -67,6 +67,11 @@ def test_short_watchlist_never_becomes_an_order():
         what_is_priced_in="Recovery priced.",
         proposed_target_weight=0.0,
         final_target_weight=0.0,
+        short_removal_conditions={
+            "cover_below": 150.0,
+            "stop_above": 260.0,
+            "review_by": "2026-06-30",
+        },
     )
 
     with pytest.raises(ValueError, match="not actionable"):

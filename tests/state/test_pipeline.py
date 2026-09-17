@@ -92,6 +92,11 @@ def test_approved_short_watchlist_is_recorded_without_an_intent() -> None:
         what_is_priced_in="Consensus still prices a second-half recovery.",
         proposed_target_weight=0.0,
         final_target_weight=0.0,
+        short_removal_conditions={
+            "cover_below": 150.0,
+            "stop_above": 260.0,
+            "review_by": "2026-06-30",
+        },
     )
 
     outcome = process_decision(conn, record.model_dump(mode="json"))

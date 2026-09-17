@@ -2,6 +2,7 @@ import sqlite3
 from datetime import date, timedelta
 
 from app.prices.cache import get_daily_prices
+from app.storage.short_watchlist import short_removal_status, short_watchlist_history
 from app.triggers.store import expire_triggers, insert_trigger
 
 PRICE_MOVE_THRESHOLD = 0.05
@@ -108,6 +109,30 @@ def evaluate_triggers(
             counts["digest_headline"] += 1
         else:
             counts["digest_headline_skipped"] += 1
+
+    # A short call the account cannot trade still has to be answered: when a close crosses one of
+    # its removal conditions, or its backstop date arrives, the next review must deal with it.
+    for mode in ("PAPER", "LIVE"):
+        for call in short_watchlist_history(conn, mode):
+            if call.removed_at is not None:
+                continue
+            bars = get_daily_prices(conn, call.ticker, end=evaluation_date)
+            close = bars[-1].close if bars else None
+            due = short_removal_status(call, close, evaluation_date)
+            if due and insert_trigger(
+                conn,
+                "short_removal_due",
+                call.ticker,
+                evaluation_date,
+                evaluation_date,
+                {
+                    "due": due,
+                    "close": close,
+                    "mode": mode,
+                    "declared_by": call.declarations[-1].decision_id,
+                },
+            ):
+                counts["short_removal_due"] = counts.get("short_removal_due", 0) + 1
 
     counts["expired"] = expire_triggers(conn, evaluation_date - timedelta(days=TRIGGER_TTL_DAYS))
     return counts

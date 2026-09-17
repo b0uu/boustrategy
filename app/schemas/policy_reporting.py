@@ -15,6 +15,9 @@ class PortfolioInputs(PolicyModel):
     primary_theme_weights: dict[str, float] = Field(default_factory=dict)
     # None means the caller supplied no short-watchlist facts, not an empty list.
     short_watchlist_tickers: list[str] | None = None
+    # Open watchlist tickers mapped to the entry bound of their latest statement. None means the
+    # caller supplied no watchlist facts; a None value means that entry carries no upper bound.
+    watchlist_entries: dict[str, float | None] | None = None
 
 
 class PolicyInputIdentity(PolicyModel):

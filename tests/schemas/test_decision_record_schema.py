@@ -59,7 +59,10 @@ def test_non_actionable_decision_does_not_require_refined_thesis():
     assert record.decision == "WATCHLIST"
 
 
-def test_short_watchlist_records_a_researched_short_with_no_weight():
+CONDITIONS = {"cover_below": 150.0, "stop_above": 260.0, "review_by": "2026-06-30"}
+
+
+def short_watchlist_data(**overrides: object) -> dict[str, object]:
     data = valid_decision_record_data()
     data.update(
         decision="SHORT_WATCHLIST",
@@ -67,37 +70,58 @@ def test_short_watchlist_records_a_researched_short_with_no_weight():
         what_is_priced_in="Consensus still prices a second-half recovery.",
         proposed_target_weight=0.0,
         final_target_weight=0.0,
+        short_removal_conditions=dict(CONDITIONS),
     )
+    data.update(overrides)
+    return data
 
-    record = InvestmentDecisionRecord.model_validate(data)
+
+def test_short_watchlist_records_a_researched_short_with_no_weight():
+    record = InvestmentDecisionRecord.model_validate(short_watchlist_data())
 
     assert record.decision == "SHORT_WATCHLIST"
+    assert record.short_removal_conditions is not None
+    assert record.short_removal_conditions.review_by.isoformat() == "2026-06-30"
+
+
+def test_a_short_call_needs_removal_conditions_that_bracket_its_price():
+    with pytest.raises(ValidationError, match="requires short_removal_conditions"):
+        InvestmentDecisionRecord.model_validate(short_watchlist_data(short_removal_conditions=None))
+    with pytest.raises(ValidationError, match="cover_below must be under stop_above"):
+        InvestmentDecisionRecord.model_validate(
+            short_watchlist_data(
+                short_removal_conditions={**CONDITIONS, "cover_below": 300.0},
+            )
+        )
+    with pytest.raises(ValidationError, match="must sit between"):
+        InvestmentDecisionRecord.model_validate(
+            short_watchlist_data(reference_price=140.0, reference_price_at="2026-06-10T11:00:00Z")
+        )
+    with pytest.raises(ValidationError, match="review_by must follow"):
+        InvestmentDecisionRecord.model_validate(
+            short_watchlist_data(short_removal_conditions={**CONDITIONS, "review_by": "2026-06-09"})
+        )
+
+
+def test_only_a_short_call_carries_removal_conditions():
+    data = valid_decision_record_data()
+    data["short_removal_conditions"] = dict(CONDITIONS)
+
+    with pytest.raises(ValidationError, match="belong only to a SHORT_WATCHLIST"):
+        InvestmentDecisionRecord.model_validate(data)
 
 
 def test_short_watchlist_cannot_carry_weight():
-    data = valid_decision_record_data()
-    data.update(
-        decision="SHORT_WATCHLIST",
-        counter_thesis="Bull case.",
-        what_is_priced_in="Recovery priced.",
-    )
+    data = short_watchlist_data()
+    data.update(proposed_target_weight=0.12, final_target_weight=0.12)
 
     with pytest.raises(ValidationError, match="target weights must be 0"):
         InvestmentDecisionRecord.model_validate(data)
 
 
 def test_short_watchlist_requires_a_counter_thesis():
-    data = valid_decision_record_data()
-    data.update(
-        decision="SHORT_WATCHLIST",
-        counter_thesis="",
-        what_is_priced_in="Recovery priced.",
-        proposed_target_weight=0.0,
-        final_target_weight=0.0,
-    )
-
     with pytest.raises(ValidationError, match="counter_thesis"):
-        InvestmentDecisionRecord.model_validate(data)
+        InvestmentDecisionRecord.model_validate(short_watchlist_data(counter_thesis=""))
 
 
 def test_short_removal_must_give_its_reason():

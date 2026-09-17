@@ -1,4 +1,5 @@
 import re
+from datetime import date
 from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -93,6 +94,20 @@ class XSignalUsage(BaseModel):
         return self
 
 
+class ShortRemovalConditions(BaseModel):
+    """When a short call stops being a short call: two prices and a backstop date.
+
+    The prices are the live triggers; the date only stops a forgotten call sitting unexamined.
+    Neither replaces the agent's own judgement, which may remove a call at any review.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cover_below: float = Field(gt=0.0)
+    stop_above: float = Field(gt=0.0)
+    review_by: date
+
+
 class InvestmentDecisionRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -141,6 +156,9 @@ class InvestmentDecisionRecord(BaseModel):
     # the level the reasoning saw.
     reference_price: float | None = Field(default=None, gt=0.0)
     reference_price_at: AwareDatetime | None = None
+
+    # Only a SHORT_WATCHLIST carries these; they are what the removal monitor watches.
+    short_removal_conditions: ShortRemovalConditions | None = None
 
     source_claims: list[SourceClaim] = Field(default_factory=list)
     x_signal_usage: XSignalUsage = Field(default_factory=XSignalUsage)
@@ -203,6 +221,23 @@ class InvestmentDecisionRecord(BaseModel):
                     raise ValueError(f"{name} is required for SHORT_WATCHLIST decisions")
         if self.decision == Decision.SHORT_WATCHLIST_REMOVE and not self.refined_thesis.strip():
             raise ValueError("refined_thesis must explain a SHORT_WATCHLIST_REMOVE")
+
+        conditions = self.short_removal_conditions
+        if self.decision == Decision.SHORT_WATCHLIST and conditions is None:
+            raise ValueError("SHORT_WATCHLIST requires short_removal_conditions")
+        if self.decision != Decision.SHORT_WATCHLIST and conditions is not None:
+            raise ValueError("short_removal_conditions belong only to a SHORT_WATCHLIST")
+        if conditions is not None:
+            if conditions.cover_below >= conditions.stop_above:
+                raise ValueError("cover_below must be under stop_above")
+            # The call only makes sense between its own triggers: a price already through either
+            # one would arrive due for removal.
+            if self.reference_price is not None and not (
+                conditions.cover_below < self.reference_price < conditions.stop_above
+            ):
+                raise ValueError("reference_price must sit between cover_below and stop_above")
+            if conditions.review_by <= self.created_at.date():
+                raise ValueError("review_by must follow the decision date")
         if self.decision in {Decision.SHORT_WATCHLIST, Decision.SHORT_WATCHLIST_REMOVE} and (
             self.proposed_target_weight or self.final_target_weight
         ):

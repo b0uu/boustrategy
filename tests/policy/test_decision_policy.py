@@ -13,6 +13,18 @@ def portfolio_context(**overrides: object) -> PortfolioContext:
     return PortfolioContext.model_validate(data)
 
 
+def test_a_listed_ticker_is_only_restated_with_a_different_entry_bound():
+    record = decision_record_with(decision="WATCHLIST", entry_price_max=105.0)
+
+    same = evaluate_decision_policy(record, portfolio_context(watchlist_entries={"NVDA": 105.0}))
+    moved = evaluate_decision_policy(record, portfolio_context(watchlist_entries={"NVDA": 98.0}))
+    fresh = evaluate_decision_policy(record, portfolio_context(watchlist_entries={"AMD": 50.0}))
+    unknown = evaluate_decision_policy(record, portfolio_context())
+
+    assert same.reasons == ["watchlist_entry_restated"]
+    assert moved.approved and fresh.approved and unknown.approved
+
+
 def test_valid_buy_in_green_is_approved():
     record = valid_decision_record()
 
@@ -59,14 +71,20 @@ def test_rejects_buy_without_source_claims():
 
 
 def short_watchlist(**overrides: object) -> InvestmentDecisionRecord:
-    return decision_record_with(
-        decision="SHORT_WATCHLIST",
-        counter_thesis="Bull case: backlog could re-accelerate.",
-        what_is_priced_in="Consensus still prices a second-half recovery.",
-        proposed_target_weight=0.0,
-        final_target_weight=0.0,
-        **overrides,
-    )
+    data: dict[str, object] = {
+        "decision": "SHORT_WATCHLIST",
+        "counter_thesis": "Bull case: backlog could re-accelerate.",
+        "what_is_priced_in": "Consensus still prices a second-half recovery.",
+        "proposed_target_weight": 0.0,
+        "final_target_weight": 0.0,
+        "short_removal_conditions": {
+            "cover_below": 150.0,
+            "stop_above": 260.0,
+            "review_by": "2026-06-30",
+        },
+    }
+    data.update(overrides)
+    return decision_record_with(**data)
 
 
 def test_evidenced_short_watchlist_is_approved():
@@ -82,6 +100,22 @@ def test_rejects_short_watchlist_without_evidence():
 
     assert not result.approved
     assert {"missing_source_claims", "missing_invalidation_criteria"} <= set(result.reasons)
+
+
+def test_rejects_a_short_call_whose_review_sits_beyond_the_horizon():
+    # The price conditions are the live triggers; this backstop stops a forgotten call running on.
+    result = evaluate_decision_policy(
+        short_watchlist(
+            short_removal_conditions={
+                "cover_below": 150.0,
+                "stop_above": 260.0,
+                "review_by": "2026-09-30",
+            }
+        )
+    )
+
+    assert not result.approved
+    assert "short_review_horizon_exceeded" in result.reasons
 
 
 def test_short_removal_requires_the_ticker_on_the_short_watchlist():

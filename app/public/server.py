@@ -363,6 +363,11 @@ def create_public_app(
         with open_readonly(published) as conn:
             return queries.policy_catalog(conn, portfolio_id)
 
+    @app.api_route("/api/public/v2/portfolios/{portfolio_id}/shorts", methods=["GET", "HEAD"])
+    def shorts(portfolio_id: Literal["live", "paper"]) -> dict[str, Any]:
+        with open_readonly(published) as conn:
+            return queries.short_calls(conn, portfolio_id)
+
     @app.api_route("/api/public/v2/decisions/{public_id}/export", methods=["GET", "HEAD"])
     def export(public_id: str, format: Literal["json", "csv"] = "json") -> Response:
         result = decision_detail(public_id)

@@ -43,6 +43,13 @@ it('reports the live account only and never offers the paper simulation', async 
   expect(screen.queryByText('Decision trace')).not.toBeInTheDocument()
 })
 
+it('presents short calls as recommendations and states an empty list plainly', async () => {
+  await dashboard()
+  fireEvent.click(screen.getByRole('button', { name: 'shorts' }))
+  expect(await screen.findByText(/No short has been recommended/)).toBeVisible()
+  expect(screen.getByText(/long-only and never holds a short/)).toBeVisible()
+})
+
 it('dismisses agent details when the reader clicks elsewhere', async () => {
   await dashboard()
   const trigger = screen.getByLabelText('Agent and publication details')

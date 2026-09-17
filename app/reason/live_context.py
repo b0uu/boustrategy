@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime, time, timedelta
 from app.policy.decision_policy import PortfolioContext
 from app.schemas.live_execution import LivePortfolioSnapshot
 from app.storage.short_watchlist import short_watchlist_history
+from app.storage.watchlist import open_watchlist_entries
 from app.x.calendar import NEW_YORK
 
 
@@ -54,4 +55,10 @@ def live_portfolio_context(
             for call in short_watchlist_history(conn, "LIVE", snapshot.execution_profile_id)
             if call.removed_at is None
         ),
+        watchlist_entries={
+            ticker: entry.entry_price_max
+            for ticker, entry in open_watchlist_entries(
+                conn, "LIVE", snapshot.execution_profile_id
+            ).items()
+        },
     )

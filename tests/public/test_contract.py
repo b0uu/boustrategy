@@ -29,7 +29,16 @@ UNFIXTURED_ROUTES = {
     "/api/public/v2/legacy-decisions/{ticker}/{created_at}",
 }
 SCOPES = ("live", "paper")
-SECTIONS = ("overview", "positions", "performance", "policy", "runtime", "activity", "feed")
+SECTIONS = (
+    "overview",
+    "positions",
+    "performance",
+    "policy",
+    "runtime",
+    "activity",
+    "feed",
+    "shorts",
+)
 
 
 def generator() -> Any:

@@ -22,6 +22,7 @@ import type {
   PolicyCatalog,
   Positions,
   Runtime,
+  ShortCalls,
 } from './types'
 
 type RequiredKeys<T> = { [K in keyof T]-?: undefined extends T[K] ? never : K }[keyof T]
@@ -45,6 +46,8 @@ declares<ActivityPage>(sample['live/activity'])
 declares<ActivityPage>(sample['paper/activity'])
 declares<FeedPage>(sample['live/feed'])
 declares<FeedPage>(sample['paper/feed'])
+declares<ShortCalls>(sample['live/shorts'])
+declares<ShortCalls>(sample['paper/shorts'])
 declares<Decision>(sample['decision/detail'])
 declares<ActivityItem>(sample['activity/detail'])
 

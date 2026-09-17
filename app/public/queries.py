@@ -267,3 +267,29 @@ def policy_catalog(conn: sqlite3.Connection, portfolio_id: str) -> dict[str, Any
             {"public_id": triggered[0], "created_at": triggered[1]} if triggered else None
         )
     return {**metadata(conn), "portfolio_id": portfolio_id, "status": "available", **payload}
+
+
+def short_calls(conn: sqlite3.Connection, portfolio_id: str) -> dict[str, Any]:
+    """Recorded short recommendations. The account is long-only, so these are never positions."""
+    row = (
+        conn.execute(
+            "SELECT content FROM public_short_calls WHERE portfolio_id=?", (portfolio_id,)
+        ).fetchone()
+        if table_exists(conn, "public_short_calls")
+        else None
+    )
+    if row is None:
+        return {
+            **metadata(conn),
+            "portfolio_id": portfolio_id,
+            "status": "unavailable",
+            "reason": "not_published",
+            "items": [],
+        }
+    return {
+        **metadata(conn),
+        "portfolio_id": portfolio_id,
+        "status": "available",
+        "reason": None,
+        **json.loads(row[0]),
+    }

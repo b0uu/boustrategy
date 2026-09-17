@@ -124,6 +124,10 @@ def initialize(path: str | Path) -> sqlite3.Connection:
         "CREATE TABLE IF NOT EXISTS public_policy "
         "(portfolio_id TEXT PRIMARY KEY, content TEXT NOT NULL)"
     )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS public_short_calls "
+        "(portfolio_id TEXT PRIMARY KEY, content TEXT NOT NULL)"
+    )
     conn.commit()
     return conn
 
@@ -228,7 +232,7 @@ def publish(
             ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 11,
+                    "version": 12,
                     "accounting_clock": accounting_clock,
                     "identity": identity,
                     "changes": changes,
@@ -1053,6 +1057,9 @@ def publish(
                 "fills retain original close-based sizing. No fees, slippage, dividends or "
                 "corporate actions are simulated."
             )
+            # Kept beside its only publication use; the short watchlist is derived, not stored.
+            from app.storage.short_watchlist import short_call_report
+
             for portfolio in (live, paper_view):
                 portfolio["decision_counts"] = decision_counts[portfolio["mode"]]
                 portfolio["decision_count_date"] = decision_count_date
@@ -1191,6 +1198,24 @@ def publish(
                     "INSERT INTO public_policy VALUES (?, ?) ON CONFLICT(portfolio_id) "
                     "DO UPDATE SET content=excluded.content",
                     (portfolio["portfolio_id"], json.dumps(policy_catalog, sort_keys=True)),
+                )
+                # Both modes are published; the dashboard offers only the live one today, so a
+                # paper surface needs no new publication work. Decision IDs stay internal.
+                calls = [
+                    {name: value for name, value in call.items() if name != "decision_ids"}
+                    for call in short_call_report(
+                        source,
+                        "LIVE" if portfolio["mode"] == "live" else "PAPER",
+                        live_profiles[0]
+                        if portfolio["mode"] == "live" and len(live_profiles) == 1
+                        else None,
+                        published_at.astimezone(NEW_YORK).date(),
+                    )
+                ]
+                target.execute(
+                    "INSERT INTO public_short_calls VALUES (?, ?) ON CONFLICT(portfolio_id) "
+                    "DO UPDATE SET content=excluded.content",
+                    (portfolio["portfolio_id"], json.dumps({"items": calls}, sort_keys=True)),
                 )
                 target.execute(
                     "INSERT INTO public_portfolios VALUES (?, ?) ON CONFLICT(portfolio_id) DO "

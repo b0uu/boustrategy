@@ -13,6 +13,7 @@ import { Feed } from './Feed'
 import { Performance } from './Performance'
 import { Positions } from './Positions'
 import { Policies } from './Policies'
+import { Shorts } from './Shorts'
 import { AgentStatus } from './Activity'
 import { DecisionPage } from './Decision'
 import { Link, dashboardUrl, navigate, useLocation } from './navigation'
@@ -25,7 +26,7 @@ import './styles.css'
 // The public dashboard reports one live account. The paper simulation is still published
 // and still reachable through the API; it is simply not a thing the reader is offered.
 const SCOPE: Scope = 'live'
-const TABS = ['feed', 'positions', 'policies'] as const
+const TABS = ['feed', 'positions', 'shorts', 'policies'] as const
 const ISSUES_URL = 'https://github.com/b0uu/boustrategy/issues'
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
@@ -61,6 +62,7 @@ export function DashboardPage({ search }: { search: string }) {
     <nav className="tabs" aria-label="Dashboard sections">{TABS.map(value => <button key={value} aria-pressed={tab === value} onClick={() => navigate(dashboardUrl({ tab: value }, search))}>{value}</button>)}</nav>
     {(feedVisited || tab === 'feed') && <div className="dashboard-panel" hidden={tab !== 'feed'}><Section name="decision feed"><Feed scope={SCOPE} search={search} /></Section></div>}
     {tab === 'positions' && <div className="dashboard-panel"><Section name="positions"><Positions scope={SCOPE} overview={overview.data} /></Section></div>}
+    {tab === 'shorts' && <div className="dashboard-panel"><Section name="short calls"><Shorts scope={SCOPE} /></Section></div>}
     {tab === 'policies' && <div className="dashboard-panel"><Section name="policies"><Policies scope={SCOPE} /></Section></div>}
   </>
 }

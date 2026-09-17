@@ -315,6 +315,7 @@ def generate() -> dict:
                 "policy",
                 "runtime",
                 "activity",
+                "shorts",
             ):
                 response = client.get(f"/api/public/v2/portfolios/{mode}/{section}")
                 response.raise_for_status()

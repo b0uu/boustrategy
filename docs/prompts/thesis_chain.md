@@ -145,6 +145,12 @@ JSON at step 7.
    Max-tier conviction bar in `docs/risk_posture.md`. Set `entry_price_min` to
    the lowest price at which the short thesis still holds, and record
    `reference_price` from an opened quote page so the call can be scored.
+   Set `short_removal_conditions` in the same pass: `cover_below` (the price at
+   which the short has played out), `stop_above` (the price that proves it
+   wrong), and `review_by` (a backstop date within 30 days). The reference price
+   must sit between the two. A call the intake marks REMOVAL DUE must be
+   answered in that review — removed, or re-underwritten with conditions the
+   current price does not already trip, and only once before it must be removed.
    A SHORT_WATCHLIST_REMOVE needs the reason for removal in `refined_thesis`
    and the same `reference_price`, so the call's end is scored too.
 9. Produce raw JSON matching the exact current `InvestmentDecisionRecord`
