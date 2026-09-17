@@ -167,8 +167,12 @@ main:focus, h1:focus { outline: none; }
 /* The toggle rides inside the label line, so it stays the label's height: a taller control would
    push this metric's label below the one beside it. */
 .metric-label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
-.unit-toggle { display: inline-flex; border: 1px solid var(--border-soft); border-radius: 3px; overflow: hidden; }
-.unit-toggle button { min-width: 17px; padding: 0 3px; border: 0; background: transparent; color: var(--text-3); font: 600 9.5px/14px 'IBM Plex Mono', monospace; cursor: pointer; }
+/* The buttons are sized by their own line box, never by a fixed height or flex centring: Safari
+   doesn't lay a button's content out as flex, so a fixed height clipped the % and $ away entirely. */
+/* iOS gives form controls a 44px min-height, which outranks a plain height, so the buttons carry
+   min-height: 0; the control itself is pinned and centres them so it can't inherit that height. */
+.unit-toggle { display: inline-flex; align-items: center; align-self: center; height: 18px; border: 1px solid var(--border-soft); border-radius: 3px; }
+.unit-toggle button { appearance: none; -webkit-appearance: none; min-width: 18px; min-height: 0; height: 16px; padding: 0 4px; border: 0; border-radius: 2px; background: transparent; color: var(--text-3); font: 600 11px/16px 'IBM Plex Mono', monospace; text-align: center; cursor: pointer; }
 .unit-toggle button + button { border-left: 1px solid var(--border-soft); }
 .unit-toggle button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
 .unit-toggle button:hover { color: var(--text); }
@@ -443,7 +447,9 @@ main:focus, h1:focus { outline: none; }
   /* The date takes its own line, but stops short of the chevron's column: spanning to the end
      pushed the chevron onto a line of its own at the far left. */
   .stream-row--review > summary time, .stream-row time { grid-column: 2 / 4; text-align: left; }
-  .stream-row > .chevron, .stream-row--review > summary > .chevron { grid-column: 4; grid-row: 1; align-self: center; }
+  /* Top-aligned, not centred: a long summary makes the row tall and centring floats the chevron
+     halfway down it, away from the headline it belongs to. */
+  .stream-row > .chevron, .stream-row--review > summary > .chevron { grid-column: 4; grid-row: 1; align-self: start; margin-top: 2px; }
   .chart-scale { font-size: 9.5px; right: 2px; }
   .check-heading, .policy-check > summary { grid-template-columns: 14px minmax(0, 1fr) 76px; }
   .check-heading > span:last-child, .policy-check > summary > .threshold { display: none; }

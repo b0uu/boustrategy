@@ -24,6 +24,20 @@ const INSET = 6
 export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   const frame = useRef<SVGSVGElement | null>(null)
   const [active, setActive] = useState<number | null>(null)
+  // Draw at the element's own width so one unit is one pixel. A fixed canvas stretched to fit
+  // squeezes the shape horizontally on a phone. A measurement of 0 (jsdom, display:none) keeps
+  // the default rather than collapsing the chart.
+  const [width, setWidth] = useState(WIDTH)
+  useEffect(() => {
+    const node = frame.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      const measured = Math.round(entries[0].contentRect.width)
+      if (measured > 0) setWidth(measured)
+    })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
   const valid = points.filter(point => numeric(point.equity) !== null && point.quality === 'complete')
   if (!valid.length) return <Empty>Portfolio history isn't available for this range.</Empty>
   const times = points.map(point => Date.parse(point.at))
@@ -32,7 +46,7 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   const low = Math.min(...values), high = Math.max(...values)
   const single = valid.length === 1
   // Inset both ends: drawn edge to edge, the latest point sits half under the container's edge.
-  const x = (point: ChartPoint) => (last === first ? WIDTH / 2 : INSET + (Date.parse(point.at) - first) / (last - first) * (WIDTH - INSET * 2))
+  const x = (point: ChartPoint) => (last === first ? width / 2 : INSET + (Date.parse(point.at) - first) / (last - first) * (width - INSET * 2))
   const yValue = (value: number) => (high === low ? 54 : 96 - (value - low) / (high - low) * 84)
   const y = (point: ChartPoint) => yValue(numeric(point.equity)!)
   const segments: ChartPoint[][] = []
@@ -71,7 +85,7 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   const track = (clientX: number) => {
     const rect = frame.current?.getBoundingClientRect()
     if (!rect || !rect.width) return
-    setActive(Math.min(WIDTH, Math.max(0, (clientX - rect.left) / rect.width * WIDTH)))
+    setActive(Math.min(width, Math.max(0, (clientX - rect.left) / rect.width * width)))
   }
   const move = (direction: number) => setActive(current => {
     if (current === null) return x(valid[direction < 0 ? valid.length - 1 : 0])
@@ -80,7 +94,7 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
     return x(valid[Math.min(valid.length - 1, Math.max(0, nearest + direction))])
   })
   return <figure className="chart-figure">
-    <svg ref={frame} className="portfolio-chart" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img"
+    <svg ref={frame} className="portfolio-chart" viewBox={`0 0 ${width} ${HEIGHT}`} preserveAspectRatio="none" role="img"
       aria-label={`Portfolio value, ${valid.length} complete observation${valid.length === 1 ? '' : 's'}. ${money(values[0])} to ${money(values[values.length - 1])}. Incomplete observations are gaps.`}
       tabIndex={0}
       onKeyDown={event => {
@@ -91,13 +105,13 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
       onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); track(event.clientX) }}
       onPointerMove={event => track(event.clientX)} onPointerUp={event => event.currentTarget.releasePointerCapture(event.pointerId)} onPointerLeave={() => setActive(null)}>
       {/* A flat reference line keeps a single observation legible as a value rather than a stray dot. */}
-      {single && <line className="chart-baseline" x1="0" x2={WIDTH} y1={y(valid[0])} y2={y(valid[0])} />}
+      {single && <line className="chart-baseline" x1="0" x2={width} y1={y(valid[0])} y2={y(valid[0])} />}
       {segments.map((part, index) => part.length === 1
         ? <circle key={index} className="chart-point" cx={x(part[0])} cy={y(part[0])} r="3" />
         : <g key={index}>{high !== low && <polygon points={`${x(part[0])},${HEIGHT} ${part.map(point => `${x(point)},${y(point)}`).join(' ')} ${x(part[part.length - 1])},${HEIGHT}`} />}<polyline points={part.map(point => `${x(point)},${y(point)}`).join(' ')} /></g>)}
       {selected && <g><line className="chart-cursor" x1={selected.x} x2={selected.x} y1="0" y2={HEIGHT} /><circle className="chart-point is-active" cx={selected.x} cy={yValue(selected.equity)} r="3.5" /></g>}
     </svg>
-    {selected && <div className={`chart-tooltip${selected.x < 72 ? ' is-start' : selected.x > WIDTH - 72 ? ' is-end' : ''}`} style={{ left: `${selected.x / WIDTH * 100}%` }}>
+    {selected && <div className={`chart-tooltip${selected.x < 72 ? ' is-start' : selected.x > width - 72 ? ' is-end' : ''}`} style={{ left: `${selected.x / width * 100}%` }}>
       <span><strong className="mono">{money(selected.equity)}</strong>{selected.returnPercent != null && <span className={`mono ${tone(selected.returnPercent)}`}>{percent(selected.returnPercent)}</span>}</span>
       <time dateTime={selected.at}>{when(selected.at)} · {selected.recorded ? 'Recorded' : 'Estimated'}</time>
     </div>}
