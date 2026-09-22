@@ -154,7 +154,7 @@ Republish from the source into that restored file to retain its opaque IDs. Use 
 when changing public URLs is acceptable. Don't copy a live WAL file by itself. Verify the restored
 database with the release tests, the HTTP benchmark, and the read-only smoke before serving it again.
 
-## Public operation (plan 039)
+## Public operation
 
 The public dashboard is served at `https://boustrategy.com` from this host:
 
@@ -421,7 +421,6 @@ changes. New paper fills use `next_open_v2`; historical fills remain `legacy_clo
 Reconstructed paper benchmarks are withheld for corporate-action convention mismatch.
 The public positions view recognizes a formerly funded account's `zero_balance` state.
 
-No real source publication, deployment or activation occurred. See
-[the audit record](plan-031-audit.md) and [operating assessment](execution-assessment.md).
-The recommendation is a private dashboard over the persisted runtime, with authenticated
-controls and fresh snapshot/broker reconciliation capabilities completed before unattended live use.
+This September 8 audit was pre-launch historical evidence: no real source publication,
+deployment or activation had occurred at that point. The public launch followed on September 11,
+as documented above.

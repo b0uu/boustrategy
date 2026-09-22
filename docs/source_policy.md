@@ -133,14 +133,11 @@ accumulates a scrutiny history over time.
 
 ## X ingestion: decided approach
 
-The ingestion layer is designed **source-agnostic** (curated handle list +
-the X signal object schema from spec 8), with the provider decision
-deferred to a dedicated cost/feasibility research pass. 
-
-Candidates: official X API tiers, Grok API live search, third-party providers, or a manual
-curation MVP. The spec's $10-30/month budget for X tracking is likely
-optimistic against official API pricing; the research pass settles this
-before any build commits to a provider.
+The ingestion layer remains **source-agnostic** at its boundary (human-curated
+handle list plus the X signal object schema from spec 8). The implemented
+provider is the official X API. The roster remains human-owned, and code caps
+usage at 5,000 Post reads per month, approximately $25 at the documented
+$0.005-per-read rate, in addition to the provider-side spending limit.
 
 ## Public safety
 

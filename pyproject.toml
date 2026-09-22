@@ -10,7 +10,7 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     # Not imported directly. Transitive minimums under yfinance/httpx for the
-    # advisories recorded in docs/plan-031-audit.md ("Dependency evidence").
+    # minimums required to avoid known transitive dependency advisories.
     "idna>=3.15",
     "requests>=2.33.0",
     "urllib3>=2.7.0",
@@ -30,7 +30,7 @@ filterwarnings = [
     # Fail on upstream deprecations so a removal never lands as a broken suite.
     # Deliberately NOT a blanket "error": ~20 test modules open sqlite connections
     # without closing them, and on Python 3.14 the GC-time ResourceWarning would
-    # fail whichever test happens to be running (see plans/README.md backlog).
+    # fail whichever test happens to be running; closing those connections is tracked separately.
     "error::DeprecationWarning",
     "error::PendingDeprecationWarning",
     "error::FutureWarning",

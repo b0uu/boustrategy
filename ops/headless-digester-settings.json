@@ -13,8 +13,6 @@
     ],
     "deny": [
       "Bash(git *)",
-      "Write(plans/README.md)",
-      "Edit(plans/README.md)",
       "Write(docs/**)",
       "Edit(docs/**)",
       "Write(docs)",

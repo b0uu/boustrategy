@@ -22,7 +22,7 @@ The strategy documents in `docs/` likely take precedence where they overlap with
 
 ## 1. About
 
-BouStrategy attempts to create an investment agent that revolves around a human-written investment framework. Agents operate under a system that researches, reasons, trades, logs its reasoning, monitors thesis validity. A public dashboard will display performance of the trading run operated by BouStrategy agent.  
+BouStrategy attempts to create an investment agent that revolves around a human-written investment framework. Agents operate under a system that researches, reasons, trades, logs its reasoning, monitors thesis validity. A deployed public dashboard displays the performance of the trading run operated by the BouStrategy agent.
 
 The core challenge is building an investment harness that is able to deeply consider and execute upon investment frameworks and constraints. Agents will:
 
@@ -118,8 +118,6 @@ Thesis should map to specific 'strategy beliefs'. The beliefs (SB-001 onward) ar
 ### Theme docs
 
 Theme IDs are classification and concentration-accounting categories, not investment endorsements. Individual decisions must stand on the company-specific reasoning in their Investment Decision Records. Dedicated theme memos are optional and may be created later when several decisions share a causal chain or shared monitoring would add value.
-
-`docs/theme_classification.md` is retained as an inactive reference and must not be included in agent context or decision-making unless the maintainer explicitly adopts it later.
 
 `emergent_theme` may create a research initiative, but cannot directly create an order until vetted
 
@@ -552,7 +550,7 @@ Decision Record
 
 ### Components
 
-- **Investment Intelligence Library/CLI:** strategy constitution, theme taxonomy, source packs, regime snapshots, schemas, policy checks, and records database. Reasoning sessions use CLI and files through the paper period; the decision-worker CLI surface is not yet complete.
+- **Investment Intelligence Library/CLI:** strategy constitution, theme taxonomy, source packs, regime snapshots, schemas, policy checks, records database, and the implemented decision-worker command surface used by scheduled reviews.
 - **LLM Reasoning Worker:** runs predetermined thesis/management workflows and writes structured records through the investment intelligence interface.
 - **Backend State Machine:** validates schemas, runs policy checks, prevents duplicate orders, manages order intent status, controls broker execution, logs transitions.
 - **Robinhood Execution Adapter:** portfolio state, positions, quotes, tradability, order review, order placement, and order status.
@@ -577,7 +575,7 @@ Trigger / Schedule
 
 `trigger_detected`, `source_pack_created`, `candidate_screened`, `decision_record_created`, `schema_validated`, `schema_failed`, `policy_approved`, `policy_rejected`, `order_intent_created`, `broker_reviewed`, `submitted`, `filled`, `partially_filled`, `canceled`, `failed`, `published`.
 
-Statuses are implemented through `order_intent_created`. Broker and publication statuses arrive with their corresponding adapters. An MCP wrapper over the same library remains a go-live decision; the recorded lean is to require physical no-direct-LLM-to-order containment before live execution.
+The state machine records the full path through broker review, submission, broker lifecycle, and publication. Reasoning has no broker access: approved intents are bound to an account and handed to a separate execution-only worker, while the public dashboard reads a separately published public-safe database.
 
 ### Idempotency
 
@@ -610,13 +608,13 @@ Current strategy and record docs:
 - `docs/source_policy.md`
 - `docs/decision_record.md`
 
-Still to develop: thesis-chain and daily-portfolio-management prompts, an eval rubric, and theme files covering the full taxonomy.
+The approved thesis-chain and daily-portfolio-management prompts are versioned under `docs/prompts/`. Historical and synthetic evaluation, calibration, and broader theme documentation remain ongoing work.
 
 The human may add strategy memos, resonant memos, approved/disapproved historical trades, and market taste/framework notes as aligning context.
 
 ### Cost policy
 
-Assume a $500 live account, subscription agent sessions for LLM-heavy workflows, one daily portfolio management chain in steady state, rare full thesis chains, backend-owned retrieval/validation/policy/order/dashboard work, and minimal paid API spend.
+Assume a small dedicated live account, subscription agent sessions for LLM-heavy workflows, scheduled portfolio reviews, rare full thesis chains, backend-owned retrieval/validation/policy/order/dashboard work, and minimal paid API spend.
 
 Expected monthly operating cost excluding capital:
 
@@ -643,39 +641,36 @@ Test historical and synthetic cases for:
 
 ### Phase 0: Spec and schemas
 
-Investment Decision Record, Order Intent, and captured X signal schemas are implemented. Regime Snapshot, Source Pack, Trigger, Active Position Record, and Broker Execution Record schemas arrive with their features.
+The record schemas and deterministic validation/policy foundation are implemented, including Investment Decision Records, order intents, regime snapshots, triggers, active positions, and broker execution records.
 
 ### Phase 1: Local simulation with live-like records
 
-In progress. Decision and intent storage, the state machine, daily price cache, and X ingestion are implemented. The source-pack builder, reasoning interface, and paper decision runs remain. No broker execution yet.
+Implemented. Decision and intent storage, the state machine, daily price cache, X ingestion, prepared reasoning inputs, and paper decision records established the operational foundation.
 
-### Phase 2: Live $500 account with strict policy
+### Phase 2: Small live account with strict policy
 
-Connect broker execution adapter, start live with tiny account, enforce strict order limits, publish dashboard, and log all decisions and rejections.
+Implemented as a bounded live deployment. Scheduled reviews create policy-approved, account-bound intents for a separate execution worker. Broker lifecycle records are append-only, and the deployed public dashboard reads a separately published public-safe database.
 
 ### Phase 3: Better triggers and evals
 
-Curated X tracking and eval groundwork were pulled forward through the monitored trial and gate experiment. Trigger classification, daily portfolio management, historical/synthetic evals, and ablation tests remain.
+Curated X tracking, scheduled digests, trigger evaluation, regime scoring, and daily portfolio reviews are implemented. Historical and synthetic evals, calibration, and ablation studies remain.
 
 ### Phase 4: Hardening
 
-Improve state machine, retries/fallbacks, monitoring, dashboard, and paid data decisions if needed.
+Continue improving failure recovery, monitoring, evaluation coverage, and operational safeguards as live evidence accumulates.
 
 ---
 
 ## 17. Open questions
 
-- Daily portfolio management timing
 - Exact regime-scoring calibration beyond the declared v0 input subset
-- Exact Daily Portfolio Management and Full Thesis Chain prompts.
-- Broker-phase state machine details
-- Whether an MCP wrapper is required at the live-execution boundary
+- Historical and synthetic evaluation design for reasoning quality and outcome review
+- Which additional theme documentation is useful enough to maintain
 
 ---
 
-## 18. Immediate next steps
+## 18. Current development priorities
 
-1. Build the scheduled X fetch, rubric-based relevance pass, article routing, and daily digest.
-2. Build the v0 regime scorer from the declared computable inputs.
-3. Finalize the Daily Portfolio Management and Full Thesis Chain prompts and the paper-period reasoning interface.
-4. Run and grade the first paper decision records before any live-money work.
+1. Expand historical and synthetic evaluation without introducing lookahead bias.
+2. Calibrate the declared regime inputs against accumulated evidence.
+3. Harden recovery, monitoring, and operational safeguards as the bounded live run produces more data.

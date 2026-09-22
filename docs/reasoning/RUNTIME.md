@@ -6,8 +6,25 @@ or install scheduled tasks. The Codex adapter receives the supplied evidence and
 writes structured decisions through trusted schema and policy checks. Public HTTP
 only reads the separate published database.
 
-Manual mode is the default. The examples below configure an inactive paper
-schedule. They don't change a live account or enable Windows tasks.
+The examples below are safe manual/paper defaults for a new schedule. They don't
+change a live account or enable Windows tasks. The deployed Agentic account uses
+enabled live review schedules documented in [`ops/README.md`](../../ops/README.md).
+
+## Retained manual and paper mode
+
+The private dashboard is an operator and test surface bound to
+`http://127.0.0.1:8378`; it may contain private operational data and must remain
+localhost-only. Its Operate page retains the supervised paper workflow: confirm
+a completed same-day digest, prepare the paper session, run a fresh reasoning
+session from the recorded intake, and inspect decisions, policy outcomes and
+paper fills. It does not schedule work, call a broker or place orders.
+
+The deployed live path is separate. Scheduled review workers refresh broker
+state before authoring and again before submission. The reasoning session has no
+broker MCP. Approved, account-bound packets may pass to a separate
+execution-only session governed by [`docs/execution/EXECUTOR.md`](../execution/EXECUTOR.md).
+See [`ops/README.md`](../../ops/README.md) for the installed tasks, schedules and
+recovery procedure.
 
 ## Configure and inspect without starting a model
 
@@ -125,7 +142,7 @@ operation records a new revision. Editing a waiting occurrence updates its due
 time while preserving occurrence identity. Claimed occurrences aren't replayed
 because a schedule was edited.
 
-If you later activate a host task, invoke `scheduled` every minute through the
+When adding or operating a host task, invoke `scheduled` every minute through the
 due/grace window, not just once a day. A single invocation with a missing digest
 leaves the occurrence waiting until another invocation checks it. Configure the
 host task to ignore a new invocation while its previous process is still running

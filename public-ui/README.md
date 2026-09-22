@@ -32,8 +32,6 @@ python public-ui/fixtures/generate.py
 Fixtures are used by tests and browser review. They aren't a production fallback and aren't loaded by
 the application.
 
-Run `npm test`, `npm run type-check`, `npm run lint`, and `npm run build` before release. The redesign
-follows the September 2026 handoff while keeping Agent dashboard as the sole top-level navigation
-label. [HANDOFF-GAPS.md](HANDOFF-GAPS.md) records the remaining design and operating gaps.
-The repository's public release, benchmark, smoke, and recovery procedure is in
+Run `npm test`, `npm run type-check`, `npm run lint`, and `npm run build` before release. The
+repository's public release, benchmark, smoke, and recovery procedure is in
 [`docs/public-release.md`](../docs/public-release.md).

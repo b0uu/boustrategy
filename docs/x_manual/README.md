@@ -1,7 +1,7 @@
 # Curated X Handles + Signal Schema
 
 > **Role change (2026-07-12)**: the manual skim week was superseded by a
-> monitored internal trial (plan 010) — the system fetches everything from
+> monitored internal trial — the system fetches everything from
 > the core-tier handles and the maintainer reviews the fetched inbox via
 > `python -m app.x.run review` instead of skimming X directly. This file
 > remains load-bearing for two things: (1) the **curated handle list**

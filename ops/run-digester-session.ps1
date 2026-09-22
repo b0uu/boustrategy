@@ -37,7 +37,7 @@ if (Test-Path -LiteralPath $LocalConfigFile) {
     if ($LocalConfig.DigestReasoningEffort) { $DigestReasoningEffort = [string]$LocalConfig.DigestReasoningEffort }
 }
 # Encodes model + rubric version so x_route_decisions predictors stay
-# analyzable across upgrades (plan 019's maintenance note).
+# analyzable across model and rubric upgrades.
 $PredictorName = "codex-$($DigestModel -replace '[^a-z0-9]', '')-rubric2"
 
 function Send-DiscordNotification {
@@ -69,7 +69,7 @@ If the runbook's first step reports a calendar no-op, stop immediately -- that i
 
 The rubric requires judging images. Download them with `python -m app.x.run media --run <run_id>` (never curl or Invoke-WebRequest; they have no TLS credentials in this sandbox), then open files under the run's media folder with your image viewing tool. Never skip a post because its substance is in an image. If the cycle reports the run is stuck with status exported, an earlier session already exported it; continue from step 2 on that run.
 
-Hard limits for this session: write only under data/. Never run git. Never edit docs/, app/, ops/, plans/, or the roster. Never use a broker or trading tool. Never continue into investment reasoning.
+Hard limits for this session: write only under data/. Never run git. Never edit docs/, app/, ops/, or the roster. Never use a broker or trading tool. Never continue into investment reasoning.
 
 Do not ask the user any questions, do not wait for confirmation, and do not attempt anything outside the runbook's steps. Complete every applicable step or stop and clearly state what blocked you.
 "@

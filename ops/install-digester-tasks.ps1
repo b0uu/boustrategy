@@ -1,12 +1,12 @@
-# Registers the five Windows Task Scheduler triggers from plan 019's ops
-# note: three weekday digester slots, a half-day close covering trigger,
+# Registers five Windows Task Scheduler triggers: three weekday digester
+# slots, a half-day close covering trigger,
 # and the Sunday weekly consolidation. Run once, interactively, as the
 # account that should own these tasks. Re-running is safe -- each task is
 # replaced (Register-ScheduledTask -Force) rather than duplicated.
 #
 # The 14:45 ET trigger only does real work on NYSE half-days (Thanksgiving
 # Friday, Christmas eve in 2026); on every other weekday it hits `cycle`,
-# which is calendar-aware and no-ops cleanly (see plan 018). The 17:45 ET
+# which is calendar-aware and no-ops cleanly. The 17:45 ET
 # trigger correspondingly no-ops ON half-days. This lets a naive
 # every-weekday schedule stay correct without special-casing specific
 # dates here.
@@ -39,7 +39,7 @@ function New-DigesterTask {
     $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" `
         -LogonType Interactive -RunLevel Highest
     Register-ScheduledTask -TaskName $Name -Action $Action -Trigger $Trigger `
-        -Settings $Settings -Description "boustrategy X pipeline: $Slot slot (plan 019)" -Principal $Principal -Force | Out-Null
+        -Settings $Settings -Description "boustrategy X pipeline: $Slot slot" -Principal $Principal -Force | Out-Null
     Write-Output "Registered: $Name"
 }
 

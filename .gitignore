@@ -17,3 +17,15 @@ ops/public.local.psd1
 ops/runtime.schedule.local.json
 ops/live-*.json
 .claude/settings.local.json
+AGENTS.md
+DEVELOPMENT.md
+plans/
+NOTES.md
+design-qa.md
+docs/handoff-*.md
+docs/execution-assessment.md
+docs/plan-031-audit.md
+docs/reasoning/OPERATOR_GUIDE.md
+docs/research/data_provider_research.md
+docs/theme_classification.md
+public-ui/HANDOFF-GAPS.md

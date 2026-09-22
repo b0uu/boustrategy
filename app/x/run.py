@@ -178,8 +178,7 @@ def _cmd_rehydrate(
     conn: sqlite3.Connection,
     fetch_by_ids: Callable[[list[str]], FetchResult] = fetch_posts_by_ids,
 ) -> None:
-    """Backfill conversation_id/reply_context/media_json for pre-012/013
-    unreviewed posts by looking them up by ID (plan 014)."""
+    """Backfill conversation and media context for older unreviewed posts by ID."""
     rows = conn.execute(
         """
         SELECT post_id FROM x_posts

@@ -1,11 +1,11 @@
 # Reasoning worker runbook
 
-For a plain-language operator walkthrough, see
-[`docs/reasoning/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md).
+Runtime modes and scheduling are documented in [`RUNTIME.md`](RUNTIME.md). Installed-task
+operation and recovery are documented in [`ops/README.md`](../../ops/README.md).
 
-Human checkpoint 5 was cleared on 2026-07-19. Run one paper reasoning session
-in this order; keep the launch supervised until consecutive sessions prove the
-operational loop is reliable:
+The maintainer approved the thesis-chain and daily-management prompts on 2026-07-19.
+For the retained manual/paper workflow, run one reasoning session in this order
+and keep the launch supervised:
 
 Before launching the fresh reasoning worker, the human operator confirms the separate digester
 session completed, then runs

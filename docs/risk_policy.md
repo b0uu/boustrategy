@@ -55,13 +55,13 @@ a single point of failure. If the regime model is broken, lagging, or fed
 bad data, nothing mechanical catches a bleeding portfolio. The compensating
 controls are human and asynchronous:
 
-1. The public dashboard (planned): the human will monitors portfolio health,
+1. The public dashboard: the human monitors portfolio health,
    drawdown, and regime state visually.
 2. LLM evals on past trades (planned): periodic review of decision quality,
    including whether regime calls tracked reality.
 3. The human iterates on the harness when these reveal problems.
 
-Until the dashboard and evals exist, a broken regime model can silently bleed. A future option that stays inside this doctrine: drawdown thresholds that only flag records and notify the human on the dashboard, with no forced selling.
+The dashboard provides the monitoring control today; periodic LLM evaluation remains planned. A broken regime model can still silently bleed between human reviews. A future option that stays inside this doctrine: drawdown thresholds that only flag records and notify the human on the dashboard, with no forced selling.
 
 ## Execution risk
 

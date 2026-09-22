@@ -20,9 +20,9 @@ def test_prompt_required_guardrails() -> None:
         assert "submit --in" in text
 
 
-def test_checkpoint_5_signoff_is_recorded() -> None:
-    text = Path("plans/README.md").read_text(encoding="utf-8")
-    assert "Checkpoint 5 is CLEARED" in text
+def test_prompt_approval_is_recorded() -> None:
+    text = Path("docs/reasoning/RUNBOOK.md").read_text(encoding="utf-8")
+    assert "approved the thesis-chain and daily-management prompts on 2026-07-19" in text
 
 
 def test_runbook_cli_and_exact_prohibitions() -> None:

@@ -140,7 +140,7 @@ def unreviewed_thread_posts(
 
     Consolidates a thread of replies from one account into a single review
     action instead of forcing the maintainer to click through each reply
-    separately (see plan 012).
+    separately.
     """
     if not conversation_id:
         return []
@@ -177,7 +177,7 @@ def update_post_enrichment(conn: sqlite3.Connection, post: XPost) -> bool:
     """Backfill the three enrichment columns for one still-unreviewed post.
 
     The WHERE clause is the enforcement point for the "only unreviewed rows"
-    rule (plan 014) — a reviewed row's label/input pairing must stay frozen,
+    rule: a reviewed row's label/input pairing must stay frozen,
     so the UPDATE is a no-op (rowcount 0) rather than a caller-side check.
     """
     cursor = conn.execute(
