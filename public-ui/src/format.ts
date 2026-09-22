@@ -46,7 +46,7 @@ export function clock(value: string | null | undefined) {
   return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(value))
 }
 const labels: Record<string, string> = {
-  no_action: 'No action', not_reviewed: 'Not reviewed', prepared: 'Intake prepared', running: 'Review in progress',
+  no_action: 'No action', ai_infrastructure: 'AI infrastructure', not_reviewed: 'Not reviewed', prepared: 'Intake prepared', running: 'Review in progress',
   snapshot_stale: 'The account snapshot needs refreshing', regime_missing: 'Completed-session regime data is missing',
   dependency_missing: 'Waiting for completed inputs', observer_stale: 'Scheduler observation is out of date',
   runtime_not_published: "Runtime status hasn't been published",

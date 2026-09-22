@@ -43,11 +43,9 @@ it('reports the live account only and never offers the paper simulation', async 
   expect(screen.queryByText('Decision trace')).not.toBeInTheDocument()
 })
 
-it('presents short calls as recommendations and states an empty list plainly', async () => {
+it('does not offer the unfinished short calls view', async () => {
   await dashboard()
-  fireEvent.click(screen.getByRole('button', { name: 'shorts' }))
-  expect(await screen.findByText(/No short has been recommended/)).toBeVisible()
-  expect(screen.getByText(/long-only and never holds a short/)).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'shorts' })).not.toBeInTheDocument()
 })
 
 it('dismisses agent details when the reader clicks elsewhere', async () => {
@@ -500,4 +498,30 @@ it('lists the record claims when the approved narrative links none', async () =>
   expect(await screen.findByText('Backlog reached $24.1 billion of firmly committed orders.')).toBeInTheDocument()
   expect(screen.getByText('1 published claim')).toBeVisible()
   expect(screen.queryByText('No public claims were recorded.')).not.toBeInTheDocument()
+})
+
+it('states a missing order once instead of a grid of unavailable amounts', async () => {
+  const item = feed().items[0]
+  const decision = data[item.public_id] as Decision
+  decision.sized_order = null
+  decision.requested_order = null
+  decision.execution = { ...decision.execution, gross_notional: null, quantity: null, fees: null, items: [] }
+  history.replaceState({}, '', `/decisions/${item.public_id}`)
+
+  render(<App />)
+
+  expect(await screen.findByText('No order was recorded for this decision.')).toBeVisible()
+  expect(screen.queryByText('Sized order')).not.toBeInTheDocument()
+  expect(screen.queryByText('Confirmed fills have not been published for this decision.')).not.toBeInTheDocument()
+})
+
+it('marks an unreviewed holding in prose alone, without a status badge', async () => {
+  const positions = data['live/positions'] as { items: Array<Record<string, unknown>> }
+  positions.items[0] = { ...positions.items[0], thesis_review: undefined }
+  await dashboard()
+
+  fireEvent.click(screen.getByRole('button', { name: 'positions' }))
+
+  expect((await screen.findAllByText('No public thesis review is available for this holding.')).length).toBeGreaterThan(0)
+  expect(screen.queryByText('Not reviewed')).not.toBeInTheDocument()
 })

@@ -98,7 +98,7 @@ th, td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border-s
 th { color: var(--text-3); font-weight: 400; }
 blockquote { margin: 12px 0; border-left: 2px solid var(--border); padding-left: 12px; }
 dt { color: var(--text-3); font-size: 11px; }
-dd { margin: 2px 0 0; font: 400 12px/1.6 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+dd { margin: 2px 0 0; font: 400 12.5px/1.6 'IBM Plex Sans', sans-serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 main:focus, h1:focus { outline: none; }
 .skip-link { position: fixed; top: 8px; left: 8px; transform: translateY(-150%); padding: 8px 14px; background: var(--surface-2); z-index: 10; }
 .skip-link:focus { transform: translateY(0); }
@@ -112,8 +112,8 @@ main:focus, h1:focus { outline: none; }
 .handle { font: 400 13px/17px 'IBM Plex Mono', monospace; color: var(--text-3); margin-top: 4px; }
 .profile p { color: var(--text-2); font-size: 12.5px; line-height: 1.6; margin-top: 12px; }
 .agent-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; font-size: 11px; color: var(--text-3); }
-.agent-status .agent-state { font-weight: 500; color: var(--text); }
-.agent-status > .quiet, .agent-status time { margin-left: auto; font-size: 11.5px; }
+.agent-status .agent-state { font-weight: 500; color: var(--text); white-space: nowrap; }
+.agent-status > .quiet, .agent-status time { margin-left: auto; font-size: 11.5px; white-space: nowrap; }
 .agent-status time { font-family: 'IBM Plex Sans', sans-serif; font-variant-numeric: tabular-nums; }
 .activity-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); }
 .activity-dot.is-active { background: var(--green); }
@@ -128,6 +128,10 @@ main:focus, h1:focus { outline: none; }
 /* --- Shared controls -------------------------------------------------------------- */
 .text-button { border: 0; padding: 0; background: none; color: var(--text-2); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
 .text-button:hover { color: var(--text); }
+p + a.text-button { margin-top: 8px; }
+/* A text button that navigates is a link, so it takes the link colour. */
+a.text-button { color: var(--indigo); }
+a.text-button:hover { color: var(--link-hover); }
 .portfolio-toggle { margin-top: 14px; min-height: 22px; }
 .portfolio-toggle .chevron { width: auto; font-size: 13px; transform: rotate(90deg); }
 .portfolio-toggle[aria-expanded=false] .chevron { transform: none; }
@@ -149,6 +153,8 @@ main:focus, h1:focus { outline: none; }
 .section-heading > span { color: var(--text-3); font-size: 11.5px; }
 .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px 24px; margin-bottom: 14px; }
 .check-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; border-top: 1px solid var(--border-soft); padding: 8px 4px; color: var(--text-2); font-size: 12.5px; }
+.trace section p + .detail-grid { margin-top: 14px; }
+.policy-evaluated { margin: 0 0 14px; padding-top: 0; }
 .check-row small { display: block; color: var(--text-3); }
 .table-scroll { overflow-x: auto; max-width: 100%; }
 .request-issue { border-left: 2px solid var(--amber); padding: 8px 12px; margin: 12px 0; font-size: 12px; color: var(--text-2); }
@@ -226,7 +232,7 @@ main:focus, h1:focus { outline: none; }
 
 /* --- Tabs stay reachable instead of sinking below the portfolio ------------------- */
 .tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--border-soft); padding: 0 4px; position: sticky; top: 0; z-index: 2; background: var(--bg); }
-.tabs button { color: var(--text-2); font-size: 13.5px; line-height: 20px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 12px 0; background: none; text-transform: capitalize; }
+.tabs button { color: var(--text-2); font-size: 13.5px; line-height: 20px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 12px 0; background: none; text-transform: capitalize; white-space: nowrap; }
 .tabs button[aria-pressed=true] { color: var(--text); font-weight: 600; border-bottom-color: var(--indigo); }
 .dashboard-panel { animation: reveal 160ms ease-out; }
 
@@ -255,12 +261,11 @@ main:focus, h1:focus { outline: none; }
 .filter-state, .chart-caption { display: flex; justify-content: space-between; gap: 12px; font-size: 11px; color: var(--text-3); padding: 6px 12px; }
 .chart-caption, .performance-caveat { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .filter-state { color: var(--text-2); }
-.stream-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 92px 84px 14px; gap: 16px; align-items: baseline; padding: 15px 12px; border-bottom: 1px solid var(--border-soft); border-radius: 6px; color: inherit; }
+.stream-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) 92px 116px 14px; gap: 16px; align-items: baseline; padding: 15px 12px; border-bottom: 1px solid var(--border-soft); color: inherit; }
 .stream-row:hover { color: inherit; background: var(--surface); }
 .stream-row--review { display: block; padding: 0; border-radius: 0; }
-.stream-row--review > summary { display: grid; grid-template-columns: 56px minmax(0, 1fr) 92px 84px 14px; gap: 16px; align-items: baseline; padding: 15px 12px; border-radius: 6px; }
+.stream-row--review > summary { display: grid; grid-template-columns: 56px minmax(0, 1fr) 92px 116px 14px; gap: 16px; align-items: baseline; padding: 15px 12px; }
 .stream-row--review > summary:hover, .stream-row--review[open] { background: var(--surface); }
-.stream-row--review[open] { border-radius: 6px; }
 .stream-row--review[open] > .disclosure-body { padding-right: 18px; padding-bottom: 18px; }
 .stream-row--review strong { font-weight: 500; }
 .stream-kind { font-size: 12px; color: var(--text-3); font-weight: 500; overflow-wrap: anywhere; }
@@ -282,7 +287,7 @@ main:focus, h1:focus { outline: none; }
 /* Below the mark, not above it: above is where the policy badge sits. */
 .lifecycle-mark::after { content: attr(data-tooltip); position: absolute; z-index: 5; left: 3px; top: calc(100% + 6px); width: max-content; max-width: 180px; padding: 5px 8px; border: 1px solid var(--border-soft); border-radius: 4px; background: var(--tooltip-bg); box-shadow: var(--shadow-tooltip); color: var(--text-2); font: 400 10.5px/1.4 'IBM Plex Sans', sans-serif; white-space: normal; opacity: 0; pointer-events: none; transform: translateY(2px); transition: opacity 120ms ease, transform 120ms ease; }
 .lifecycle-mark:hover::after { opacity: 1; transform: translateY(0); }
-.badge { font-size: 11px; font-weight: 600; line-height: 1.5; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); color: var(--text-2); justify-self: start; text-transform: capitalize; }
+.badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; line-height: 1.5; padding: 3px 9px; border-radius: 4px; background: var(--surface-2); color: var(--text-2); justify-self: start; white-space: nowrap; }
 .badge--approved, .badge--passed, .badge--paper_filled, .badge--broker_filled { background: var(--green-bg); color: var(--green); }
 .badge--rejected, .badge--failed, .badge--schema_failed, .badge--policy_rejected { background: var(--coral-bg); color: var(--coral); }
 .badge--awaiting_paper_price { background: var(--amber-bg); color: var(--amber); }
@@ -295,8 +300,8 @@ main:focus, h1:focus { outline: none; }
 .position-heading { padding: 0 12px 8px; font-size: 11px; color: var(--text-3); }
 .position-heading > :nth-last-child(-n+2), .position summary > :nth-last-child(-n+2) { text-align: right; }
 .position { border-top: 1px solid var(--border-soft); }
-.position[open] { background: var(--surface); border-radius: 6px; }
-.position summary { padding: 13px 12px; border-radius: 6px; font-size: 13px; color: var(--text-2); }
+.position[open] { background: var(--surface); }
+.position summary { padding: 13px 12px; font-size: 13px; color: var(--text-2); }
 .position summary:hover { background: var(--surface); }
 .position summary .chevron { width: 22px; height: 22px; }
 .position-name { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
@@ -305,8 +310,14 @@ main:focus, h1:focus { outline: none; }
 /* The open card keeps the summary's left edge and matches it on the right, so prose ends
    clear of the card instead of running into it. */
 .position-detail { padding: 2px 16px 18px 46px; }
-.position-detail p { font-size: 12.5px; color: var(--text-2); margin-top: 5px; }
-.position-detail > .section-note { padding-inline: 0; }
+.position-detail p { font-size: 12.5px; color: var(--text-2); }
+.position-detail p + p { margin-top: 4px; }
+.position-detail > .company-name { margin-bottom: 12px; }
+.position-detail > .detail-grid { margin-bottom: 0; }
+.position-detail > .thesis-review, .position-detail > .position-decision { margin-top: 20px; }
+/* A fixed row height keeps the gap under a heading the same whether or not a badge sits beside it. */
+.position-detail .section-heading { align-items: center; min-height: 24px; margin-bottom: 6px; }
+.position-detail .section-heading h3 { margin: 0; }
 .positions > .section-note { border-top: 1px solid var(--border-soft); }
 .holding-history { padding: 12px 0; }
 
@@ -319,8 +330,8 @@ main:focus, h1:focus { outline: none; }
 .policy-tools select { min-height: 32px; }
 .policy-row { border-top: 1px solid var(--border-soft); }
 .policies .policy-row:first-of-type { border-top: 0; }
-.policy-row[open] { background: var(--surface); border-radius: 6px; }
-.policy-row > summary { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 12px 12px 4px; border-radius: 6px; font-size: 13.5px; }
+.policy-row[open] { background: var(--surface); }
+.policy-row > summary { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 12px 12px 4px; font-size: 13.5px; }
 .policy-row > summary > .chevron { width: 22px; height: 22px; }
 .rule-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .rule-name { font-size: 13.5px; color: var(--text); }
@@ -335,7 +346,8 @@ main:focus, h1:focus { outline: none; }
 .version-entry + .version-entry { margin-top: 14px; }
 
 /* --- Decision trace --------------------------------------------------------------- */
-.back { display: inline-block; padding: 26px 4px 0; font-size: 12.5px; color: var(--text-2); }
+.back, .arrow-link { display: inline-flex; align-items: center; gap: 4px; }
+.back { padding: 26px 4px 0; font-size: 12.5px; color: var(--text-2); }
 .trace-head { padding: 14px 4px 18px; }
 .trace-title { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .trace-title h1 { font-size: 19px; font-weight: 600; }
@@ -362,9 +374,13 @@ main:focus, h1:focus { outline: none; }
 .trace p, dd, .stage-body, .section-note, .site-foot { overflow-wrap: anywhere; }
 /* The open card is inset on both sides by the same amount the details is pulled out, so the
    summary text never shifts when it opens and the panel gets real room around its content. */
-.trace details { margin: 0 -14px; padding: 0 14px; border-radius: 6px; }
+.trace details { margin: 0 -14px; padding: 0 14px; }
 .trace details[open] { padding-bottom: 14px; background: var(--surface); }
 .trace details[open] > summary { background: transparent; }
+/* The closed card highlights the same box the open card fills, not just the inset summary. */
+.trace details:not([open]):hover { background: var(--surface); }
+.trace details > summary:hover { background: transparent; }
+.trace .section-note { padding-inline: 0; }
 .reasoning-stage { border-top: 1px solid var(--border-soft); }
 .stage-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: baseline; padding: 11px 4px 12px 28px; }
 .stage-row strong { font-size: 13px; font-weight: 600; }
@@ -373,7 +389,8 @@ main:focus, h1:focus { outline: none; }
 .claim { border-top: 1px solid var(--border-soft); }
 .claim summary { display: grid; grid-template-columns: 14px 70px minmax(0, 1fr); gap: 10px; padding: 10px 4px; align-items: baseline; font-size: 12.5px; color: var(--text-2); }
 .source-type { font-size: 11px; color: var(--text-3); text-transform: uppercase; }
-.claim-detail { padding: 0 4px 14px 28px; font-size: 11.5px; color: var(--text-2); }
+/* Indented to the claim text: summary padding, chevron and source columns, and their gaps. */
+.claim-detail { padding: 0 4px 0 108px; font-size: 11.5px; color: var(--text-2); }
 .source-pack > div { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 9px 4px; border-top: 1px solid var(--border-soft); font-size: 12.5px; }
 .source-pack .source-title { min-width: 0; overflow-wrap: anywhere; }
 /* The handle leads, its role sits beside it as a quiet tag, and the summary runs full width
@@ -396,7 +413,6 @@ main:focus, h1:focus { outline: none; }
 .source-entry p { font-size: 11px; color: var(--text-3); margin-top: 4px; }
 .evidence-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; }
 .tags { display: flex; gap: 14px; flex-wrap: wrap; color: var(--text-3); font-size: 12px; overflow-wrap: anywhere; }
-.regime > summary, .conditions > summary { display: flex; align-items: baseline; gap: 8px; padding: 10px 0; font-size: 12px; color: var(--text-2); width: fit-content; }
 .regime-detail { padding: 12px 0 0 22px; }
 .regime-values > div { display: flex; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
 .regime-values dt { font-size: 11.5px; color: var(--text-2); }
@@ -415,7 +431,7 @@ main:focus, h1:focus { outline: none; }
 .rule-heading { grid-template-columns: 22px minmax(0, 1fr) 86px; }
 .check-heading > :nth-last-child(-n+2), .policy-check > summary > :nth-last-child(-n+2) { text-align: right; }
 .policy-check { border-top: 1px solid var(--border-soft); }
-.policy-check > summary { padding: 8px 4px; border-radius: 6px; font-size: 12.5px; color: var(--text-2); }
+.policy-check > summary { padding: 8px 4px; font-size: 12.5px; color: var(--text-2); }
 .check-mark { font-size: 11px; color: var(--text-3); }
 .policy-check--passed .check-mark { color: var(--green); }
 .policy-check--failed .check-mark { color: var(--coral); }

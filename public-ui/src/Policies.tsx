@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FunnelSimple, X } from '@phosphor-icons/react'
+import { ArrowRight, FunnelSimple, X } from '@phosphor-icons/react'
 import { usePublic } from './api'
 import { Chevron, Empty, Fact, ResourceNotice, SectionBoundary } from './common'
 import { label, ruleValue, thresholdValue, weight, when } from './format'
@@ -33,7 +33,7 @@ function CheckRow({ check }: { check: PolicyCheck }) {
 export function PolicyChecks({ evaluation }: { evaluation: PolicyEvaluation }) {
   if (evaluation.status !== 'available') return <Empty>{evaluation.reason ? label(evaluation.reason) : 'Historical rule evaluations were not recorded.'}</Empty>
   return <>
-    <p className="section-note">Evaluated {when(evaluation.evaluated_at)} · {evaluation.policy_version}</p>
+    <p className="section-note policy-evaluated">Evaluated {when(evaluation.evaluated_at)} · {evaluation.policy_version}</p>
     <div className="policy-checks">
       <div className="check-heading" aria-hidden="true"><span /><span>Rule</span><span>Observed</span><span>Threshold</span></div>
       {evaluation.checks.map(check => <CheckRow check={check} key={check.rule_id} />)}
@@ -63,7 +63,7 @@ export function Policies({ scope }: { scope: Scope }) {
             </summary>
             <div className="policy-detail">
               <dl className="detail-grid"><Fact name="Category">{label(rule.category)}</Fact><Fact name="Scope">{label(rule.scope)}</Fact><Fact name="Comparator">{rule.comparator ? label(rule.comparator) : 'Not recorded'}</Fact><Fact name="Version">{rule.version ?? data.version ?? 'Not recorded'}</Fact></dl>
-              {rule.last_triggered ? <Link href={decisionUrl(rule.last_triggered.public_id, scope)}>Last triggered {when(rule.last_triggered.created_at)} →</Link> : <p className="quiet">No published trigger for this rule.</p>}
+              {rule.last_triggered ? <Link className="arrow-link" href={decisionUrl(rule.last_triggered.public_id, scope)}>Last triggered {when(rule.last_triggered.created_at)}<ArrowRight size={11} weight="bold" aria-hidden="true" /></Link> : <p className="quiet">No published trigger for this rule.</p>}
             </div>
           </details>)}
         </> : <Empty>No rules are published in this category.</Empty>}

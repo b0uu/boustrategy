@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ArrowRight } from '@phosphor-icons/react'
 import { PublicError, readPublic, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary } from './common'
 import { label, sessionDay, when } from './format'
@@ -24,10 +25,10 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
     <div className="disclosure-body">
       <ResourceNotice resource={detail} name="review attempts" />
       <SectionBoundary resetKey={detail.data} retry={detail.refresh} name="review history">
-        {detail.data?.attempts?.map(attempt => <div className="attempt" key={attempt.public_id}><div className="section-heading"><h3>Attempt {attempt.attempt_number}</h3><Badge value={attempt.status} /></div><p>{attempt.summary ?? (attempt.reason ? label(attempt.reason) : label(attempt.stage))}</p><dl className="detail-grid"><Fact name="Requested model">{attempt.requested_model}</Fact><Fact name="Observed model">{attempt.observed_model ?? 'Not recorded'}</Fact><Fact name="Started">{when(attempt.started_at)}</Fact><Fact name="Finished">{attempt.finished_at ? when(attempt.finished_at) : 'Not recorded'}</Fact></dl></div>)}
+        {detail.data?.attempts?.map(attempt => <div className="attempt" key={attempt.public_id}><div className="section-heading"><h3>Attempt {attempt.attempt_number}</h3><Badge value={attempt.status} /></div><p>{attempt.summary ?? (attempt.reason ? label(attempt.reason) : label(attempt.stage))}</p><dl className="detail-grid"><Fact name="Requested model">{attempt.requested_model}</Fact><Fact name="Started">{when(attempt.started_at)}</Fact><Fact name="Finished">{attempt.finished_at ? when(attempt.finished_at) : 'Not recorded'}</Fact></dl></div>)}
         {detail.data?.attempts_truncated && <p className="section-note">Showing the latest 100 of {detail.data.attempt_count} recorded attempts.</p>}
       </SectionBoundary>
-      {item.public_id.startsWith('run_') && <Link className="text-button" href={dashboardUrl({ tab: 'feed', run_id: item.public_id, q: null, action: null, policy: null, lifecycle: null, since: null, until: null })}>View decisions from this review →</Link>}
+      {item.public_id.startsWith('run_') && <Link className="text-button" href={dashboardUrl({ tab: 'feed', run_id: item.public_id, q: null, action: null, policy: null, lifecycle: null, since: null, until: null })}>View decisions from this review<ArrowRight size={11} weight="bold" aria-hidden="true" /></Link>}
     </div>
   </details>
 }
