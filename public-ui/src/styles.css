@@ -142,7 +142,10 @@ a.text-button:hover { color: var(--link-hover); }
 .range-controls button[aria-pressed=true], .category-controls button[aria-pressed=true] { color: var(--text); text-decoration: underline; text-underline-offset: 5px; }
 .updates-button, .more-button { display: block; border: 0; background: var(--surface); color: var(--text-2); border-radius: 4px; padding: 10px 12px; margin: 12px 0; font-size: 12px; }
 .more-button { margin-inline: auto; }
-.compact-disclosure > summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 12px; color: var(--text-2); }
+/* A folded section reads as its heading: no fill, only the text darkens on hover. */
+.compact-disclosure > summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; font-size: 12px; color: var(--text-3); }
+.compact-disclosure > summary:hover { background: transparent; color: var(--text); }
+.compact-disclosure > summary:hover > .chevron { color: var(--text); }
 .disclosure-body { padding: 8px 0 12px 22px; }
 .compact-disclosure p + p { margin-top: 8px; }
 .empty { padding: 18px 0; font-size: 12.5px; color: var(--text-3); }
@@ -372,13 +375,12 @@ p + .detail-grid { margin-top: 14px; }
 .trace li { position: relative; padding: 3px 0 3px 14px; }
 .trace li::before { content: '·'; position: absolute; left: 0; color: var(--text-3); }
 .trace p, dd, .stage-body, .section-note, .site-foot { overflow-wrap: anywhere; }
-/* The open card is inset on both sides by the same amount the details is pulled out, so the
-   summary text never shifts when it opens and the panel gets real room around its content. */
-.trace details { margin: 0 -14px; padding: 0 14px; }
-.trace details[open] { padding-bottom: 14px; background: var(--surface); }
-.trace details[open] > summary { background: transparent; }
+/* A list row's open card is inset on both sides by the same amount the details is pulled out,
+   so the summary text never shifts when it opens and the panel gets real room around its content. */
+.trace details:not(.compact-disclosure) { margin: 0 -14px; padding: 0 14px; }
+.trace details:not(.compact-disclosure)[open] { padding-bottom: 14px; background: var(--surface); }
 /* The closed card highlights the same box the open card fills, not just the inset summary. */
-.trace details:not([open]):hover { background: var(--surface); }
+.trace details:not(.compact-disclosure):not([open]):hover { background: var(--surface); }
 .trace details > summary:hover { background: transparent; }
 .trace .section-note { padding-inline: 0; }
 .reasoning-stage { border-top: 1px solid var(--border-soft); }
