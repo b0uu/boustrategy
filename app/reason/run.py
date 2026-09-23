@@ -238,6 +238,7 @@ def _submit_decision(
     execution_profile: ExecutionProfile | None = None,
     submitted_at: datetime | None = None,
     runtime_bound: bool = False,
+    funded_by_sale: bool = False,
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
@@ -284,7 +285,11 @@ def _submit_decision(
         ):
             raise ValueError("live decision_id must use the reasoning run namespace")
         portfolio = live_portfolio_context(
-            conn, snapshot, on_date, exclude_ticker=ticker.strip().upper() if ticker else None
+            conn,
+            snapshot,
+            on_date,
+            exclude_ticker=ticker.strip().upper() if ticker else None,
+            funded_by_sale=funded_by_sale,
         )
     evaluation_time = submitted_at or datetime.now(UTC)
     regime_date = (
@@ -399,6 +404,7 @@ def submit_decision(
     submitted_at: datetime | None = None,
     runtime_attempt_id: str | None = None,
     fence: int | None = None,
+    funded_by_sale: bool = False,
 ) -> ProcessOutcome:
     processing_time = submitted_at or datetime.now(UTC)
     if (runtime_attempt_id is None) != (fence is None):
@@ -434,6 +440,7 @@ def submit_decision(
             execution_profile=execution_profile,
             submitted_at=processing_time,
             runtime_bound=runtime_attempt_id is not None,
+            funded_by_sale=funded_by_sale,
         )
         if runtime_attempt_id and outcome.decision_id:
             existing = conn.execute(

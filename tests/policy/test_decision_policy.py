@@ -308,6 +308,32 @@ def test_rejects_buy_when_daily_buy_add_limit_reached():
     assert "daily_buy_add_limit_reached" in result.reasons
 
 
+def test_a_swap_buy_funded_by_a_sale_in_the_same_review_is_outside_the_daily_limit():
+    record = valid_decision_record()
+    portfolio = portfolio_context(buy_add_trades_today=2, funded_by_same_review_sale=True)
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert "daily_buy_add_limit_reached" not in result.reasons
+
+
+def test_earlier_swap_buys_skip_the_daily_limit_but_still_count_toward_the_breaker():
+    record = valid_decision_record()
+
+    under_limit = evaluate_decision_policy(
+        record, portfolio_context(buy_add_trades_today=3, swap_buy_trades_today=2)
+    )
+    braked = evaluate_decision_policy(
+        record,
+        portfolio_context(
+            buy_add_trades_today=5, swap_buy_trades_today=4, funded_by_same_review_sale=True
+        ),
+    )
+
+    assert "daily_buy_add_limit_reached" not in under_limit.reasons
+    assert "buy_add_circuit_breaker_tripped" in braked.reasons
+
+
 def test_rejects_add_when_daily_buy_add_limit_reached():
     record = decision_record_with(decision="ADD")
     portfolio = portfolio_context(buy_add_trades_today=2)

@@ -268,6 +268,11 @@ CREATE TABLE IF NOT EXISTS x_digest_notes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (note_date, slot)
 );
+CREATE TABLE IF NOT EXISTS swap_pairs (
+    buy_decision_id TEXT PRIMARY KEY,
+    sell_decision_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS x_triage (
     post_id TEXT NOT NULL,
     ticker TEXT NOT NULL,

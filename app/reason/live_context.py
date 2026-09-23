@@ -13,6 +13,7 @@ def live_portfolio_context(
     snapshot: LivePortfolioSnapshot,
     on_date: date,
     exclude_ticker: str | None = None,
+    funded_by_sale: bool = False,
 ) -> PortfolioContext:
     positions = [position for position in snapshot.positions if position.market_value > 0]
     missing_themes = [position.ticker for position in positions if not position.primary_theme_id]
@@ -45,9 +46,19 @@ def live_portfolio_context(
             (snapshot.execution_profile_id, start.isoformat(), end.isoformat()),
         ).fetchall()
     )
+    swap_buys = conn.execute(
+        """
+        SELECT COUNT(*) FROM order_intents o JOIN swap_pairs s ON s.buy_decision_id = o.decision_id
+        WHERE o.execution_mode = 'LIVE' AND o.execution_profile_id = ?
+          AND julianday(o.created_at) >= julianday(?) AND julianday(o.created_at) < julianday(?)
+        """,
+        (snapshot.execution_profile_id, start.isoformat(), end.isoformat()),
+    ).fetchone()[0]
     return PortfolioContext(
         holdings_count=len(positions),
         buy_add_trades_today=counts.get("BUY", 0),
+        swap_buy_trades_today=swap_buys,
+        funded_by_same_review_sale=funded_by_sale,
         sell_trim_trades_today=counts.get("SELL", 0),
         primary_theme_weights=theme_weights,
         short_watchlist_tickers=sorted(

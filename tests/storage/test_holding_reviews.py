@@ -283,22 +283,39 @@ def test_a_first_close_15_percent_under_cost_is_a_trigger_and_40_percent_overrid
     conn.close()
 
 
-def test_an_invalidated_holding_stays_due_until_it_is_sold(tmp_path: Path) -> None:
+def test_an_invalidated_holding_stays_due_until_a_sale_goes_through(tmp_path: Path) -> None:
     conn = connect(tmp_path / "boustrategy.db")
     snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
     episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
     review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(minutes=20), state="invalidated")
-    tuesday_morning = MONDAY_MORNING + timedelta(days=1)
+    # Monday midday: the sale is still live in the session it was decided in.
+    monday_midday = MONDAY_MORNING + timedelta(hours=3)
 
-    before = holdings_due(conn, snapshot, tuesday_morning)
+    before = holdings_due(conn, snapshot, monday_midday)
     conn.execute(
         "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
         "execution_mode, execution_profile_id, intent_json) "
         "VALUES ('sell', 'decision', ?, 'NVDA', 'SELL', 'LIVE', 'codex', '{}')",
         ((MONDAY_MORNING + timedelta(hours=1)).isoformat(),),
     )
-    after = holdings_due(conn, snapshot, tuesday_morning)
+    after = holdings_due(conn, snapshot, monday_midday)
+    conn.execute(
+        "INSERT INTO broker_execution_records (broker_execution_record_id, order_intent_id, "
+        "execution_packet_id, execution_profile_id, account_alias, submitted_at, ticker, side, "
+        "status, broker_order_id, record_json) VALUES ('ber_sell', 'sell', 'ep', 'codex', "
+        "'codex-agentic', ?, 'NVDA', 'SELL', 'SUBMITTED', 'rh-1', '{}')",
+        ((MONDAY_MORNING + timedelta(hours=1)).isoformat(),),
+    )
+    conn.execute(
+        "INSERT INTO broker_execution_events (broker_event_id, broker_execution_record_id, "
+        "order_intent_id, execution_packet_id, execution_profile_id, status, occurred_at, "
+        "detail, event_json) VALUES ('bev', 'ber_sell', 'sell', 'ep', 'codex', 'FAILED', ?, "
+        "'', '{}')",
+        ((MONDAY_MORNING + timedelta(hours=1)).isoformat(),),
+    )
+    failed = holdings_due(conn, snapshot, monday_midday)
 
     assert [item["reasons"] for item in before] == [["invalidated_without_exit"]]
     assert after == []
+    assert [item["reasons"] for item in failed] == [["invalidated_without_exit"]]
     conn.close()

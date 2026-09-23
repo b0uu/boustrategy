@@ -112,6 +112,19 @@ class CandidateConsidered(RuntimeModel):
     sources_opened: list[str] = Field(default_factory=list, max_length=12)
     outcome: Decision
     reason: str = Field(min_length=1, max_length=2000)
+    # True when the idea deserves a position on its merits, whether or not cash can fund it.
+    clears_entry_bar: bool = False
+
+
+class AuthoredChallenger(RuntimeModel):
+    """A candidate cash can't fund, tested against the holding the review judges weakest."""
+
+    candidate: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
+    incumbent: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
+    incumbent_episode_id: str = Field(min_length=1, max_length=200)
+    why_weakest: str = Field(min_length=1, max_length=500)
+    verdict: Literal["swap", "keep_incumbent"]
+    reasoning: str = Field(min_length=1, max_length=2000)
 
 
 class AuthoredEarningsDate(RuntimeModel):
@@ -137,6 +150,7 @@ class AuthoredOutput(RuntimeModel):
     thesis_reviews: list[AuthoredThesisReview] = Field(default_factory=list, max_length=20)
     earnings_dates: list[AuthoredEarningsDate] = Field(default_factory=list, max_length=20)
     x_triage: list[AuthoredXTriage] = Field(default_factory=list, max_length=60)
+    challenger_reviews: list[AuthoredChallenger] = Field(default_factory=list, max_length=12)
     candidates_considered: list[CandidateConsidered] = Field(default_factory=list, max_length=12)
     public_summary: str = Field(min_length=1, max_length=4000)
 

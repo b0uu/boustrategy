@@ -37,7 +37,11 @@ from app.schemas.runtime import (
     RuntimeAttempt,
     RuntimeRun,
 )
-from app.storage.holding_reviews import holdings_due, live_holding_episodes
+from app.storage.holding_reviews import (
+    MIN_INITIAL_POSITION,
+    holdings_due,
+    live_holding_episodes,
+)
 from app.storage.public_records import save_thesis_review
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import (
@@ -84,6 +88,13 @@ holding unanswered is sent back, and if it's still unanswered, its BUY and ADD r
 discarded.
 Triage every X headline the intake lists for a holding in x_triage: would it change the
 thesis on that holding? A post that would requires the holding's thesis review in this review.
+When buying power is below the minimum initial position, cash can't fund a new holding. Mark
+every candidate that deserves a position on its merits clears_entry_bar. For each one that isn't
+held, add a challenger_reviews entry: name the holding you judge weakest and say why, and review
+that holding in thesis_reviews as if buying it today at today's price, on the same footing as
+the candidate. The verdict is swap, a SELL or TRIM of the holding and a BUY of the candidate
+sized so the sale funds it, or keep_incumbent. Keeping the holding is a complete answer; no trade
+is ever forced.
 Record every earnings date you read for a holding or candidate in earnings_dates, with the page
 you read it on and whether the company has confirmed it. Past dates count: a report since a
 holding's last review makes it due. Your dates replace the feed's estimates near them.
@@ -380,6 +391,97 @@ def unreviewed_holdings(
     return "; ".join(problems) or None
 
 
+def unanswered_challengers(
+    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput, *, trading_open: bool = True
+) -> str | None:
+    """Say what the challenger reviews lack, when cash can't fund a candidate that clears the bar.
+
+    Each such candidate is tested against a named holding, which is reviewed as a fresh buy in the
+    same output. A swap needs both legs, with the sale freeing enough for the buy. A candidate the
+    review kept out can't also be bought. A closed market can't trade either leg, so nothing arms.
+    """
+    if run.mode != "live" or not trading_open:
+        return None
+    snapshot = _starting_snapshot(conn, run)
+    if snapshot.buying_power >= MIN_INITIAL_POSITION * snapshot.account_equity:
+        return None
+    held = {position.ticker: position for position in snapshot.positions}
+    episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
+    reviews = {review.episode_id: review for review in result.thesis_reviews}
+    challengers = {challenger.candidate: challenger for challenger in result.challenger_reviews}
+    problems = []
+    for candidate in sorted(
+        {
+            item.ticker
+            for item in result.candidates_considered
+            if item.clears_entry_bar and item.ticker not in held
+        }
+    ):
+        challenger = challengers.get(candidate)
+        if challenger is None:
+            problems.append(
+                f"{candidate} clears the entry bar but cash can't fund it; test it against your "
+                "weakest holding in challenger_reviews"
+            )
+            continue
+        incumbent = held.get(challenger.incumbent)
+        episode = episodes.get(challenger.incumbent, {}).get("episode_id")
+        if incumbent is None or episode != challenger.incumbent_episode_id:
+            problems.append(
+                f"the challenger review of {candidate} names {challenger.incumbent} episode "
+                f"{challenger.incumbent_episode_id}, which isn't a current holding episode"
+            )
+            continue
+        review = reviews.get(episode)
+        gap = "it has no thesis review in this output" if review is None else _review_gap(review)
+        if gap:
+            problems.append(
+                f"{challenger.incumbent}, the holding {candidate} was tested against, must be "
+                f"reviewed as a fresh buy at today's price; {gap}"
+            )
+        sale = next(
+            (
+                decision
+                for decision in result.decisions
+                if decision.ticker == challenger.incumbent
+                and decision.decision in {Decision.SELL, Decision.TRIM}
+            ),
+            None,
+        )
+        buy = next(
+            (
+                decision
+                for decision in result.decisions
+                if decision.ticker == candidate and decision.decision == Decision.BUY
+            ),
+            None,
+        )
+        if challenger.verdict == "keep_incumbent":
+            if buy is not None:
+                problems.append(
+                    f"{candidate} lost to {challenger.incumbent}, so it can't also be bought"
+                )
+        elif sale is None or buy is None:
+            problems.append(
+                f"swapping {challenger.incumbent} for {candidate} needs a SELL or TRIM of "
+                f"{challenger.incumbent} and a BUY of {candidate}"
+            )
+        else:
+            freed = (
+                incumbent.market_value / snapshot.account_equity
+                - sale.final_target_weight
+                + snapshot.buying_power / snapshot.account_equity
+            )
+            # Half a percentage point absorbs rounding in weights the agent states by hand.
+            if buy.final_target_weight > freed + 0.005:
+                problems.append(
+                    f"the BUY of {candidate} at {buy.final_target_weight:.1%} needs more than "
+                    f"the {freed:.1%} that selling {challenger.incumbent} to "
+                    f"{sale.final_target_weight:.1%} frees with the cash on hand"
+                )
+    return "; ".join(problems) or None
+
+
 def _record_research(
     log_dir: Path, passes: list[dict[str, Any]], result: AuthoredOutput | None
 ) -> None:
@@ -426,9 +528,13 @@ def _review_shortfall(
         hunt_shortfall(result, activity, required, trading_open=trading_open),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
     ]
+    holdings = [
+        unreviewed_holdings(conn, run, result, trading_open=trading_open),
+        unanswered_challengers(conn, run, result, trading_open=trading_open),
+    ]
     return (
         "; ".join(part for part in parts if part) or None,
-        unreviewed_holdings(conn, run, result, trading_open=trading_open),
+        "; ".join(part for part in holdings if part) or None,
     )
 
 
@@ -543,25 +649,7 @@ def execute_attempt(
         _record_research(attempt_log, passes, result)
         if shortfall:
             raise RunnerFailure("insufficient_research")
-        buys = [
-            decision
-            for decision in result.decisions
-            if decision.decision in {Decision.BUY, Decision.ADD}
-        ]
-        if review_gap and buys:
-            # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
-            # but no new money goes in while they're outstanding. They stay due. The public
-            # summary was written before the buys were held back, so it says so.
-            result = result.model_copy(
-                update={
-                    "decisions": [
-                        decision for decision in result.decisions if decision not in buys
-                    ],
-                    "public_summary": result.public_summary
-                    + " The trusted worker held back this review's new buys because it left a "
-                    "holding's review unanswered.",
-                }
-            )
+        due: list[dict[str, Any]] = []
         due_reasons: dict[str, list[str]] = {}
         open_episodes: set[str] = set()
         triaged: list[AuthoredXTriage] = []
@@ -592,6 +680,45 @@ def execute_attempt(
                 + (["x_digest"] if holding["ticker"] in thesis_changing else [])
                 for holding in due
             }
+        buys = [
+            decision
+            for decision in result.decisions
+            if decision.decision in {Decision.BUY, Decision.ADD}
+        ]
+        if review_gap and buys:
+            # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
+            # but no new money goes in while they're outstanding. They stay due. A sale that only
+            # funded a held-back buy goes with it; one of a holding judged invalidated stays. The
+            # public summary was written before any of this, so it says so.
+            must_exit = {
+                review.ticker for review in result.thesis_reviews if review.state == "invalidated"
+            } | {
+                holding["ticker"]
+                for holding in due
+                if "invalidated_without_exit" in holding["reasons"]
+            }
+            funding_sales = {
+                challenger.incumbent
+                for challenger in result.challenger_reviews
+                if challenger.verdict == "swap"
+                and challenger.candidate in {decision.ticker for decision in buys}
+            } - must_exit
+            result = result.model_copy(
+                update={
+                    "decisions": [
+                        decision
+                        for decision in result.decisions
+                        if decision not in buys
+                        and not (
+                            decision.ticker in funding_sales
+                            and decision.decision in {Decision.SELL, Decision.TRIM}
+                        )
+                    ],
+                    "public_summary": result.public_summary
+                    + " The trusted worker held back this review's new buys, and any sale that "
+                    "only funded one, because it left a holding's review unanswered.",
+                }
+            )
         authored_at = clock()
         heartbeat(conn, attempt.attempt_id, attempt.fence, authored_at, stage="validating")
         if run.mode == "live" and (
@@ -603,9 +730,24 @@ def execute_attempt(
         heartbeat(conn, attempt.attempt_id, attempt.fence, clock(), stage="submitting")
         if run.mode == "live" and result.decisions and snapshot_collector is not None:
             _refresh_snapshot(snapshot_collector)
-        for draft in result.decisions:
+        swaps = {
+            challenger.candidate: challenger.incumbent
+            for challenger in result.challenger_reviews
+            if challenger.verdict == "swap"
+        }
+        accepted_sales: dict[str, str] = {}
+        # Sales go first, so a swap's buy is submitted knowing its sale was accepted.
+        for draft in sorted(
+            result.decisions,
+            key=lambda decision: decision.decision not in {Decision.SELL, Decision.TRIM},
+        ):
             record = InvestmentDecisionRecord.model_validate(
                 {**draft.model_dump(), "created_at": authored_at}
+            )
+            funding_sale = (
+                accepted_sales.get(swaps.get(record.ticker, ""))
+                if run.mode == "live" and record.decision == Decision.BUY
+                else None
             )
             now = clock()
             snapshot_id = ""
@@ -631,7 +773,21 @@ def execute_attempt(
                 submitted_at=now,
                 runtime_attempt_id=attempt.attempt_id,
                 fence=attempt.fence,
+                funded_by_sale=funding_sale is not None,
             )
+            intent = conn.execute(
+                "SELECT 1 FROM order_intents WHERE decision_id=?", (record.decision_id,)
+            ).fetchone()
+            if intent and record.decision in {Decision.SELL, Decision.TRIM}:
+                accepted_sales[record.ticker] = record.decision_id
+            if intent and funding_sale:
+                # The executor holds this buy until its sale fills.
+                with immediate(conn):
+                    validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+                    conn.execute(
+                        "INSERT INTO swap_pairs VALUES (?, ?, ?)",
+                        (record.decision_id, funding_sale, now.isoformat()),
+                    )
         with immediate(conn):
             validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
             for verdict in triaged:

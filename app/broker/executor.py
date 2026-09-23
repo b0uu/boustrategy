@@ -20,7 +20,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.broker.collector import DEFAULT_COLLECTOR_MODEL, collect_snapshot, default_codex_home
 from app.broker.config import get_live_profile, load_live_profiles
+from app.broker.lifecycle import latest_execution_status
 from app.broker.session import BrokerSessionFailure, run_broker_session
+from app.schemas.broker_execution import BrokerExecutionStatus
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import OrderIntent
 from app.storage.database import connect
@@ -252,6 +254,30 @@ def execute_pending(
             continue
         if last_attempt is not None and started - last_attempt < min_retry_interval:
             results.append({"order_intent_id": intent.order_intent_id, "skipped": "retry_backoff"})
+            continue
+        # A swap's buy is sent only once its sale has filled, so it never goes out unfunded. An
+        # unfilled one waits, and like any intent it expires at the close.
+        with closing(connect(db_path)) as conn:
+            sale = conn.execute(
+                "SELECT r.broker_execution_record_id FROM swap_pairs s "
+                "JOIN order_intents o ON o.decision_id = s.sell_decision_id "
+                "LEFT JOIN broker_execution_records r ON r.order_intent_id = o.order_intent_id "
+                "WHERE s.buy_decision_id = ?",
+                (intent.decision_id,),
+            ).fetchone()
+            sale_status = latest_execution_status(conn, sale[0]) if sale and sale[0] else None
+        if sale is not None and sale_status not in {
+            BrokerExecutionStatus.FILLED,
+            BrokerExecutionStatus.PARTIALLY_FILLED,
+        }:
+            results.append(
+                {
+                    "order_intent_id": intent.order_intent_id,
+                    "skipped": "swap_sell_failed"
+                    if sale_status in {BrokerExecutionStatus.CANCELED, BrokerExecutionStatus.FAILED}
+                    else "awaiting_swap_sale",
+                }
+            )
             continue
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
         result: dict[str, Any] = {

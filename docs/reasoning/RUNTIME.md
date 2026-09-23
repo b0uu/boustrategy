@@ -83,6 +83,20 @@ holdings due for a thesis review, with the reasons:
 - Regardless of the cooldown: its first close 40% under cost, or an invalidated
   verdict with no sale since.
 
+When buying power is below the 5% minimum initial position, cash can't fund a new
+holding, and the intake says so. Every candidate the review marks `clears_entry_bar`
+that isn't held then needs a `challenger_reviews` entry: the holding the agent judges
+weakest, why, and a verdict of `swap` or `keep_incumbent`. That holding must be
+reviewed in the same output as a fresh buy at today's price. A swap needs a SELL or
+TRIM of the holding and a BUY of the candidate, with the sale plus cash on hand
+freeing at least the buy's target weight; a kept-out candidate can't also be bought.
+Nothing arms while the market is closed, since neither leg could trade. Sales are
+submitted before buys. A swap BUY is recorded in `swap_pairs` with its sale, sits
+outside the ordinary 2/day BUY/ADD limit (the 5/day breaker still counts it), and the
+executor sends it only after its sale fills (`awaiting_swap_sale`), never after a
+failed one (`swap_sell_failed`). If a review is accepted without its buys, a sale that
+only funded one is held back too, unless that holding was judged invalidated.
+
 Preparation tracks prices, earnings and triggers for live holdings whether or not
 the watchlist names them. The agent's verdict is binary: `intact` (it would still
 own the holding at today's price) or `invalidated`. An invalidated holding needs a

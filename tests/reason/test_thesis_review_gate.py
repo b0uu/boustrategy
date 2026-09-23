@@ -7,14 +7,16 @@ from types import SimpleNamespace
 from typing import Any
 
 from app.reason.runtime_prepare import assemble_intake
-from app.reason.worker import execute_attempt, unreviewed_holdings
-from app.schemas.decision_record import InvestmentDecisionRecord
+from app.reason.worker import execute_attempt, unanswered_challengers, unreviewed_holdings
+from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.reasoning_run import ReasoningRun
 from app.schemas.runtime import (
+    AuthoredChallenger,
     AuthoredEarningsDate,
     AuthoredOutput,
     AuthoredThesisReview,
     AuthoredXTriage,
+    CandidateConsidered,
     RuntimeRun,
 )
 from app.storage.database import connect
@@ -29,8 +31,12 @@ from tests.storage.test_holding_reviews import ACCOUNT, review, snapshot_at, x_p
 WEDNESDAY_MIDDAY = datetime(2026, 9, 23, 17, 0, tzinfo=UTC)
 
 
-def live_review(conn: sqlite3.Connection, folder: Path) -> RuntimeRun:
-    snapshot = snapshot_at(conn, folder, WEDNESDAY_MIDDAY, {"NVDA": (0.1, 200, 230)})
+def live_review(
+    conn: sqlite3.Connection,
+    folder: Path,
+    holdings: dict[str, tuple[float, float, float]] | None = None,
+) -> RuntimeRun:
+    snapshot = snapshot_at(conn, folder, WEDNESDAY_MIDDAY, holdings or {"NVDA": (0.1, 200, 230)})
     path = folder / "live-intake.md"
     path.write_text("Deliberate live intake", encoding="utf-8")
     checksum = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -248,6 +254,159 @@ def test_a_thesis_changing_headline_is_recorded_and_its_review_starts_the_cooldo
     assert conn.execute("SELECT post_id, ticker, changes_thesis FROM x_triage").fetchall() == [
         ("1", "NVDA", 1)
     ]
+    conn.close()
+
+
+# NVDA and MU hold $96 of $100, leaving $4 of buying power: below the 5% minimum position.
+FULLY_INVESTED: dict[str, tuple[float, float, float]] = {
+    "NVDA": (0.1, 200, 230),
+    "MU": (1, 73, 73),
+}
+
+
+def decision(namespace: str, ticker: str, action: str, weight: float) -> InvestmentDecisionRecord:
+    return InvestmentDecisionRecord.model_validate(
+        {
+            **valid_decision_record_data(),
+            "decision_id": f"{namespace}{action.lower()}_{ticker.lower()}",
+            "ticker": ticker,
+            "decision": action,
+            "proposed_target_weight": weight,
+            "final_target_weight": weight,
+        }
+    )
+
+
+def amd_clears_the_bar() -> CandidateConsidered:
+    return CandidateConsidered(
+        ticker="AMD",
+        idea_source="MI400 orders",
+        sources_opened=["https://ir.amd.com/"],
+        outcome=Decision.BUY,
+        reason="Clears the bar on its merits.",
+        clears_entry_bar=True,
+    )
+
+
+def test_a_candidate_cash_cannot_fund_is_tested_against_a_reviewed_holding(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path, FULLY_INVESTED)
+    episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
+    mu_review = complete_review(episodes["MU"]["episode_id"]).model_copy(update={"ticker": "MU"})
+    swap = AuthoredChallenger(
+        candidate="AMD",
+        incumbent="MU",
+        incumbent_episode_id=episodes["MU"]["episode_id"],
+        why_weakest="Its memory cycle has peaked.",
+        verdict="swap",
+        reasoning="AMD has more upside at today's price.",
+    )
+    sell_mu, buy_amd = decision("", "MU", "SELL", 0.0), decision("", "AMD", "BUY", 0.12)
+
+    def gap(**output: Any) -> str | None:
+        return unanswered_challengers(
+            conn,
+            run,
+            AuthoredOutput(
+                candidates_considered=[amd_clears_the_bar()], public_summary="x", **output
+            ),
+        )
+
+    unanswered = gap()
+    one_leg = gap(challenger_reviews=[swap], thesis_reviews=[mu_review], decisions=[buy_amd])
+    underfunded = gap(
+        challenger_reviews=[swap],
+        thesis_reviews=[mu_review],
+        decisions=[decision("", "MU", "TRIM", 0.7), buy_amd],
+    )
+    unreviewed = gap(challenger_reviews=[swap], decisions=[sell_mu, buy_amd])
+    kept_but_bought = gap(
+        challenger_reviews=[swap.model_copy(update={"verdict": "keep_incumbent"})],
+        thesis_reviews=[mu_review],
+        decisions=[buy_amd],
+    )
+    complete = gap(
+        challenger_reviews=[swap], thesis_reviews=[mu_review], decisions=[sell_mu, buy_amd]
+    )
+    funded_conn = connect(tmp_path / "funded.db")
+    funded = unanswered_challengers(
+        funded_conn,
+        live_review(funded_conn, tmp_path),
+        AuthoredOutput(candidates_considered=[amd_clears_the_bar()], public_summary="x"),
+    )
+    funded_conn.close()
+
+    assert unanswered and "cash can't fund it" in unanswered
+    assert one_leg and "needs a SELL or TRIM of MU and a BUY of AMD" in one_leg
+    assert underfunded and "needs more than the 7.0%" in underfunded
+    assert unreviewed and "must be reviewed as a fresh buy" in unreviewed
+    assert kept_but_bought and "can't also be bought" in kept_but_bought
+    assert complete is None
+    assert funded is None
+    conn.close()
+
+
+def test_a_swap_submits_its_sale_first_and_pairs_the_buy_outside_the_daily_limit(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path, FULLY_INVESTED)
+    save_run(conn, run)
+    episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
+    # Two ordinary buys already today: the daily limit is spent.
+    for index in range(2):
+        conn.execute(
+            "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
+            "execution_mode, execution_profile_id, intent_json) "
+            "VALUES (?, ?, ?, 'TSM', 'BUY', 'LIVE', 'codex', '{}')",
+            (f"earlier_{index}", f"earlier_{index}", WEDNESDAY_MIDDAY.isoformat()),
+        )
+    conn.commit()
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        return AuthoredOutput(
+            decisions=[
+                decision(namespace, "AMD", "BUY", 0.12),
+                decision(namespace, "MU", "SELL", 0.0),
+            ],
+            thesis_reviews=[
+                complete_review(episodes["NVDA"]["episode_id"]),
+                complete_review(episodes["MU"]["episode_id"]).model_copy(update={"ticker": "MU"}),
+            ],
+            candidates_considered=[amd_clears_the_bar()],
+            challenger_reviews=[
+                AuthoredChallenger(
+                    candidate="AMD",
+                    incumbent="MU",
+                    incumbent_episode_id=episodes["MU"]["episode_id"],
+                    why_weakest="Its memory cycle has peaked.",
+                    verdict="swap",
+                    reasoning="AMD has more upside at today's price.",
+                )
+            ],
+            public_summary="Swapped MU for AMD.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    intents = conn.execute(
+        "SELECT ticker, side, decision_id FROM order_intents WHERE ticker IN ('AMD', 'MU') "
+        "ORDER BY rowid"
+    ).fetchall()
+    pairs = conn.execute("SELECT buy_decision_id, sell_decision_id FROM swap_pairs").fetchall()
+    assert [(ticker, side) for ticker, side, _ in intents] == [("MU", "SELL"), ("AMD", "BUY")]
+    assert pairs == [(intents[1][2], intents[0][2])]
     conn.close()
 
 

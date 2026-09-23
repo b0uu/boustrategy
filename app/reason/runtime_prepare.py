@@ -12,7 +12,11 @@ from uuid import uuid4
 from app.paper.broker import cash_balance
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.runtime import RuntimeRun
-from app.storage.holding_reviews import holdings_due, live_holding_episodes
+from app.storage.holding_reviews import (
+    MIN_INITIAL_POSITION,
+    holdings_due,
+    live_holding_episodes,
+)
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import save_run
 
@@ -105,6 +109,14 @@ def assemble_intake(
         }
         live_episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
         due = holdings_due(conn, snapshot, run.prepared_at)
+        minimum = MIN_INITIAL_POSITION * snapshot.account_equity
+        cash_shortfall = (
+            f"Buying power ${snapshot.buying_power:.2f} is below the {MIN_INITIAL_POSITION:.0%} "
+            f"minimum initial position (${minimum:.2f}). Test every candidate that clears the "
+            "entry bar against your weakest holding in challenger_reviews."
+            if snapshot.buying_power < minimum
+            else None
+        )
     else:
         facts = {
             "mode": "paper",
@@ -225,6 +237,8 @@ def assemble_intake(
             "episode whose current open identity is supplied.",
         ]
     )
+    if run.mode == "live" and cash_shortfall:
+        sections.extend(["# Cash can't fund a new position", cash_shortfall])
     if run.mode == "live":
         sections.extend(
             [

@@ -11,6 +11,11 @@ class PolicyModel(BaseModel):
 class PortfolioInputs(PolicyModel):
     holdings_count: int = Field(ge=0)
     buy_add_trades_today: int = Field(ge=0)
+    # Of those, buys funded by a sale in the same review (a swap). They don't raise exposure, so
+    # the ordinary daily limit doesn't count them; the circuit breaker still does.
+    swap_buy_trades_today: int = Field(default=0, ge=0)
+    # The decision being evaluated is such a swap buy.
+    funded_by_same_review_sale: bool = False
     sell_trim_trades_today: int = Field(ge=0)
     primary_theme_weights: dict[str, float] = Field(default_factory=dict)
     # None means the caller supplied no short-watchlist facts, not an empty list.

@@ -160,11 +160,17 @@ def evaluate_decision_policy(
         passed=not brake,
         missing=portfolio is None,
     )
+    ordinary_buys = (
+        portfolio.buy_add_trades_today - portfolio.swap_buy_trades_today if portfolio else None
+    )
     check(
         "daily_buy_add_limit_reached",
-        applicable=increasing and not brake and not record.extraordinary_opportunity,
-        observed=buy_count,
-        passed=buy_count is not None and buy_count < MAX_BUY_ADD_TRADES_PER_DAY,
+        applicable=increasing
+        and not brake
+        and not record.extraordinary_opportunity
+        and not (portfolio and portfolio.funded_by_same_review_sale),
+        observed=ordinary_buys,
+        passed=ordinary_buys is not None and ordinary_buys < MAX_BUY_ADD_TRADES_PER_DAY,
         missing=portfolio is None,
     )
     sell_count = portfolio.sell_trim_trades_today if portfolio else None

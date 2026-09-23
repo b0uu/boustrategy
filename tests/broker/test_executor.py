@@ -16,6 +16,7 @@ from app.broker.session import BrokerSessionFailure
 from app.orders.create_order_intent import create_order_intent
 from app.policy.decision_policy import PolicyResult
 from app.schemas.broker_execution import BrokerExecutionRecord
+from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import ExecutionMode, OrderIntent
 from app.storage.database import connect
@@ -25,7 +26,7 @@ from app.storage.records import (
     save_execution_packet,
     save_order_intent,
 )
-from tests.fixtures.decision_records import valid_decision_record
+from tests.fixtures.decision_records import valid_decision_record, valid_decision_record_data
 from tests.fixtures.live_execution import live_execution_packet
 
 
@@ -66,6 +67,114 @@ def _session_returning(payload: dict[str, Any], seen: dict[str, Any]) -> Any:
         return schema.model_validate(payload)
 
     return session
+
+
+def _swap(db_path: Path, now: datetime) -> OrderIntent:
+    """A sale from an earlier session, paired with a buy decided today."""
+    conn = connect(db_path)
+    sale = InvestmentDecisionRecord.model_validate(
+        {
+            **valid_decision_record_data(),
+            "decision_id": "dec_sale",
+            "ticker": "MU",
+            "decision": "SELL",
+            "proposed_target_weight": 0.0,
+            "final_target_weight": 0.0,
+        }
+    )
+    save_decision_record(conn, sale)
+    save_order_intent(
+        conn,
+        create_order_intent(
+            sale,
+            PolicyResult(approved=True),
+            execution_mode=ExecutionMode.LIVE,
+            execution_profile_id="codex",
+            created_at=now - timedelta(days=1),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    buy = _live_intent(db_path, now - timedelta(hours=1))
+    conn = connect(db_path)
+    conn.execute(
+        "INSERT INTO swap_pairs VALUES (?, 'dec_sale', ?)", (buy.decision_id, now.isoformat())
+    )
+    conn.commit()
+    conn.close()
+    return buy
+
+
+def _sale_status(db_path: Path, status: str, at: datetime) -> None:
+    conn = connect(db_path)
+    intent_id = conn.execute(
+        "SELECT order_intent_id FROM order_intents WHERE decision_id='dec_sale'"
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT OR IGNORE INTO broker_execution_records (broker_execution_record_id, "
+        "order_intent_id, execution_packet_id, execution_profile_id, account_alias, "
+        "submitted_at, ticker, side, status, broker_order_id, record_json) "
+        "VALUES ('ber_sale', ?, 'ep_sale', 'codex', 'codex-agentic', ?, 'MU', 'SELL', "
+        "'SUBMITTED', 'rh-1', '{}')",
+        (intent_id, at.isoformat()),
+    )
+    conn.execute(
+        "INSERT INTO broker_execution_events (broker_event_id, broker_execution_record_id, "
+        "order_intent_id, execution_packet_id, execution_profile_id, status, occurred_at, "
+        "detail, event_json) VALUES (?, 'ber_sale', ?, 'ep_sale', 'codex', ?, ?, '', '{}')",
+        (f"bev_sale_{status}", intent_id, status, at.isoformat()),
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_a_swap_buy_waits_for_its_sale_to_fill(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    buy = _swap(db_path, now)
+    seen: dict[str, Any] = {}
+    payload = {"order_intent_id": buy.order_intent_id, "outcome": "not_placed", "notes": "x"}
+
+    def tick() -> list[dict[str, Any]]:
+        return execute_pending(
+            db_path,
+            _profile(),
+            now=now,
+            session=_session_returning(payload, seen),
+            codex_home=tmp_path,
+            repo_root=tmp_path,
+            log_dir=tmp_path / "broker-logs",
+        )
+
+    unsold = tick()
+    _sale_status(db_path, "SUBMITTED", now - timedelta(minutes=5))
+    submitted = tick()
+    _sale_status(db_path, "FILLED", now - timedelta(minutes=4))
+    filled = tick()
+
+    assert [unsold[0]["skipped"], submitted[0]["skipped"]] == ["awaiting_swap_sale"] * 2
+    assert "skipped" not in filled[0] and buy.order_intent_id in seen["prompt"]
+
+
+def test_a_swap_buy_is_never_sent_after_its_sale_fails(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    buy = _swap(db_path, now)
+    _sale_status(db_path, "FAILED", now - timedelta(minutes=5))
+    seen: dict[str, Any] = {}
+
+    results = execute_pending(
+        db_path,
+        _profile(),
+        now=now,
+        session=_session_returning({"order_intent_id": buy.order_intent_id}, seen),
+        codex_home=tmp_path,
+        repo_root=tmp_path,
+        log_dir=tmp_path / "broker-logs",
+    )
+
+    assert results == [{"order_intent_id": buy.order_intent_id, "skipped": "swap_sell_failed"}]
+    assert seen == {}
 
 
 def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -> None:

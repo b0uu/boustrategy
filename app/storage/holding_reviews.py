@@ -14,6 +14,9 @@ from app.x.calendar import NEW_YORK
 # reviews are the ones that must cover every holding, while they can still trade on it.
 REVIEW_POINTS = ((0, time(9)), (2, time(12)), (4, time(12)))
 SIGNIFICANT_WEIGHT = 0.02
+# risk_posture.md's minimum initial position. With less buying power than this, no new
+# position can be opened without a sale, so a strong candidate faces a holding instead.
+MIN_INITIAL_POSITION = 0.05
 MAX_HEADLINES_TO_TRIAGE = 10
 TRIGGER_COOLDOWN = timedelta(days=3)
 DRAWDOWN_TRIGGER_PERCENT = -15.0
@@ -181,11 +184,25 @@ def holdings_due(
         if (
             reviews
             and reviews[0]["state"] == "invalidated"
+            # A sale counts once it fills or while it can still fill: at the broker, or not yet
+            # attempted in the session it was decided in. A failed or expired one doesn't.
             and not conn.execute(
-                "SELECT 1 FROM order_intents WHERE execution_mode='LIVE' "
-                "AND execution_profile_id=? AND ticker=? AND side='SELL' "
-                "AND julianday(created_at)>=julianday(?)",
-                (snapshot.execution_profile_id, ticker, reviews[0]["reviewed_at"]),
+                "SELECT 1 FROM order_intents o LEFT JOIN broker_execution_records r "
+                "ON r.order_intent_id=o.order_intent_id WHERE o.execution_mode='LIVE' "
+                "AND o.execution_profile_id=? AND o.ticker=? AND o.side='SELL' "
+                "AND julianday(o.created_at)>=julianday(?) AND ("
+                "(r.broker_execution_record_id IS NULL "
+                "AND julianday(o.created_at)>=julianday(?)) OR "
+                "(SELECT e.status FROM broker_execution_events e "
+                "WHERE e.broker_execution_record_id=r.broker_execution_record_id "
+                "ORDER BY julianday(e.occurred_at) DESC, e.rowid DESC LIMIT 1) "
+                "NOT IN ('FAILED', 'CANCELED'))",
+                (
+                    snapshot.execution_profile_id,
+                    ticker,
+                    reviews[0]["reviewed_at"],
+                    datetime.combine(session_day, time(9, 30), NEW_YORK).isoformat(),
+                ),
             ).fetchone()
         ):
             reasons.append("invalidated_without_exit")
