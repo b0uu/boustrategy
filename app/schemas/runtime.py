@@ -114,9 +114,19 @@ class CandidateConsidered(RuntimeModel):
     reason: str = Field(min_length=1, max_length=2000)
 
 
+class AuthoredEarningsDate(RuntimeModel):
+    """An earnings date the agent read from a source, which outranks the feed's estimate."""
+
+    ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
+    event_date: date
+    confirmed: bool
+    source_url: str = Field(pattern=r"^https?://", max_length=2000)
+
+
 class AuthoredOutput(RuntimeModel):
     decisions: list[InvestmentDecisionRecord] = Field(default_factory=list, max_length=20)
     thesis_reviews: list[AuthoredThesisReview] = Field(default_factory=list, max_length=20)
+    earnings_dates: list[AuthoredEarningsDate] = Field(default_factory=list, max_length=20)
     candidates_considered: list[CandidateConsidered] = Field(default_factory=list, max_length=12)
     public_summary: str = Field(min_length=1, max_length=4000)
 

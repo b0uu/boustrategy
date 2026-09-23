@@ -53,7 +53,17 @@ Ranks (required when significant):
   read it this week.
 - `context` — background that sharpens the picture; skimmable.
 
+Tag every significant post with the U.S.-listed tickers it bears on, named
+or not. Include a company the post discusses by name, product, executive or
+nickname, and the suppliers, customers and competitors its substance moves: a
+post about HBM supply bears on MU even if it never says Micron. Check every
+post against the current holdings and watchlist that `holdings` prints; a
+holding the post affects must be tagged, since a tag is what makes the agent
+re-review that holding. Use an empty list only when no listed security is
+affected.
+
 Output one JSON line per post:
 {"post_id": "...", "prediction": "significant"|"skip",
  "rank": "headline"|"notable"|"context" (significant only),
+ "tickers": ["MU", ...] (significant only, may be empty),
  "reason": "<=15 words"}

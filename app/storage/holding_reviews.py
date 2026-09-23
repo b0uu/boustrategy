@@ -18,7 +18,7 @@ TRIGGER_COOLDOWN = timedelta(days=3)
 DRAWDOWN_TRIGGER_PERCENT = -15.0
 MANDATORY_REVIEW_RETURN_PERCENT = -40.0
 TRIGGER_REASONS = frozenset(
-    {"price_move", "volume_spike", "earnings_reported", "x_headline", "down_15_percent_from_cost"}
+    {"price_move", "volume_spike", "earnings_reported", "x_digest", "down_15_percent_from_cost"}
 )
 # The mandate requires these the same day, so no cooldown holds them back.
 MANDATORY_REASONS = frozenset({"down_40_percent_from_cost", "invalidated_without_exit"})
@@ -74,7 +74,8 @@ def holdings_due(
 
     A significant holding is due at each review point until a review recorded after that point
     covers its episode; a missed point carries to the next review that runs. A price move,
-    volume spike, reported earnings, an X digest headline naming it, or a first close below 15%
+    volume spike, reported earnings, an X digest headline or notable post tagged with it or
+    naming it, or a first close below 15%
     under cost since its last review also makes it due. For three days after a review that a
     trigger caused, neither the schedule nor another trigger makes it due. Falling 40% under
     cost, or an invalidated verdict with no sale since, makes it due regardless.
@@ -127,24 +128,30 @@ def holdings_due(
             close = datetime.combine(datetime.fromisoformat(fired_on).date(), time(16), NEW_YORK)
             if since < close <= prepared_at and trigger_type not in reasons:
                 reasons.append(trigger_type)
+        # A date the agent read from a source outranks a feed estimate within a month of it.
         if conn.execute(
-            "SELECT 1 FROM calendar_events WHERE event_type='earnings' AND ticker=? "
-            "AND event_date>=? AND event_date<?",
+            "SELECT 1 FROM calendar_events e WHERE event_type='earnings' AND ticker=? "
+            "AND event_date>=? AND event_date<? AND (source='agent' OR NOT EXISTS ("
+            "SELECT 1 FROM calendar_events a WHERE a.event_type='earnings' "
+            "AND a.ticker=e.ticker AND a.source='agent' "
+            "AND abs(julianday(a.event_date)-julianday(e.event_date))<=30))",
             (ticker, since.astimezone(NEW_YORK).date().isoformat(), session_day.isoformat()),
         ).fetchone():
             reasons.append("earnings_reported")
+        # The digester tags each post with the tickers it bears on, named or implied. Posts
+        # routed before tagging existed only match on the symbol itself.
         mention = re.compile(rf"(?<![A-Za-z0-9])\$?{re.escape(ticker)}(?![A-Za-z0-9])")
         if any(
-            mention.search(text or "") or mention.search(reason or "")
-            for text, reason in conn.execute(
-                "SELECT p.text, r.reason FROM x_route_decisions r JOIN x_posts p "
-                "ON p.post_id=r.post_id WHERE r.rank='headline' "
+            ticker in json.loads(tickers) or mention.search(text) or mention.search(reason)
+            for text, reason, tickers in conn.execute(
+                "SELECT p.text, r.reason, r.tickers FROM x_route_decisions r JOIN x_posts p "
+                "ON p.post_id=r.post_id WHERE r.rank IN ('headline', 'notable') "
                 "AND julianday(r.decided_at)>julianday(?) "
                 "AND julianday(r.decided_at)<=julianday(?)",
                 (since.isoformat(), prepared_at.isoformat()),
             )
         ):
-            reasons.append("x_headline")
+            reasons.append("x_digest")
         for threshold, reason in (
             (DRAWDOWN_TRIGGER_PERCENT, "down_15_percent_from_cost"),
             (MANDATORY_REVIEW_RETURN_PERCENT, "down_40_percent_from_cost"),

@@ -79,7 +79,7 @@ def refresh_earnings(
     conn.execute(
         """
         DELETE FROM calendar_events
-        WHERE event_type = 'earnings' AND ticker = ? AND event_date >= ?
+        WHERE event_type = 'earnings' AND ticker = ? AND event_date >= ? AND source = 'yfinance'
         """,
         (ticker, today.isoformat()),
     )
@@ -87,7 +87,7 @@ def refresh_earnings(
         if event_date >= today:
             conn.execute(
                 """
-                INSERT INTO calendar_events
+                INSERT OR IGNORE INTO calendar_events
                     (event_type, ticker, event_date, label, source, fetched_at)
                 VALUES ('earnings', ?, ?, 'estimated', 'yfinance', ?)
                 """,

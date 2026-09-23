@@ -78,15 +78,15 @@ def test_fomc_sync_replaces_wholesale_and_checks_coverage(tmp_path: Path) -> Non
         sync_fomc(conn, date(2028, 1, 1))
 
 
-def test_earnings_refresh_replaces_future_only(tmp_path: Path) -> None:
+def test_earnings_refresh_replaces_future_feed_dates_only(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     conn.executemany(
         """
         INSERT INTO calendar_events
             (event_type, ticker, event_date, label, source, fetched_at)
-        VALUES ('earnings', 'NVDA', ?, 'old', 'old', '2026-01-01')
+        VALUES ('earnings', 'NVDA', ?, 'old', ?, '2026-01-01')
         """,
-        [("2026-07-01",), ("2026-08-01",)],
+        [("2026-07-01", "yfinance"), ("2026-08-01", "yfinance"), ("2026-08-26", "agent")],
     )
 
     count = refresh_earnings(
@@ -99,7 +99,7 @@ def test_earnings_refresh_replaces_future_only(tmp_path: Path) -> None:
     assert count == 1
     assert conn.execute(
         "SELECT event_date FROM calendar_events WHERE ticker = 'NVDA' ORDER BY event_date"
-    ).fetchall() == [("2026-07-01",), ("2026-08-20",)]
+    ).fetchall() == [("2026-07-01",), ("2026-08-20",), ("2026-08-26",)]
 
 
 def test_a_broken_earnings_feed_is_named_and_keeps_the_stored_dates(tmp_path: Path) -> None:

@@ -6,6 +6,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from app.events.store import parse_watchlist
+from app.schemas.live_execution import LivePortfolioSnapshot
 from app.storage.database import connect
 from app.x.accounts import list_active_accounts, seed_from_manual_readme, upsert_account
 from app.x.calendar import slot_should_run
@@ -290,6 +292,8 @@ def main() -> None:
     cycle_parser.add_argument("--date", dest="run_date")
     cycle_parser.add_argument("--out")
 
+    subparsers.add_parser("holdings")
+
     route_parser = subparsers.add_parser("route")
     route_parser.add_argument("--run", dest="run_id", required=True)
     route_parser.add_argument("--predictor", required=True)
@@ -346,6 +350,23 @@ def main() -> None:
             run_id = f"{run_date.isoformat()}-{args.slot}"
             out = args.out or f"data/x_runs/{run_id}"
             cycle(conn, args.slot, run_date, out, _cmd_fetch)
+        elif args.command == "holdings":
+            held = sorted(
+                {
+                    position.ticker
+                    for (snapshot_json,) in conn.execute(
+                        "SELECT snapshot_json FROM live_portfolio_snapshots s WHERE "
+                        "julianday(captured_at)=(SELECT MAX(julianday(captured_at)) FROM "
+                        "live_portfolio_snapshots "
+                        "WHERE execution_profile_id=s.execution_profile_id)"
+                    )
+                    for position in LivePortfolioSnapshot.model_validate_json(
+                        snapshot_json
+                    ).positions
+                }
+            )
+            print("holdings: " + (", ".join(held) or "none"))
+            print("watchlist: " + (", ".join(parse_watchlist("docs/watchlist.md")) or "none"))
         elif args.command == "route":
             route_predictions(conn, args.run_id, args.predictor, args.in_path)
         elif args.command == "note":

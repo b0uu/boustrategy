@@ -15,6 +15,7 @@ from app.x.posts import MAX_MONTHLY_POST_READS, reads_remaining
 LINK_ONLY_MAX_CHARS = 40
 _URL_PATTERN = re.compile(r"https?://\S+")
 _RANKS = ("headline", "notable", "context")
+_TICKER = re.compile(r"^[A-Z][A-Z0-9.-]{0,11}$")
 _SLOT_ORDER = {"morning": 0, "midday": 1, "close": 2, "weekly": 3}
 
 
@@ -205,6 +206,13 @@ def route_predictions(
             raise ValueError(f"significant prediction requires valid rank for post {post_id}")
         if prediction == "skip" and rank:
             raise ValueError(f"skip prediction must not have rank for post {post_id}")
+        tickers = record.get("tickers")
+        if prediction == "significant" and not isinstance(tickers, list):
+            raise ValueError(f"significant prediction requires a tickers list for post {post_id}")
+        if any(
+            not isinstance(ticker, str) or not _TICKER.match(ticker) for ticker in tickers or []
+        ):
+            raise ValueError(f"tickers must be uppercase symbols for post {post_id}")
         if conn.execute("SELECT 1 FROM x_posts WHERE post_id = ?", (post_id,)).fetchone() is None:
             raise ValueError(f"unknown post_id {post_id!r} not present in x_posts")
         prior = conn.execute(
@@ -218,8 +226,8 @@ def route_predictions(
         conn.execute(
             """
             INSERT OR REPLACE INTO x_route_decisions
-                (post_id, run_id, route, rank, reason, predictor, decided_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (post_id, run_id, route, rank, reason, predictor, decided_at, tickers)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record["post_id"],
@@ -229,6 +237,7 @@ def route_predictions(
                 record.get("reason", ""),
                 predictor,
                 decided_at,
+                json.dumps(sorted(set(record.get("tickers") or []))),
             ),
         )
     conn.execute(

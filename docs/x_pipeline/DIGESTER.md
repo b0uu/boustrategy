@@ -11,7 +11,8 @@ Run these steps in order for the schedule slot that launched this session.
    attachment into the run's `media/` folder. It prints downloaded, cached and
    failed counts and leaves a `.failed` marker next to any URL it couldn't
    fetch. Never download media with curl or Invoke-WebRequest; they have no
-   TLS credentials inside the sandbox. Then open the run export directory,
+   TLS credentials inside the sandbox. Run `python -m app.x.run holdings` for
+   the current holdings and watchlist to tag against. Then open the run export directory,
    read every `batch_*.jsonl`, view the downloaded files for posts that carry
    media, judge every record using `docs/x_pipeline/RUBRIC.md`, and write
    `predictions.jsonl` alongside the batches.

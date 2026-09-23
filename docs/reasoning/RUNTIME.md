@@ -68,8 +68,11 @@ holdings due for a thesis review, with the reasons:
   Wednesday midday and Friday midday reviews) until a review recorded after that
   point covers it. A missed point carries to the next review that runs.
 - On a trigger since its last review: a daily price move of 5% or more, a volume
-  spike, reported earnings, an X digest headline naming the ticker, or its first
-  close 15% under cost.
+  spike, reported earnings, an X digest headline or notable post that bears on it,
+  or its first close 15% under cost. The digester tags each significant post with
+  every ticker it bears on, named or implied. Earnings dates come from the feed and
+  from the review agent, which records every date it reads with its source; the
+  agent's date outranks a feed estimate within 30 days of it.
 - For three days after a trigger-driven review, neither the schedule nor another
   trigger makes the holding due.
 - Regardless of the cooldown: its first close 40% under cost, or an invalidated

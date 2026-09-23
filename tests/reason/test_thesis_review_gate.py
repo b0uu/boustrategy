@@ -1,7 +1,7 @@
 import hashlib
 import json
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +9,12 @@ from app.reason.runtime_prepare import assemble_intake
 from app.reason.worker import execute_attempt, unreviewed_holdings
 from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.reasoning_run import ReasoningRun
-from app.schemas.runtime import AuthoredOutput, AuthoredThesisReview, RuntimeRun
+from app.schemas.runtime import (
+    AuthoredEarningsDate,
+    AuthoredOutput,
+    AuthoredThesisReview,
+    RuntimeRun,
+)
 from app.storage.database import connect
 from app.storage.holding_reviews import live_holding_episodes
 from app.storage.records import save_reasoning_run
@@ -165,7 +170,18 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
     def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
         prompts.append(prompt)
         reviews = [] if len(prompts) == 1 else [complete_review(episode)]
-        return AuthoredOutput(thesis_reviews=reviews, public_summary="Holdings reviewed.")
+        return AuthoredOutput(
+            thesis_reviews=reviews,
+            earnings_dates=[
+                AuthoredEarningsDate(
+                    ticker="NVDA",
+                    event_date=date(2026, 11, 18),
+                    confirmed=True,
+                    source_url="https://investor.nvidia.com/events",
+                )
+            ],
+            public_summary="Holdings reviewed.",
+        )
 
     attempt = execute_attempt(
         conn,
@@ -183,6 +199,9 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
     assert [(item["episode_id"], item["state"]) for item in stored] == [(episode, "intact")]
     assert stored[0]["review_reasons"] == ["scheduled_review"]
     assert "sources_opened" not in stored[0]
+    assert conn.execute(
+        "SELECT ticker, event_date, label, source FROM calendar_events"
+    ).fetchall() == [("NVDA", "2026-11-18", "confirmed", "agent")]
     conn.close()
 
 

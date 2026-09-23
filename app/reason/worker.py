@@ -81,6 +81,9 @@ approved_for_publication to true; keep private reasoning in private_notes. A hol
 due may still be reviewed; otherwise thesis_reviews may be empty. A review that leaves a due
 holding unanswered is sent back, and if it's still unanswered, its BUY and ADD records are
 discarded.
+Record every earnings date you read for a holding or candidate in earnings_dates, with the page
+you read it on and whether the company has confirmed it. Past dates count: a report since a
+holding's last review makes it due. Your dates replace the feed's estimates near them.
 Record only what you actually read. Every source claim needs a real identifier you retrieved
 and the source's own publication timestamp; reconstruct neither from memory. A search that
 fails or returns nothing usable is a research limitation to state, not a gap to fill in.
@@ -585,6 +588,20 @@ def execute_attempt(
                 runtime_attempt_id=attempt.attempt_id,
                 fence=attempt.fence,
             )
+        with immediate(conn):
+            validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+            for earnings in result.earnings_dates:
+                conn.execute(
+                    "INSERT OR REPLACE INTO calendar_events "
+                    "(event_type, ticker, event_date, label, source, fetched_at) "
+                    "VALUES ('earnings', ?, ?, ?, 'agent', ?)",
+                    (
+                        earnings.ticker,
+                        earnings.event_date.isoformat(),
+                        "confirmed" if earnings.confirmed else "estimated",
+                        clock().isoformat(),
+                    ),
+                )
         for draft_review in result.thesis_reviews:
             if run.mode == "live" and (
                 draft_review.episode_id not in open_episodes or _review_gap(draft_review)

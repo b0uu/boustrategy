@@ -58,7 +58,7 @@ def _run(conn: sqlite3.Connection, run_id: str, status: str = "exported") -> Non
     conn.commit()
 
 
-def _prediction_file(path: Path, records: list[dict[str, str]]) -> Path:
+def _prediction_file(path: Path, records: list[dict[str, str | list[str]]]) -> Path:
     path.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
     return path
 
@@ -264,6 +264,43 @@ def test_route_rejects_bad_rank_combinations(tmp_path: Path, prediction: str, ra
         route_predictions(conn, "2026-07-20-morning", "judge", source)
 
 
+def test_route_stores_the_tickers_a_post_bears_on_and_requires_them_when_significant(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "synthetic.db")
+    insert_new_posts(conn, [_post("1", "HBM is sold out"), _post("2", "no ticker list")])
+    _run(conn, "2026-07-20-morning")
+    tagged = _prediction_file(
+        tmp_path / "tagged.jsonl",
+        [
+            {
+                "post_id": "1",
+                "prediction": "significant",
+                "rank": "headline",
+                "tickers": ["MU", "NVDA", "MU"],
+            }
+        ],
+    )
+    untagged = _prediction_file(
+        tmp_path / "untagged.jsonl",
+        [{"post_id": "2", "prediction": "significant", "rank": "headline"}],
+    )
+    lowercase = _prediction_file(
+        tmp_path / "lowercase.jsonl",
+        [{"post_id": "2", "prediction": "significant", "rank": "headline", "tickers": ["mu"]}],
+    )
+
+    route_predictions(conn, "2026-07-20-morning", "judge", tagged)
+
+    assert conn.execute("SELECT tickers FROM x_route_decisions WHERE post_id = '1'").fetchone() == (
+        '["MU", "NVDA"]',
+    )
+    with pytest.raises(ValueError, match="tickers list"):
+        route_predictions(conn, "2026-07-20-morning", "judge", untagged)
+    with pytest.raises(ValueError, match="uppercase"):
+        route_predictions(conn, "2026-07-20-morning", "judge", lowercase)
+
+
 def test_route_rejects_unknown_post(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     _run(conn, "2026-07-20-morning")
@@ -284,7 +321,7 @@ def test_route_rejects_cross_run_and_same_run_replaces_without_touching_label(
     _run(conn, "2026-07-20-midday")
     first = _prediction_file(
         tmp_path / "first.jsonl",
-        [{"post_id": "1", "prediction": "significant", "rank": "notable"}],
+        [{"post_id": "1", "prediction": "significant", "rank": "notable", "tickers": []}],
     )
     replacement = _prediction_file(
         tmp_path / "replacement.jsonl", [{"post_id": "1", "prediction": "skip"}]

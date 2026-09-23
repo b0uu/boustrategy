@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -75,6 +76,22 @@ def review(
             summary="Still holds.",
             review_reasons=reasons or [],
         ),
+    )
+
+
+def x_post(
+    conn: sqlite3.Connection, post_id: str, text: str, rank: str, tickers: list[str]
+) -> None:
+    conn.execute(
+        "INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at) "
+        "VALUES (?, 'analyst', '2026-09-22T12:00:00+00:00', ?, ?, '2026-09-22T12:05:00+00:00')",
+        (post_id, text, f"https://x.com/analyst/status/{post_id}"),
+    )
+    conn.execute(
+        "INSERT INTO x_route_decisions "
+        "(post_id, run_id, route, rank, reason, predictor, decided_at, tickers) "
+        "VALUES (?, 'run', 'digest', ?, '', 'predictor', '2026-09-22T13:00:00+00:00', ?)",
+        (post_id, rank, json.dumps(tickers)),
     )
 
 
@@ -173,7 +190,9 @@ def test_a_trigger_driven_review_holds_off_the_schedule_and_other_triggers_for_t
     conn.close()
 
 
-def test_reported_earnings_and_an_x_headline_naming_the_holding_make_it_due(tmp_path: Path) -> None:
+def test_reported_earnings_and_an_x_post_tagged_with_the_holding_make_it_due(
+    tmp_path: Path,
+) -> None:
     conn = connect(tmp_path / "boustrategy.db")
     snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
     episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
@@ -182,22 +201,33 @@ def test_reported_earnings_and_an_x_headline_naming_the_holding_make_it_due(tmp_
         "INSERT INTO calendar_events (event_type, ticker, event_date, source, fetched_at) "
         "VALUES ('earnings', 'NVDA', '2026-09-22', 'test', '2026-09-01T00:00:00+00:00')"
     )
-    for post_id, text in (("1", "Blowout quarter for $NVDA"), ("2", "NVDAX is a different fund")):
-        conn.execute(
-            "INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at) "
-            "VALUES (?, 'analyst', '2026-09-22T12:00:00+00:00', ?, ?, "
-            "'2026-09-22T12:05:00+00:00')",
-            (post_id, text, f"https://x.com/analyst/status/{post_id}"),
-        )
-        conn.execute(
-            "INSERT INTO x_route_decisions VALUES "
-            "(?, 'run', 'digest', 'headline', '', 'predictor', '2026-09-22T13:00:00+00:00')",
-            (post_id,),
-        )
+    x_post(conn, "1", "NVDAX is a different fund", "headline", [])
+    earnings_only = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
+    x_post(conn, "2", "Blackwell racks are sold out through next year", "notable", ["NVDA"])
 
     due = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
 
-    assert [item["reasons"] for item in due] == [["earnings_reported", "x_headline"]]
+    assert [item["reasons"] for item in earnings_only] == [["earnings_reported"]]
+    assert [item["reasons"] for item in due] == [["earnings_reported", "x_digest"]]
+    conn.close()
+
+
+def test_an_earnings_date_the_agent_read_outranks_a_nearby_feed_estimate(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(minutes=20))
+    conn.executemany(
+        "INSERT INTO calendar_events (event_type, ticker, event_date, label, source, fetched_at) "
+        "VALUES ('earnings', 'NVDA', ?, ?, ?, '2026-09-01T00:00:00+00:00')",
+        [("2026-09-22", "estimated", "yfinance"), ("2026-10-08", "confirmed", "agent")],
+    )
+
+    due = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
+
+    assert due == []
     conn.close()
 
 

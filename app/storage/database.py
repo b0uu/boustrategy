@@ -398,6 +398,7 @@ def connect(db_path: str | Path, *, wal: bool = False) -> sqlite3.Connection:
             "reasoning_run_decisions",
             {"submission_snapshot_id": "TEXT NOT NULL DEFAULT ''"},
         )
+        _ensure_columns(conn, "x_route_decisions", {"tickers": "TEXT NOT NULL DEFAULT '[]'"})
         _ensure_columns(
             conn, "paper_fills", {"simulation_version": "TEXT NOT NULL DEFAULT 'legacy_close_v1'"}
         )
