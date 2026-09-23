@@ -250,9 +250,28 @@ def test_an_earnings_date_the_agent_read_outranks_a_nearby_feed_estimate(
         [("2026-09-22", "estimated", "yfinance"), ("2026-10-08", "confirmed", "agent")],
     )
 
-    due = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
+    outranked = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
+    conn.execute("UPDATE calendar_events SET label='estimated' WHERE source='agent'")
+    both_estimates = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
 
-    assert due == []
+    assert outranked == []
+    assert [item["reasons"] for item in both_estimates] == [["earnings_reported"]]
+    conn.close()
+
+
+def test_a_review_within_a_day_before_a_point_covers_it(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    wednesday_midday = MONDAY_MORNING + timedelta(days=2, hours=3)
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(days=1, hours=1))
+
+    a_day_and_more_before = holdings_due(conn, snapshot, wednesday_midday)
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(days=2, minutes=5))
+    same_morning = holdings_due(conn, snapshot, wednesday_midday)
+
+    assert [item["reasons"] for item in a_day_and_more_before] == [["scheduled_review"]]
+    assert same_morning == []
     conn.close()
 
 

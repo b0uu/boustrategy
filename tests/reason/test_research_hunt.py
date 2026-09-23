@@ -5,10 +5,16 @@ from types import SimpleNamespace
 from typing import Any
 
 from app.reason.codex_runner import research_activity, run_codex
-from app.reason.worker import HUNT_MINIMUM, execute_attempt, hunt_shortfall, public_narrative_gap
+from app.reason.worker import (
+    HUNT_MINIMUM,
+    execute_attempt,
+    hunt_shortfall,
+    public_narrative_gap,
+    review_sources_gap,
+)
 from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.public_authoring import PublicNarrative
-from app.schemas.runtime import AuthoredOutput, CandidateConsidered
+from app.schemas.runtime import AuthoredOutput, AuthoredThesisReview, CandidateConsidered
 from app.storage.database import connect
 from tests.fixtures.decision_records import valid_decision_record_data
 from tests.reason.test_runtime import paper_run
@@ -97,6 +103,37 @@ def test_research_activity_counts_searches_opens_and_tokens(tmp_path: Path) -> N
         "output_tokens": 50,
     }
     assert research_activity(tmp_path / "missing")["opens"] == 0
+
+
+def test_holdings_do_not_count_toward_the_hunt() -> None:
+    result = AuthoredOutput(
+        candidates_considered=[candidate("NVDA"), candidate("MU"), candidate("AMD")],
+        public_summary="Holdings and one idea.",
+    )
+
+    shortfall = hunt_shortfall(result, {"opens": 5}, HUNT_MINIMUM, held=frozenset({"NVDA", "MU"}))
+
+    assert shortfall and "1 distinct candidates you don't already hold" in shortfall
+
+
+def test_each_thesis_review_needs_its_own_opened_page() -> None:
+    reviews = [
+        AuthoredThesisReview(
+            episode_id=f"episode-{ticker}",
+            ticker=ticker,
+            state="intact",
+            summary="Still worth owning.",
+            sources_opened=["https://investor.example.com/q2"],
+        )
+        for ticker in ("NVDA", "MU")
+    ]
+    result = AuthoredOutput(thesis_reviews=reviews, public_summary="Two reviews.")
+
+    short = review_sources_gap(result, {"opens": 4}, HUNT_MINIMUM)
+    enough = review_sources_gap(result, {"opens": 5}, HUNT_MINIMUM)
+
+    assert short and "open at least 5" in short
+    assert enough is None
 
 
 def test_hunt_shortfall_names_each_missing_piece() -> None:

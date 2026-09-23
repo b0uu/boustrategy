@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from app.broker.session import BrokerSessionFailure
 from app.broker.valuation import session_window
+from app.paper.context import position_tickers
 from app.prices.cache import get_daily_prices
 from app.public.explanations import narrative_projection
 from app.reason.codex_runner import (
@@ -200,9 +201,18 @@ def public_narrative_gap(decision: InvestmentDecisionRecord) -> str | None:
 
 
 def hunt_shortfall(
-    result: AuthoredOutput, activity: dict[str, int], minimum: int, *, trading_open: bool = True
+    result: AuthoredOutput,
+    activity: dict[str, int],
+    minimum: int,
+    *,
+    trading_open: bool = True,
+    held: frozenset[str] = frozenset(),
 ) -> str | None:
-    """Explain why an output doesn't show the required hunt, or return None when it does."""
+    """Explain why an output doesn't show the required hunt, or return None when it does.
+
+    Holdings are reviewed on their own schedule, so only candidates not already held count
+    toward the hunt.
+    """
     if minimum <= 0:
         return None
     problems: list[str] = []
@@ -215,10 +225,11 @@ def hunt_shortfall(
                     "WATCHLIST with its entry bounds for the next one"
                 )
     candidates = result.candidates_considered
-    distinct = {candidate.ticker for candidate in candidates}
+    distinct = {candidate.ticker for candidate in candidates if candidate.ticker not in held}
     if len(distinct) < minimum:
         problems.append(
-            f"{len(distinct)} distinct candidates researched; at least {minimum} are required"
+            f"{len(distinct)} distinct candidates you don't already hold were researched; at "
+            f"least {minimum} are required"
         )
     unsourced = sorted(
         candidate.ticker
@@ -305,6 +316,20 @@ def unanswered_short_calls(
                 "already trips; give it conditions that hold or remove it"
             )
     return "; ".join(problems) or None
+
+
+def review_sources_gap(
+    result: AuthoredOutput, activity: dict[str, int], minimum: int
+) -> str | None:
+    """Say so when too few pages were opened for the reviews to rest on sources read now."""
+    needed = minimum + len(result.thesis_reviews)
+    if minimum <= 0 or activity.get("opens", 0) >= needed:
+        return None
+    return (
+        f"{activity.get('opens', 0)} pages were opened, but each thesis review needs a source "
+        f"opened in this session on top of the hunt's; open at least {needed} and list only "
+        "those in sources_opened"
+    )
 
 
 def _starting_snapshot(conn: sqlite3.Connection, run: RuntimeRun) -> LivePortfolioSnapshot:
@@ -410,18 +435,29 @@ def unanswered_challengers(
     reviews = {review.episode_id: review for review in result.thesis_reviews}
     challengers = {challenger.candidate: challenger for challenger in result.challenger_reviews}
     problems = []
-    for candidate in sorted(
-        {
-            item.ticker
-            for item in result.candidates_considered
-            if item.clears_entry_bar and item.ticker not in held
-        }
-    ):
+    # A WATCHLIST whose own entry bound sits above the price the review read says buy by its
+    # own rule; only cash stands in the way, so it faces a holding like a declared candidate.
+    buyable_watchlist = {
+        decision.ticker
+        for decision in result.decisions
+        if decision.decision == Decision.WATCHLIST
+        and decision.entry_price_max is not None
+        and decision.reference_price is not None
+        and decision.reference_price <= decision.entry_price_max
+    }
+    declared = {item.ticker for item in result.candidates_considered if item.clears_entry_bar}
+    for candidate in sorted((declared | buyable_watchlist) - held.keys()):
         challenger = challengers.get(candidate)
         if challenger is None:
             problems.append(
-                f"{candidate} clears the entry bar but cash can't fund it; test it against your "
-                "weakest holding in challenger_reviews"
+                f"{candidate} clears the entry bar"
+                + (
+                    ""
+                    if candidate in declared
+                    else " (its WATCHLIST entry bound is above the price you read)"
+                )
+                + " but cash can't fund it; test it against your weakest holding in "
+                "challenger_reviews"
             )
             continue
         incumbent = held.get(challenger.incumbent)
@@ -524,11 +560,17 @@ def _review_shortfall(
     The hunt and due short calls are required outright. Unanswered holdings come back apart: a
     review with that gap is still accepted, without its new buys.
     """
+    held = frozenset(
+        [position.ticker for position in _starting_snapshot(conn, run).positions]
+        if run.mode == "live"
+        else position_tickers(conn)
+    )
     parts = [
-        hunt_shortfall(result, activity, required, trading_open=trading_open),
+        hunt_shortfall(result, activity, required, trading_open=trading_open, held=held),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
     ]
     holdings = [
+        review_sources_gap(result, activity, required),
         unreviewed_holdings(conn, run, result, trading_open=trading_open),
         unanswered_challengers(conn, run, result, trading_open=trading_open),
     ]

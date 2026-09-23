@@ -338,6 +338,17 @@ def test_a_candidate_cash_cannot_fund_is_tested_against_a_reviewed_holding(
     )
     funded_conn.close()
 
+    watchlist_amd = decision("", "AMD", "WATCHLIST", 0.0).model_copy(
+        update={
+            "entry_price_max": 190.0,
+            "reference_price": 180.0,
+            "reference_price_at": WEDNESDAY_MIDDAY,
+        }
+    )
+    buyable_watchlist = unanswered_challengers(
+        conn, run, AuthoredOutput(decisions=[watchlist_amd], public_summary="x")
+    )
+    assert buyable_watchlist and "its WATCHLIST entry bound is above" in buyable_watchlist
     assert unanswered and "cash can't fund it" in unanswered
     assert one_leg and "needs a SELL or TRIM of MU and a BUY of AMD" in one_leg
     assert underfunded and "needs more than the 7.0%" in underfunded

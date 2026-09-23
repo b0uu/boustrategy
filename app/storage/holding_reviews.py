@@ -13,6 +13,9 @@ from app.x.calendar import NEW_YORK
 # (morning 10:00, midday 13:00), so the Monday morning, Wednesday midday and Friday midday
 # reviews are the ones that must cover every holding, while they can still trade on it.
 REVIEW_POINTS = ((0, time(9)), (2, time(12)), (4, time(12)))
+# A review this close before a point covers it, so an early review on a review day isn't
+# repeated a few hours later.
+REVIEW_POINT_GRACE = timedelta(hours=24)
 SIGNIFICANT_WEIGHT = 0.02
 # risk_posture.md's minimum initial position. With less buying power than this, no new
 # position can be opened without a sale, so a strong candidate faces a holding instead.
@@ -76,8 +79,9 @@ def holdings_due(
 ) -> list[dict[str, Any]]:
     """Name every holding a review prepared at this instant must answer for, and why.
 
-    A significant holding is due at each review point until a review recorded after that point
-    covers its episode; a missed point carries to the next review that runs. A price move,
+    A significant holding is due at each review point unless a review recorded after, or in the
+    24 hours before, that point covers its episode; a missed point carries to the next review
+    that runs. A price move,
     volume spike, reported earnings or a first close below 15% under cost since its last review
     also makes it due. X headlines bearing on it since then are listed for the review to triage
     instead: only the agent, holding the thesis, can judge whether one could change it. For three
@@ -122,7 +126,7 @@ def holdings_due(
         since = last_reviewed or opened_at
         reasons = []
         if position.market_value / snapshot.account_equity >= SIGNIFICANT_WEIGHT and (
-            last_reviewed is None or last_reviewed < point
+            last_reviewed is None or last_reviewed < point - REVIEW_POINT_GRACE
         ):
             reasons.append("scheduled_review")
         for trigger_type, fired_on in conn.execute(
@@ -134,12 +138,12 @@ def holdings_due(
             close = datetime.combine(datetime.fromisoformat(fired_on).date(), time(16), NEW_YORK)
             if since < close <= prepared_at and trigger_type not in reasons:
                 reasons.append(trigger_type)
-        # A date the agent read from a source outranks a feed estimate within a month of it.
+        # A confirmed date the agent read from a source outranks a feed estimate within a month.
         if conn.execute(
             "SELECT 1 FROM calendar_events e WHERE event_type='earnings' AND ticker=? "
             "AND event_date>=? AND event_date<? AND (source='agent' OR NOT EXISTS ("
             "SELECT 1 FROM calendar_events a WHERE a.event_type='earnings' "
-            "AND a.ticker=e.ticker AND a.source='agent' "
+            "AND a.ticker=e.ticker AND a.source='agent' AND a.label='confirmed' "
             "AND abs(julianday(a.event_date)-julianday(e.event_date))<=30))",
             (ticker, since.astimezone(NEW_YORK).date().isoformat(), session_day.isoformat()),
         ).fetchone():
