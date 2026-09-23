@@ -264,8 +264,8 @@ def test_route_rejects_bad_rank_combinations(tmp_path: Path, prediction: str, ra
         route_predictions(conn, "2026-07-20-morning", "judge", source)
 
 
-def test_route_stores_the_tickers_a_post_bears_on_and_requires_them_when_significant(
-    tmp_path: Path,
+def test_route_stores_the_tickers_a_post_bears_on_and_warns_when_a_list_is_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     conn = connect(tmp_path / "synthetic.db")
     insert_new_posts(conn, [_post("1", "HBM is sold out"), _post("2", "no ticker list")])
@@ -291,12 +291,11 @@ def test_route_stores_the_tickers_a_post_bears_on_and_requires_them_when_signifi
     )
 
     route_predictions(conn, "2026-07-20-morning", "judge", tagged)
+    route_predictions(conn, "2026-07-20-morning", "judge", untagged)
 
-    assert conn.execute("SELECT tickers FROM x_route_decisions WHERE post_id = '1'").fetchone() == (
-        '["MU", "NVDA"]',
-    )
-    with pytest.raises(ValueError, match="tickers list"):
-        route_predictions(conn, "2026-07-20-morning", "judge", untagged)
+    stored = conn.execute("SELECT tickers FROM x_route_decisions WHERE post_id = '1'").fetchone()
+    assert stored == ('["MU", "NVDA"]',)
+    assert "WARNING: 1 significant posts have no tickers list" in capsys.readouterr().out
     with pytest.raises(ValueError, match="uppercase"):
         route_predictions(conn, "2026-07-20-morning", "judge", lowercase)
 

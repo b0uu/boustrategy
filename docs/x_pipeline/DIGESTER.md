@@ -18,7 +18,8 @@ Run these steps in order for the schedule slot that launched this session.
    `predictions.jsonl` alongside the batches.
 3. Run `python -m app.x.run route --run <run_id> --predictor <session-name>
    --in <predictions.jsonl>`. The session name should encode model and rubric
-   version, such as `luna-rubric2`.
+   version, such as `luna-rubric2`. If it warns that significant posts have no
+   tickers list, add the list to each and run `route` again for the same run.
 4. Write a small synthesis file of 3–8 sentences. State what changed since
    the last run, which theses or themes the headlines touch, contradictions
    between sources, and what the article queue still hides. Use plain claims

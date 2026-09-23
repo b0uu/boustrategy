@@ -206,13 +206,11 @@ def route_predictions(
             raise ValueError(f"significant prediction requires valid rank for post {post_id}")
         if prediction == "skip" and rank:
             raise ValueError(f"skip prediction must not have rank for post {post_id}")
-        tickers = record.get("tickers")
-        if prediction == "significant" and not isinstance(tickers, list):
-            raise ValueError(f"significant prediction requires a tickers list for post {post_id}")
-        if any(
-            not isinstance(ticker, str) or not _TICKER.match(ticker) for ticker in tickers or []
+        tickers = record.get("tickers", [])
+        if not isinstance(tickers, list) or any(
+            not isinstance(ticker, str) or not _TICKER.match(ticker) for ticker in tickers
         ):
-            raise ValueError(f"tickers must be uppercase symbols for post {post_id}")
+            raise ValueError(f"tickers must be a list of uppercase symbols for post {post_id}")
         if conn.execute("SELECT 1 FROM x_posts WHERE post_id = ?", (post_id,)).fetchone() is None:
             raise ValueError(f"unknown post_id {post_id!r} not present in x_posts")
         prior = conn.execute(
@@ -247,6 +245,18 @@ def route_predictions(
     conn.commit()
     digest_count = sum(record["prediction"] == "significant" for record in records)
     print(f"{run_id}: routed digest={digest_count} skip={len(records) - digest_count}")
+    # A missing list mustn't cost the day its digest, and with it the review, so it warns
+    # instead of failing; re-routing the same run replaces the decisions.
+    untagged = [
+        record["post_id"]
+        for record in records
+        if record["prediction"] == "significant" and "tickers" not in record
+    ]
+    if untagged:
+        print(
+            f"WARNING: {len(untagged)} significant posts have no tickers list; add one to each "
+            f"and re-run route for this run: {', '.join(untagged)}"
+        )
     return len(records)
 
 
