@@ -16,6 +16,7 @@ from app.storage.holding_reviews import (
     MIN_INITIAL_POSITION,
     holdings_due,
     live_holding_episodes,
+    reward_to_risk,
     thesis_prices,
 )
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
@@ -93,14 +94,7 @@ def assemble_intake(
                 live_episodes[position.ticker]["episode_id"],
                 run.prepared_at,
             )
-            upside = (
-                (stated["realization_price_low"] / price - 1) * 100 if stated and price else None
-            )
-            downside = (
-                (1 - stated["invalidation_price"] / price) * 100
-                if stated and price and stated["invalidation_price"] is not None
-                else None
-            )
+            upside, downside, ratio = reward_to_risk(stated, price)
             positions.append(
                 {
                     **position.model_dump(mode="json"),
@@ -126,8 +120,8 @@ def assemble_intake(
                     "downside_to_invalidation_percent": round(downside, 2)
                     if downside is not None
                     else None,
-                    "reward_to_risk": round(upside / downside, 2)
-                    if upside is not None and downside
+                    "reward_to_risk": round(ratio, 2)
+                    if ratio is not None and ratio != float("-inf")
                     else None,
                 }
             )

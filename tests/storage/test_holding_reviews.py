@@ -65,7 +65,8 @@ def review(
     *,
     state: Literal["intact", "invalidated"] = "intact",
     reasons: list[str] | None = None,
-    prices: tuple[float, float, float] | None = None,
+    # Far enough off that no test price reaches either end, so the holding has a stated range.
+    prices: tuple[float, float, float] = (10_000.0, 20_000.0, 0.01),
 ) -> None:
     save_thesis_review(
         conn,
@@ -81,9 +82,9 @@ def review(
             state=state,
             summary="Still holds.",
             review_reasons=reasons or [],
-            realization_price_low=prices[0] if prices else None,
-            realization_price_high=prices[1] if prices else None,
-            invalidation_price=prices[2] if prices else None,
+            realization_price_low=prices[0],
+            realization_price_high=prices[1],
+            invalidation_price=prices[2],
         ),
     )
 
@@ -159,7 +160,7 @@ def test_a_significant_holding_is_due_until_reviewed_after_the_latest_point(tmp_
     reviewed_this_point = holdings_due(conn, snapshot, tuesday_morning)
     next_point = holdings_due(conn, snapshot, wednesday_midday)
 
-    assert [item["reasons"] for item in never_reviewed] == [["scheduled_review"]]
+    assert [item["reasons"] for item in never_reviewed] == [["scheduled_review", "range_missing"]]
     assert reviewed_this_point == []
     assert next_point[0]["episode_id"] == episode
     assert next_point[0]["last_reviewed_at"] == (MONDAY_MORNING + timedelta(minutes=20)).isoformat()
@@ -174,7 +175,10 @@ def test_a_holding_under_two_percent_is_never_due_on_schedule(tmp_path: Path) ->
 
     due = holdings_due(conn, snapshot, MONDAY_MORNING)
 
-    assert [item["ticker"] for item in due] == ["NVDA"]
+    assert [(item["ticker"], item["reasons"]) for item in due] == [
+        ("NVDA", ["scheduled_review", "range_missing"]),
+        ("F", ["range_missing"]),
+    ]
     conn.close()
 
 

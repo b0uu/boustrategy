@@ -34,13 +34,15 @@ TRIGGER_REASONS = frozenset(
         "realization_reached",
     }
 )
-# The mandate requires these the same day, so no cooldown holds them back.
+# No cooldown holds these back: the mandate requires the first four the same day, and a
+# holding with no stated range can't be ranked until a review states one.
 MANDATORY_REASONS = frozenset(
     {
         "down_40_percent_from_cost",
         "invalidated_without_exit",
         "above_realization_range",
         "below_invalidation_price",
+        "range_missing",
     }
 )
 PRICE_FIELDS = ("realization_price_low", "realization_price_high", "invalidation_price")
@@ -118,6 +120,22 @@ def thesis_prices(
         return None
     set_at, statement = max(statements, key=lambda item: item[0])
     return {**{field: statement.get(field) for field in PRICE_FIELDS}, "set_at": set_at.isoformat()}
+
+
+def reward_to_risk(
+    stated: dict[str, Any] | None, price: float | None
+) -> tuple[float | None, float | None, float | None]:
+    """Upside to fully priced and downside to invalidation, in percent, and their ratio.
+
+    A holding already at or below its invalidation price ranks below every other.
+    """
+    if stated is None or not price:
+        return None, None, None
+    upside = (stated["realization_price_low"] / price - 1) * 100
+    if stated["invalidation_price"] is None:
+        return upside, None, None
+    downside = (1 - stated["invalidation_price"] / price) * 100
+    return upside, downside, upside / downside if downside > 0 else float("-inf")
 
 
 def _stretch_start(
@@ -291,6 +309,9 @@ def holdings_due(
             prepared_at,
         )
         history = prices.get(ticker, [])
+        # Holdings bought before ranges existed have none until a review states one.
+        if stated is None:
+            reasons.append("range_missing")
         if stated is not None and history:
             reached = _stretch_start(
                 history, opened_at, limit=stated["realization_price_low"], above=True

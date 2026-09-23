@@ -63,7 +63,9 @@ const labels: Record<string, string> = {
   scheduled_review: 'Scheduled review', price_move: 'Large daily price move', volume_spike: 'Volume spike',
   earnings_reported: 'Earnings reported', x_digest: 'An X headline that could change the thesis',
   down_15_percent_from_cost: 'Down 15% from cost', down_40_percent_from_cost: 'Down 40% from cost',
-  invalidated_without_exit: 'Invalidated and not yet sold',
+  invalidated_without_exit: 'Invalidated and not yet sold', range_missing: 'No thesis range stated yet',
+  realization_reached: 'Reached its fully priced price', above_realization_range: 'Above its overpriced price',
+  below_invalidation_price: 'At or below its invalidation price',
 }
 // Unmapped codes read as sentence case ("Buy", "Preclose"), never raw lowercase.
 const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)

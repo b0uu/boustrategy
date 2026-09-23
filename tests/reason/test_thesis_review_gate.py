@@ -100,7 +100,7 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
         "reward_to_risk": None,
     }
     assert [(item["episode_id"], item["reasons"]) for item in due] == [
-        (episode, ["scheduled_review"])
+        (episode, ["scheduled_review", "range_missing"])
     ]
     conn.close()
 
@@ -259,7 +259,7 @@ def test_a_thesis_changing_headline_is_recorded_and_its_review_starts_the_cooldo
     )
 
     stored = json.loads(conn.execute("SELECT record_json FROM thesis_reviews").fetchone()[0])
-    assert stored["review_reasons"] == ["scheduled_review", "x_digest"]
+    assert stored["review_reasons"] == ["scheduled_review", "range_missing", "x_digest"]
     assert conn.execute("SELECT post_id, ticker, changes_thesis FROM x_triage").fetchall() == [
         ("1", "NVDA", 1)
     ]
@@ -469,7 +469,7 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
     assert attempt.status == "no_action"
     assert "holding NVDA is due a thesis review" in prompts[1]
     assert [(item["episode_id"], item["state"]) for item in stored] == [(episode, "intact")]
-    assert stored[0]["review_reasons"] == ["scheduled_review"]
+    assert stored[0]["review_reasons"] == ["scheduled_review", "range_missing"]
     assert "sources_opened" not in stored[0]
     assert conn.execute(
         "SELECT ticker, event_date, label, source FROM calendar_events"
@@ -601,4 +601,50 @@ def test_the_intake_ranks_holdings_by_upside_against_downside(tmp_path: Path) ->
         position["downside_to_invalidation_percent"],
         position["reward_to_risk"],
     ) == (30.0, 20.0, 1.5)
+    conn.close()
+
+
+def test_testing_a_candidate_against_other_than_the_lowest_ranked_holding_needs_a_reason(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path, FULLY_INVESTED).model_copy(
+        update={"prepared_at": WEDNESDAY_MIDDAY + timedelta(minutes=5)}
+    )
+    episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
+    # NVDA at $230: 30% up, 20% down, a ratio of 1.5. MU at $73: about 10% up, 18% down.
+    review(conn, episodes["NVDA"]["episode_id"], "NVDA", WEDNESDAY_MIDDAY, prices=(299, 345, 184))
+    review(
+        conn,
+        episodes["MU"]["episode_id"],
+        "MU",
+        WEDNESDAY_MIDDAY + timedelta(seconds=1),
+        prices=(80, 90, 60),
+    )
+    against_nvda = AuthoredChallenger(
+        candidate="AMD",
+        incumbent="NVDA",
+        incumbent_episode_id=episodes["NVDA"]["episode_id"],
+        why_weakest="Most crowded position.",
+        verdict="keep_incumbent",
+        reasoning="NVDA's thesis still beats AMD's.",
+    )
+
+    def gap(challenger: AuthoredChallenger) -> str | None:
+        return unanswered_challengers(
+            conn,
+            run,
+            AuthoredOutput(
+                candidates_considered=[amd_clears_the_bar()],
+                challenger_reviews=[challenger],
+                thesis_reviews=[complete_review(episodes["NVDA"]["episode_id"])],
+                public_summary="x",
+            ),
+        )
+
+    unexplained = gap(against_nvda)
+    explained = gap(against_nvda.model_copy(update={"ranking_departure": "MU reports in a week."}))
+
+    assert unexplained and "MU has the lowest reward to risk" in unexplained
+    assert explained is None
     conn.close()

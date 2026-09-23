@@ -128,6 +128,8 @@ class AuthoredChallenger(RuntimeModel):
     incumbent: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
     incumbent_episode_id: str = Field(min_length=1, max_length=200)
     why_weakest: str = Field(min_length=1, max_length=500)
+    # Why this holding and not the one with the lowest reward to risk, when it isn't that one.
+    ranking_departure: str | None = Field(default=None, max_length=1000)
     verdict: Literal["swap", "keep_incumbent"]
     reasoning: str = Field(min_length=1, max_length=2000)
 

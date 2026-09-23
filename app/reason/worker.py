@@ -42,6 +42,7 @@ from app.storage.holding_reviews import (
     MIN_INITIAL_POSITION,
     holdings_due,
     live_holding_episodes,
+    reward_to_risk,
     thesis_prices,
 )
 from app.storage.public_records import save_thesis_review
@@ -92,8 +93,9 @@ Triage every X headline the intake lists for a holding in x_triage: would it cha
 thesis on that holding? A post that would requires the holding's thesis review in this review.
 When buying power is below the minimum initial position, cash can't fund a new holding. Mark
 every candidate that deserves a position on its merits clears_entry_bar. For each one that isn't
-held, add a challenger_reviews entry: name the holding you judge weakest and say why, and review
-that holding in thesis_reviews as if buying it today at today's price, on the same footing as
+held, add a challenger_reviews entry: name the holding you judge weakest and say why (if it
+isn't the one with the lowest reward_to_risk in the intake, say why in ranking_departure), and
+review that holding in thesis_reviews as if buying it today at today's price, on the same footing as
 the candidate. The verdict is swap, a SELL or TRIM of the holding and a BUY of the candidate
 sized so the sale funds it, or keep_incumbent. Keeping the holding is a complete answer; no trade
 is ever forced.
@@ -509,6 +511,31 @@ def unanswered_challengers(
     episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
     reviews = {review.episode_id: review for review in result.thesis_reviews}
     challengers = {challenger.candidate: challenger for challenger in result.challenger_reviews}
+    prices = {
+        position.ticker: float(position.price)
+        for position in (snapshot.reporting.positions or [] if snapshot.reporting else [])
+        if position.price is not None
+    }
+    ratios = {
+        ticker: reward_to_risk(
+            thesis_prices(
+                conn,
+                run.account_id,
+                run.execution_profile_id,
+                ticker,
+                episodes[ticker]["episode_id"],
+                run.prepared_at,
+            ),
+            prices.get(ticker),
+        )[2]
+        for ticker in held
+    }
+    # The numbers anchor the choice of weakest; the review may depart from them only openly.
+    lowest = (
+        min(ratios, key=lambda ticker: ratios[ticker] or 0.0)
+        if ratios and None not in ratios.values()
+        else None
+    )
     problems = []
     # A WATCHLIST whose own entry bound sits above the price the review read says buy by its
     # own rule; only cash stands in the way, so it faces a holding like a declared candidate.
@@ -549,6 +576,15 @@ def unanswered_challengers(
             problems.append(
                 f"{challenger.incumbent}, the holding {candidate} was tested against, must be "
                 f"reviewed as a fresh buy at today's price; {gap}"
+            )
+        if (
+            lowest is not None
+            and challenger.incumbent != lowest
+            and not (challenger.ranking_departure or "").strip()
+        ):
+            problems.append(
+                f"{candidate} was tested against {challenger.incumbent}, but {lowest} has the "
+                "lowest reward to risk; say why in ranking_departure"
             )
         sale = next(
             (

@@ -108,7 +108,10 @@ invalidation price (`below_invalidation_price`) is mandatory, whatever the coold
 until a sale goes through or a review moves the range past the price with evidence; a
 review that leaves the price beyond the range while the market is open needs a SELL or
 TRIM. The intake shows each holding's upside to fully priced, downside to invalidation
-and their ratio, and the public positions panel shows the range and upside.
+and their ratio, and the public positions panel shows the range and upside. A holding
+with no stated range, one bought before ranges existed, is due (`range_missing`) until
+a review states one. A challenger review that names a holding other than the one with
+the lowest reward to risk must say why in `ranking_departure`.
 
 Preparation tracks prices, earnings and triggers for live holdings whether or not
 the watchlist names them. The agent's verdict is binary: `intact` (it would still
