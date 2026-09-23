@@ -31,7 +31,9 @@ from app.schemas.live_execution import ExecutionProfile
 from app.schemas.order_intent import ExecutionMode
 from app.schemas.public_authoring import ThesisReview
 from app.schemas.runtime import AuthoredOutput, RuntimeAttempt, RuntimeRun
+from app.storage.holding_reviews import holdings_due
 from app.storage.public_records import save_thesis_review
+from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import (
     LeaseLost,
     claim,
@@ -63,7 +65,11 @@ opened. Empty decisions are valid only after that hunt is recorded; a review tha
 action without it is rejected.
 Research is read-only. You have no authority to call broker tools, submit orders, modify
 files, or start other agents, and a search result never licenses skipping a reasoning step.
-Return the required structured JSON; thesis_reviews may be empty when no holding is due.
+Return the required structured JSON. Every holding the intake marks REVIEW DUE needs a
+thesis_reviews entry for its episode: re-underwrite it on current evidence as if buying it today
+at today's price, never by defending the thesis it was bought on. Open at least one current
+source for it, list those URLs in sources_opened, and give it a state and summary. A holding that
+isn't due may still be reviewed; otherwise thesis_reviews may be empty.
 Record only what you actually read. Every source claim needs a real identifier you retrieved
 and the source's own publication timestamp; reconstruct neither from memory. A search that
 fails or returns nothing usable is a research limitation to state, not a gap to fill in.
@@ -273,6 +279,35 @@ def unanswered_short_calls(
     return "; ".join(problems) or None
 
 
+def unreviewed_holdings(
+    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput
+) -> str | None:
+    """Say which due holdings this review left without a real thesis review, if any."""
+    if run.mode != "live":
+        return None
+    legacy = get_reasoning_run(conn, run.reasoning_run_id or "")
+    snapshot = get_live_portfolio_snapshot(conn, legacy.portfolio_snapshot_id) if legacy else None
+    if snapshot is None:
+        raise RunnerFailure("snapshot_stale")
+    reviews = {review.episode_id: review for review in result.thesis_reviews}
+    problems = []
+    for holding in holdings_due(conn, snapshot, run.prepared_at):
+        review = reviews.get(holding["episode_id"])
+        label = (
+            f"holding {holding['ticker']} is due a thesis review "
+            f"({', '.join(holding['reasons'])}, episode {holding['episode_id']})"
+        )
+        if review is None:
+            problems.append(label + " and this review has none")
+        elif review.state == "not_reviewed" or not review.summary:
+            problems.append(
+                label + "; its review needs a state other than not_reviewed and a summary"
+            )
+        elif not any(url.startswith(("https://", "http://")) for url in review.sources_opened):
+            problems.append(label + "; its review records no opened source URL")
+    return "; ".join(problems) or None
+
+
 def _record_research(
     log_dir: Path, passes: list[dict[str, Any]], result: AuthoredOutput | None
 ) -> None:
@@ -310,10 +345,11 @@ def _review_shortfall(
     trading_open: bool,
     clock: Callable[[], datetime],
 ) -> str | None:
-    """Everything the trusted worker demands of a review: the hunt, and its due short calls."""
+    """Everything the trusted worker demands of a review: the hunt, due short calls and holdings."""
     parts = [
         hunt_shortfall(result, activity, required, trading_open=trading_open),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
+        unreviewed_holdings(conn, run, result),
     ]
     return "; ".join(part for part in parts if part) or None
 
@@ -469,7 +505,7 @@ def execute_attempt(
             )
         for draft_review in result.thesis_reviews:
             review = ThesisReview(
-                **draft_review.model_dump(),
+                **draft_review.model_dump(exclude={"sources_opened"}),
                 review_id="review_" + uuid4().hex,
                 mode=run.mode,
                 account_id=run.account_id,

@@ -59,7 +59,10 @@ reviews can omit the run. Public summary/narrative require explicit approval.
 `private_notes` never cross the public boundary.
 
 Storage verifies the holding episode against complete observed activity and
-quantities. Missing history isn't permission to attach a guessed ticker review.
+quantities. A live review may instead name the snapshot episode its intake
+supplied (`live:<account>:<ticker>:<opened_at>`), which opens at the first broker
+snapshot holding that ticker and must still be open when the review is recorded.
+Missing history isn't permission to attach a guessed ticker review.
 Closed and reopened holdings have different IDs. A newer unpublished review means
 there's no current public review, rather than silently retaining an old intact
 verdict. Review records are immutable. Record a new review at a later time to

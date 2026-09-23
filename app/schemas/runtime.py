@@ -100,6 +100,7 @@ class AuthoredThesisReview(RuntimeModel):
     narrative: PublicNarrative | None = None
     approved_for_publication: bool = False
     private_notes: str | None = Field(default=None, max_length=4000)
+    sources_opened: list[str] = Field(default_factory=list, max_length=12)
 
 
 class CandidateConsidered(RuntimeModel):

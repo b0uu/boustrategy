@@ -9,6 +9,7 @@ from app.performance.report import holding_episodes
 from app.performance.storage import current_observations
 from app.schemas.public_authoring import PublicSourceRecord, ThesisReview
 from app.schemas.reporting import CoverageObservation, ValuationObservation
+from app.storage.holding_reviews import live_holding_episodes
 
 
 def save_public_source(conn: sqlite3.Connection, record: PublicSourceRecord) -> str:
@@ -53,30 +54,40 @@ def save_thesis_review(conn: sqlite3.Connection, review: ThesisReview) -> None:
         if ThesisReview.model_validate_json(existing[0]) != review:
             raise ValueError("thesis review is immutable")
         return
-    observations = current_observations(conn, mode=review.mode, account_id=review.account_id)
-    if not observations and review.mode == "paper" and review.account_id == "paper":
-        observations, issue = paper_observations(conn)
-        if issue:
-            raise ValueError("paper holding history is inconsistent")
-    values = sorted(
-        [
-            o
-            for o in observations
-            if isinstance(o, ValuationObservation) and o.phase not in {"before_flow", "after_flow"}
-        ],
-        key=lambda o: o.occurred_at,
+    # A live review is normally keyed to a snapshot episode, because live activity coverage
+    # isn't recorded and returns-grade episodes are unavailable there. It must be open when
+    # reviewed. Any other review must match a returns-grade episode.
+    live_episode = (
+        live_holding_episodes(conn, review.account_id, review.reviewed_at).get(review.ticker)
+        if review.mode == "live"
+        else None
     )
-    if not values:
-        raise ValueError("holding episode history is unavailable")
-    coverage = [o for o in observations if isinstance(o, CoverageObservation)]
-    history = holding_episodes(values, observations, coverage, limit=None)
-    episode = next(
-        (item for item in history["items"] if item["episode_id"] == review.episode_id), None
-    )
-    if episode is None or episode["ticker"] != review.ticker:
-        raise ValueError("review does not match an observed holding episode")
-    if review.reviewed_at < datetime.fromisoformat(episode["first_observed_at"]):
-        raise ValueError("review precedes holding episode")
+    if live_episode is None or live_episode["episode_id"] != review.episode_id:
+        observations = current_observations(conn, mode=review.mode, account_id=review.account_id)
+        if not observations and review.mode == "paper" and review.account_id == "paper":
+            observations, issue = paper_observations(conn)
+            if issue:
+                raise ValueError("paper holding history is inconsistent")
+        values = sorted(
+            [
+                o
+                for o in observations
+                if isinstance(o, ValuationObservation)
+                and o.phase not in {"before_flow", "after_flow"}
+            ],
+            key=lambda o: o.occurred_at,
+        )
+        if not values:
+            raise ValueError("holding episode history is unavailable")
+        coverage = [o for o in observations if isinstance(o, CoverageObservation)]
+        history = holding_episodes(values, observations, coverage, limit=None)
+        episode = next(
+            (item for item in history["items"] if item["episode_id"] == review.episode_id), None
+        )
+        if episode is None or episode["ticker"] != review.ticker:
+            raise ValueError("review does not match an observed holding episode")
+        if review.reviewed_at < datetime.fromisoformat(episode["first_observed_at"]):
+            raise ValueError("review precedes holding episode")
     if review.runtime_attempt_id:
         from app.storage.runtime import get_attempt, get_run
 

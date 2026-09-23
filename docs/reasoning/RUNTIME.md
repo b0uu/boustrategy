@@ -58,6 +58,17 @@ instead of silently dropping evidence. A missing episode history prevents
 invented episode-bound thesis reviews. Conflicting latest review times are
 reported without selecting a verdict.
 
+A live intake also shows each holding's weight, quantity, average cost, price and
+unrealized return from the starting snapshot, and derives holding episodes from
+broker snapshots, because live activity coverage isn't recorded. It lists the
+holdings due for a thesis review. At 2% of equity or more, a holding is due at each
+review point (Monday 09:00, Wednesday 12:00 and Friday 12:00 ET, so the Monday
+morning, Wednesday midday and Friday midday reviews) until a review recorded after
+that point covers it. A missed point carries to the next review that runs. A holding
+down 40% from cost is due in every session until reviewed that day. The worker
+rejects an output that leaves a due holding without a review carrying a verdict, a
+summary and an opened source URL, retries once, then fails the attempt.
+
 For a paper intake you've already prepared:
 
 ```powershell

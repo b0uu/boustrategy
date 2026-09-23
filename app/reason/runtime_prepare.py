@@ -12,6 +12,7 @@ from uuid import uuid4
 from app.paper.broker import cash_balance
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.runtime import RuntimeRun
+from app.storage.holding_reviews import holdings_due, live_holding_episodes
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import save_run
 
@@ -70,13 +71,40 @@ def assemble_intake(
         snapshot = get_live_portfolio_snapshot(conn, legacy.portfolio_snapshot_id)
         if snapshot is None or snapshot.broker_account_fingerprint != run.account_id:
             raise ValueError("prepared starting snapshot does not match account")
+        costs = {
+            position.ticker: position
+            for position in (snapshot.reporting.positions or [] if snapshot.reporting else [])
+        }
+        positions = []
+        for position in snapshot.positions:
+            cost = costs.get(position.ticker)
+            positions.append(
+                {
+                    **position.model_dump(mode="json"),
+                    "weight_percent": round(
+                        position.market_value / snapshot.account_equity * 100, 2
+                    ),
+                    "quantity": str(cost.quantity) if cost else None,
+                    "average_cost": str(cost.average_cost)
+                    if cost and cost.average_cost is not None
+                    else None,
+                    "price": str(cost.price) if cost and cost.price is not None else None,
+                    "unrealized_return_percent": round(
+                        float(cost.price / cost.average_cost - 1) * 100, 2
+                    )
+                    if cost and cost.price is not None and cost.average_cost
+                    else None,
+                }
+            )
         facts: dict[str, Any] = {
             "mode": "live",
             "captured_at": snapshot.captured_at.isoformat(),
             "equity": snapshot.account_equity,
             "buying_power": snapshot.buying_power,
-            "positions": [position.model_dump(mode="json") for position in snapshot.positions],
+            "positions": positions,
         }
+        live_episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
+        due = holdings_due(conn, snapshot, run.prepared_at)
     else:
         facts = {
             "mode": "paper",
@@ -107,38 +135,46 @@ def assemble_intake(
         ]
     )
     tickers = {position["ticker"] for position in facts["positions"]}
-    from app.performance.paper import paper_observations
-    from app.performance.report import holding_episodes
-    from app.performance.storage import current_observations
-    from app.schemas.reporting import CoverageObservation, ValuationObservation
+    if run.mode == "live":
+        # Live activity coverage is never recorded, so returns-grade episodes are always
+        # unavailable there; broker snapshots are enough to give each holding a review identity.
+        episodes: dict[str, Any] = {
+            "status": "available",
+            "items": [{**item, "status": "open"} for item in live_episodes.values()],
+        }
+    else:
+        from app.performance.paper import paper_observations
+        from app.performance.report import holding_episodes
+        from app.performance.storage import current_observations
+        from app.schemas.reporting import CoverageObservation, ValuationObservation
 
-    observations = current_observations(conn, mode=run.mode, account_id=run.account_id)
-    if not observations and run.mode == "paper":
-        observations, _ = paper_observations(conn, observed_at=run.prepared_at)
-    observations = [
-        item
-        for item in observations
-        if item.occurred_at <= run.prepared_at and item.recorded_at <= run.prepared_at
-    ]
-    values = sorted(
-        [
+        observations = current_observations(conn, mode=run.mode, account_id=run.account_id)
+        if not observations:
+            observations, _ = paper_observations(conn, observed_at=run.prepared_at)
+        observations = [
             item
             for item in observations
-            if isinstance(item, ValuationObservation)
-            and item.phase not in {"before_flow", "after_flow"}
-        ],
-        key=lambda item: item.occurred_at,
-    )
-    episodes: dict[str, Any] = (
-        holding_episodes(
-            values,
-            observations,
-            [item for item in observations if isinstance(item, CoverageObservation)],
-            limit=None,
+            if item.occurred_at <= run.prepared_at and item.recorded_at <= run.prepared_at
+        ]
+        values = sorted(
+            [
+                item
+                for item in observations
+                if isinstance(item, ValuationObservation)
+                and item.phase not in {"before_flow", "after_flow"}
+            ],
+            key=lambda item: item.occurred_at,
         )
-        if values
-        else {"status": "unavailable", "reason": "holding_history_missing", "items": []}
-    )
+        episodes = (
+            holding_episodes(
+                values,
+                observations,
+                [item for item in observations if isinstance(item, CoverageObservation)],
+                limit=None,
+            )
+            if values
+            else {"status": "unavailable", "reason": "holding_history_missing", "items": []}
+        )
     current_episodes = [
         item for item in episodes["items"] if item["status"] == "open" and item["ticker"] in tickers
     ]
@@ -189,6 +225,18 @@ def assemble_intake(
             "episode whose current open identity is supplied.",
         ]
     )
+    if run.mode == "live":
+        sections.extend(
+            [
+                "# Holdings due for thesis review",
+                json.dumps(due, sort_keys=True),
+                "Every holding listed here is REVIEW DUE. Return a thesis_reviews entry for "
+                "its episode_id, re-underwritten on current evidence as if you were deciding "
+                "to buy it today at today's price. Give it a state other than not_reviewed "
+                "and a summary, and list the URLs you opened for it in sources_opened. A "
+                "review that leaves a due holding out is rejected.",
+            ]
+        )
     prior_context = []
     for ticker in sorted(tickers):
         row = conn.execute(
