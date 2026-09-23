@@ -123,10 +123,20 @@ class AuthoredEarningsDate(RuntimeModel):
     source_url: str = Field(pattern=r"^https?://", max_length=2000)
 
 
+class AuthoredXTriage(RuntimeModel):
+    """The review's verdict on whether an X headline could change a holding's thesis."""
+
+    post_id: str = Field(min_length=1, max_length=64)
+    ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
+    changes_thesis: bool
+    note: str = Field(min_length=1, max_length=300)
+
+
 class AuthoredOutput(RuntimeModel):
     decisions: list[InvestmentDecisionRecord] = Field(default_factory=list, max_length=20)
     thesis_reviews: list[AuthoredThesisReview] = Field(default_factory=list, max_length=20)
     earnings_dates: list[AuthoredEarningsDate] = Field(default_factory=list, max_length=20)
+    x_triage: list[AuthoredXTriage] = Field(default_factory=list, max_length=60)
     candidates_considered: list[CandidateConsidered] = Field(default_factory=list, max_length=12)
     public_summary: str = Field(min_length=1, max_length=4000)
 

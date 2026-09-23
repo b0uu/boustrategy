@@ -1,7 +1,7 @@
 import hashlib
 import json
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +13,7 @@ from app.schemas.runtime import (
     AuthoredEarningsDate,
     AuthoredOutput,
     AuthoredThesisReview,
+    AuthoredXTriage,
     RuntimeRun,
 )
 from app.storage.database import connect
@@ -21,7 +22,7 @@ from app.storage.records import save_reasoning_run
 from app.storage.runtime import save_run
 from tests.fixtures.decision_records import valid_decision_record_data
 from tests.reason.test_live_submit import _profile
-from tests.storage.test_holding_reviews import ACCOUNT, snapshot_at
+from tests.storage.test_holding_reviews import ACCOUNT, review, snapshot_at, x_post
 
 # Wednesday 2026-09-23, 13:00 ET: the midday review point has passed and the market is open.
 WEDNESDAY_MIDDAY = datetime(2026, 9, 23, 17, 0, tzinfo=UTC)
@@ -155,6 +156,97 @@ def test_an_invalidated_holding_must_be_sold_or_trimmed_while_the_market_is_open
     assert kept and "record a SELL or TRIM" in kept
     assert sold is None
     assert closed is None
+    conn.close()
+
+
+def test_every_listed_x_headline_needs_a_verdict_and_a_thesis_changing_one_a_review(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    # Reviewed after the midday point, so only the headline that follows can call for another.
+    run = live_review(conn, tmp_path).model_copy(
+        update={"prepared_at": WEDNESDAY_MIDDAY + timedelta(hours=1)}
+    )
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", WEDNESDAY_MIDDAY)
+    x_post(
+        conn,
+        "1",
+        "Blackwell racks are sold out through next year",
+        "headline",
+        ["NVDA"],
+        WEDNESDAY_MIDDAY + timedelta(minutes=30),
+    )
+    verdict = AuthoredXTriage(
+        post_id="1", ticker="NVDA", changes_thesis=False, note="Already in the thesis."
+    )
+
+    shortfalls = [
+        unreviewed_holdings(
+            conn,
+            run,
+            AuthoredOutput(x_triage=triage, thesis_reviews=reviews, public_summary="x"),
+        )
+        for triage, reviews in (
+            ([], []),
+            ([verdict], []),
+            ([verdict.model_copy(update={"changes_thesis": True})], []),
+            ([verdict.model_copy(update={"changes_thesis": True})], [complete_review(episode)]),
+        )
+    ]
+
+    assert shortfalls[0] and "has no x_triage verdict" in shortfalls[0]
+    assert shortfalls[1] is None
+    assert shortfalls[2] and "judged thesis-changing" in shortfalls[2]
+    assert shortfalls[3] is None
+    conn.close()
+
+
+def test_a_thesis_changing_headline_is_recorded_and_its_review_starts_the_cooldown(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path).model_copy(
+        update={"prepared_at": WEDNESDAY_MIDDAY + timedelta(minutes=2)}
+    )
+    save_run(conn, run)
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    x_post(
+        conn,
+        "1",
+        "Blackwell racks are sold out through next year",
+        "headline",
+        ["NVDA"],
+        WEDNESDAY_MIDDAY + timedelta(minutes=1),
+    )
+    conn.commit()
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        return AuthoredOutput(
+            thesis_reviews=[complete_review(episode)],
+            x_triage=[
+                AuthoredXTriage(
+                    post_id="1", ticker="NVDA", changes_thesis=True, note="Supply outlook moved."
+                )
+            ],
+            public_summary="Holdings reviewed.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY + timedelta(minutes=3),
+        log_root=tmp_path / "logs",
+    )
+
+    stored = json.loads(conn.execute("SELECT record_json FROM thesis_reviews").fetchone()[0])
+    assert stored["review_reasons"] == ["scheduled_review", "x_digest"]
+    assert conn.execute("SELECT post_id, ticker, changes_thesis FROM x_triage").fetchall() == [
+        ("1", "NVDA", 1)
+    ]
     conn.close()
 
 

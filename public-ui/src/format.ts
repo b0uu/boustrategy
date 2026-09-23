@@ -61,7 +61,7 @@ const labels: Record<string, string> = {
   x_trigger: 'Triggered this review', x_idea_source: 'Idea source', x_supporting: 'Supporting',
   x_counter_evidence: 'Counter-evidence', x_context: 'Context',
   scheduled_review: 'Scheduled review', price_move: 'Large daily price move', volume_spike: 'Volume spike',
-  earnings_reported: 'Earnings reported', x_digest: 'Flagged in the X digest',
+  earnings_reported: 'Earnings reported', x_digest: 'An X headline that could change the thesis',
   down_15_percent_from_cost: 'Down 15% from cost', down_40_percent_from_cost: 'Down 40% from cost',
   invalidated_without_exit: 'Invalidated and not yet sold',
 }

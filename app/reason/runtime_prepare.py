@@ -229,13 +229,33 @@ def assemble_intake(
         sections.extend(
             [
                 "# Holdings due for thesis review",
-                json.dumps(due, sort_keys=True),
+                json.dumps(
+                    [
+                        {key: value for key, value in holding.items() if key != "x_headlines"}
+                        for holding in due
+                        if holding["reasons"]
+                    ],
+                    sort_keys=True,
+                ),
                 "Every holding listed here is REVIEW DUE, for the reasons given. Return a "
                 "thesis_reviews entry for its episode_id, judged on current evidence as if "
                 "deciding today whether to own it at today's price, with a summary and the "
                 "URLs you opened for it in sources_opened. A holding due only for "
                 "invalidated_without_exit was already judged invalidated; it needs a SELL or "
                 "TRIM while the market is open, not another review.",
+                "# X headlines to triage for holdings",
+                json.dumps(
+                    [
+                        {"ticker": holding["ticker"], **headline}
+                        for holding in due
+                        for headline in holding["x_headlines"]
+                    ],
+                    sort_keys=True,
+                ),
+                "Each headline here bears on a holding. Return an x_triage entry for every "
+                "post_id and ticker pair: changes_thesis is true when the post could change "
+                "the thesis on that holding, with a one-line note either way. A true verdict "
+                "requires a thesis review of that holding in this review.",
             ]
         )
     prior_context = []

@@ -68,13 +68,18 @@ holdings due for a thesis review, with the reasons:
   Wednesday midday and Friday midday reviews) until a review recorded after that
   point covers it. A missed point carries to the next review that runs.
 - On a trigger since its last review: a daily price move of 5% or more, a volume
-  spike, reported earnings, an X digest headline or notable post that bears on it,
-  or its first close 15% under cost. The digester tags each significant post with
-  every ticker it bears on, named or implied. Earnings dates come from the feed and
-  from the review agent, which records every date it reads with its source; the
-  agent's date outranks a feed estimate within 30 days of it.
+  spike, reported earnings, or its first close 15% under cost. Earnings dates come
+  from the feed and from the review agent, which records every date it reads with
+  its source; the agent's date outranks a feed estimate within 30 days of it.
+- X headlines don't make a holding due on their own. The digester tags each
+  significant post with every ticker it bears on, named or implied, and the intake
+  lists the untriaged headlines tagged with a holding since its last review (at
+  most 10). The review records an `x_triage` verdict for each: whether it could
+  change that holding's thesis, with a one-line note. A thesis-changing verdict
+  requires the holding's thesis review in the same output, and that review counts
+  as trigger-driven.
 - For three days after a trigger-driven review, neither the schedule nor another
-  trigger makes the holding due.
+  trigger makes the holding due, and no headline is listed for it.
 - Regardless of the cooldown: its first close 40% under cost, or an invalidated
   verdict with no sale since.
 

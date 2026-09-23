@@ -14,6 +14,7 @@ from app.x.calendar import NEW_YORK
 # reviews are the ones that must cover every holding, while they can still trade on it.
 REVIEW_POINTS = ((0, time(9)), (2, time(12)), (4, time(12)))
 SIGNIFICANT_WEIGHT = 0.02
+MAX_HEADLINES_TO_TRIAGE = 10
 TRIGGER_COOLDOWN = timedelta(days=3)
 DRAWDOWN_TRIGGER_PERCENT = -15.0
 MANDATORY_REVIEW_RETURN_PERCENT = -40.0
@@ -74,11 +75,13 @@ def holdings_due(
 
     A significant holding is due at each review point until a review recorded after that point
     covers its episode; a missed point carries to the next review that runs. A price move,
-    volume spike, reported earnings, an X digest headline or notable post tagged with it or
-    naming it, or a first close below 15%
-    under cost since its last review also makes it due. For three days after a review that a
-    trigger caused, neither the schedule nor another trigger makes it due. Falling 40% under
-    cost, or an invalidated verdict with no sale since, makes it due regardless.
+    volume spike, reported earnings or a first close below 15% under cost since its last review
+    also makes it due. X headlines bearing on it since then are listed for the review to triage
+    instead: only the agent, holding the thesis, can judge whether one could change it. For three
+    days after a review that a trigger caused, neither the schedule nor another trigger makes it
+    due and no headline is listed. Falling 40% under cost, or an invalidated verdict with no sale
+    since, makes it due regardless. A holding is returned when it is due or has headlines to
+    triage.
     """
     account_id = snapshot.broker_account_fingerprint
     episodes = live_holding_episodes(conn, account_id, snapshot.captured_at)
@@ -141,17 +144,25 @@ def holdings_due(
         # The digester tags each post with the tickers it bears on, named or implied. Posts
         # routed before tagging existed only match on the symbol itself.
         mention = re.compile(rf"(?<![A-Za-z0-9])\$?{re.escape(ticker)}(?![A-Za-z0-9])")
-        if any(
-            ticker in json.loads(tickers) or mention.search(text) or mention.search(reason)
-            for text, reason, tickers in conn.execute(
-                "SELECT p.text, r.reason, r.tickers FROM x_route_decisions r JOIN x_posts p "
-                "ON p.post_id=r.post_id WHERE r.rank IN ('headline', 'notable') "
-                "AND julianday(r.decided_at)>julianday(?) "
-                "AND julianday(r.decided_at)<=julianday(?)",
-                (since.isoformat(), prepared_at.isoformat()),
+        headlines = [
+            {
+                "post_id": post_id,
+                "handle": handle,
+                "url": url,
+                "text": text,
+                "digest_reason": reason,
+            }
+            for post_id, handle, url, text, reason, tickers in conn.execute(
+                "SELECT p.post_id, p.handle, p.url, p.text, r.reason, r.tickers "
+                "FROM x_route_decisions r JOIN x_posts p ON p.post_id=r.post_id "
+                "WHERE r.rank='headline' AND julianday(r.decided_at)>julianday(?) "
+                "AND julianday(r.decided_at)<=julianday(?) AND NOT EXISTS ("
+                "SELECT 1 FROM x_triage t WHERE t.post_id=r.post_id AND t.ticker=? "
+                "AND t.account_id=?) ORDER BY julianday(r.decided_at) DESC",
+                (since.isoformat(), prepared_at.isoformat(), ticker, account_id),
             )
-        ):
-            reasons.append("x_digest")
+            if ticker in json.loads(tickers) or mention.search(text) or mention.search(reason)
+        ][:MAX_HEADLINES_TO_TRIAGE]
         for threshold, reason in (
             (DRAWDOWN_TRIGGER_PERCENT, "down_15_percent_from_cost"),
             (MANDATORY_REVIEW_RETURN_PERCENT, "down_40_percent_from_cost"),
@@ -188,12 +199,14 @@ def holdings_due(
         )
         if triggered is not None and prepared_at < triggered + TRIGGER_COOLDOWN:
             reasons = [reason for reason in reasons if reason in MANDATORY_REASONS]
-        if reasons:
+            headlines = []
+        if reasons or headlines:
             due.append(
                 {
                     **episode,
                     "last_reviewed_at": last_reviewed.isoformat() if last_reviewed else None,
                     "reasons": reasons,
+                    "x_headlines": headlines,
                 }
             )
     return due

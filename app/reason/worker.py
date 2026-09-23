@@ -33,6 +33,7 @@ from app.schemas.public_authoring import ThesisReview
 from app.schemas.runtime import (
     AuthoredOutput,
     AuthoredThesisReview,
+    AuthoredXTriage,
     RuntimeAttempt,
     RuntimeRun,
 )
@@ -81,6 +82,8 @@ approved_for_publication to true; keep private reasoning in private_notes. A hol
 due may still be reviewed; otherwise thesis_reviews may be empty. A review that leaves a due
 holding unanswered is sent back, and if it's still unanswered, its BUY and ADD records are
 discarded.
+Triage every X headline the intake lists for a holding in x_triage: would it change the
+thesis on that holding? A post that would requires the holding's thesis review in this review.
 Record every earnings date you read for a holding or candidate in earnings_dates, with the page
 you read it on and whether the company has confirmed it. Past dates count: a report since a
 holding's last review makes it due. Your dates replace the feed's estimates near them.
@@ -314,8 +317,10 @@ def unreviewed_holdings(
 ) -> str | None:
     """Say which holdings this review left unanswered, if any.
 
-    Every due holding needs a real thesis review. A holding judged invalidated must be sold or
-    trimmed in the first review that can trade, whether it was judged so now or earlier.
+    Every due holding needs a real thesis review, and every X headline listed for a holding a
+    triage verdict; a thesis-changing verdict makes that holding's review required. A holding
+    judged invalidated must be sold or trimmed in the first review that can trade, whether it
+    was judged so now or earlier; a later intact verdict doesn't lift that.
     """
     if run.mode != "live":
         return None
@@ -328,6 +333,7 @@ def unreviewed_holdings(
         if decision.decision in {Decision.SELL, Decision.TRIM}
     }
     reviews = {review.episode_id: review for review in result.thesis_reviews}
+    verdicts = {(verdict.post_id, verdict.ticker): verdict for verdict in result.x_triage}
     problems = [
         f"the review of {review.ticker} names episode {review.episode_id}, which isn't a current "
         "holding episode from the intake"
@@ -338,13 +344,30 @@ def unreviewed_holdings(
         review = reviews.get(holding["episode_id"])
         label = (
             f"holding {holding['ticker']} is due a thesis review "
-            f"({', '.join(holding['reasons'])}, episode {holding['episode_id']})"
+            f"({', '.join(holding['reasons'] or ['an X headline you judged thesis-changing'])}, "
+            f"episode {holding['episode_id']})"
         )
-        if set(holding["reasons"]) - {"invalidated_without_exit"}:
+        headline_verdicts = [
+            verdicts.get((headline["post_id"], holding["ticker"]))
+            for headline in holding["x_headlines"]
+        ]
+        problems.extend(
+            f"X headline {headline['post_id']} bears on {holding['ticker']} and has no x_triage "
+            "verdict"
+            for headline, verdict in zip(holding["x_headlines"], headline_verdicts, strict=True)
+            if verdict is None
+        )
+        if set(holding["reasons"]) - {"invalidated_without_exit"} or any(
+            verdict and verdict.changes_thesis for verdict in headline_verdicts
+        ):
             gap = "this review has none" if review is None else _review_gap(review)
             if gap:
                 problems.append(f"{label}; {gap}")
-        elif trading_open and holding["ticker"] not in exits:
+        if (
+            "invalidated_without_exit" in holding["reasons"]
+            and trading_open
+            and holding["ticker"] not in exits
+        ):
             problems.append(
                 f"holding {holding['ticker']} was judged invalidated and hasn't been sold or "
                 "trimmed; record a SELL or TRIM"
@@ -536,6 +559,7 @@ def execute_attempt(
             )
         due_reasons: dict[str, list[str]] = {}
         open_episodes: set[str] = set()
+        triaged: list[AuthoredXTriage] = []
         if run.mode == "live":
             snapshot = _starting_snapshot(conn, run)
             open_episodes = {
@@ -544,9 +568,24 @@ def execute_attempt(
                     conn, run.account_id, snapshot.captured_at
                 ).values()
             }
+            due = holdings_due(conn, snapshot, run.prepared_at)
+            listed = {
+                (headline["post_id"], holding["ticker"])
+                for holding in due
+                for headline in holding["x_headlines"]
+            }
+            triaged = [
+                verdict
+                for verdict in result.x_triage
+                if (verdict.post_id, verdict.ticker) in listed
+            ]
+            thesis_changing = {verdict.ticker for verdict in triaged if verdict.changes_thesis}
+            # A review a thesis-changing headline called for is trigger-driven, so it starts the
+            # cooldown like any other trigger.
             due_reasons = {
                 holding["episode_id"]: holding["reasons"]
-                for holding in holdings_due(conn, snapshot, run.prepared_at)
+                + (["x_digest"] if holding["ticker"] in thesis_changing else [])
+                for holding in due
             }
         authored_at = clock()
         heartbeat(conn, attempt.attempt_id, attempt.fence, authored_at, stage="validating")
@@ -590,6 +629,19 @@ def execute_attempt(
             )
         with immediate(conn):
             validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+            for verdict in triaged:
+                conn.execute(
+                    "INSERT OR REPLACE INTO x_triage VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        verdict.post_id,
+                        verdict.ticker,
+                        run.account_id,
+                        int(verdict.changes_thesis),
+                        verdict.note,
+                        attempt.attempt_id,
+                        clock().isoformat(),
+                    ),
+                )
             for earnings in result.earnings_dates:
                 conn.execute(
                     "INSERT OR REPLACE INTO calendar_events "

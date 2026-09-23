@@ -268,6 +268,16 @@ CREATE TABLE IF NOT EXISTS x_digest_notes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (note_date, slot)
 );
+CREATE TABLE IF NOT EXISTS x_triage (
+    post_id TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    changes_thesis INTEGER NOT NULL,
+    note TEXT NOT NULL,
+    runtime_attempt_id TEXT NOT NULL,
+    decided_at TEXT NOT NULL,
+    PRIMARY KEY (post_id, ticker, account_id)
+);
 CREATE TABLE IF NOT EXISTS calendar_events (
     event_type TEXT NOT NULL,
     ticker TEXT NOT NULL DEFAULT '',

@@ -80,7 +80,12 @@ def review(
 
 
 def x_post(
-    conn: sqlite3.Connection, post_id: str, text: str, rank: str, tickers: list[str]
+    conn: sqlite3.Connection,
+    post_id: str,
+    text: str,
+    rank: str,
+    tickers: list[str],
+    decided_at: datetime = datetime(2026, 9, 22, 13, 0, tzinfo=UTC),
 ) -> None:
     conn.execute(
         "INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at) "
@@ -90,8 +95,8 @@ def x_post(
     conn.execute(
         "INSERT INTO x_route_decisions "
         "(post_id, run_id, route, rank, reason, predictor, decided_at, tickers) "
-        "VALUES (?, 'run', 'digest', ?, '', 'predictor', '2026-09-22T13:00:00+00:00', ?)",
-        (post_id, rank, json.dumps(tickers)),
+        "VALUES (?, 'run', 'digest', ?, '', 'predictor', ?, ?)",
+        (post_id, rank, decided_at.isoformat(), json.dumps(tickers)),
     )
 
 
@@ -190,9 +195,7 @@ def test_a_trigger_driven_review_holds_off_the_schedule_and_other_triggers_for_t
     conn.close()
 
 
-def test_reported_earnings_and_an_x_post_tagged_with_the_holding_make_it_due(
-    tmp_path: Path,
-) -> None:
+def test_reported_earnings_since_the_last_review_make_a_holding_due(tmp_path: Path) -> None:
     conn = connect(tmp_path / "boustrategy.db")
     snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
     episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
@@ -201,14 +204,36 @@ def test_reported_earnings_and_an_x_post_tagged_with_the_holding_make_it_due(
         "INSERT INTO calendar_events (event_type, ticker, event_date, source, fetched_at) "
         "VALUES ('earnings', 'NVDA', '2026-09-22', 'test', '2026-09-01T00:00:00+00:00')"
     )
-    x_post(conn, "1", "NVDAX is a different fund", "headline", [])
-    earnings_only = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
-    x_post(conn, "2", "Blackwell racks are sold out through next year", "notable", ["NVDA"])
 
     due = holdings_due(conn, snapshot, MONDAY_MORNING + timedelta(days=2))
 
-    assert [item["reasons"] for item in earnings_only] == [["earnings_reported"]]
-    assert [item["reasons"] for item in due] == [["earnings_reported", "x_digest"]]
+    assert [item["reasons"] for item in due] == [["earnings_reported"]]
+    conn.close()
+
+
+def test_x_headlines_bearing_on_a_holding_are_listed_for_triage_until_triaged(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(minutes=20))
+    x_post(conn, "1", "Blackwell racks are sold out through next year", "headline", ["NVDA"])
+    x_post(conn, "2", "NVDAX is a different fund", "headline", [])
+    x_post(conn, "3", "Hopper rental prices are firming", "notable", ["NVDA"])
+    wednesday_morning = MONDAY_MORNING + timedelta(days=2)
+
+    listed = holdings_due(conn, snapshot, wednesday_morning)
+    conn.execute(
+        "INSERT INTO x_triage VALUES ('1', 'NVDA', ?, 0, 'Already in the thesis.', 'attempt', ?)",
+        (ACCOUNT, wednesday_morning.isoformat()),
+    )
+    triaged = holdings_due(conn, snapshot, wednesday_morning)
+
+    assert [
+        (item["reasons"], [post["post_id"] for post in item["x_headlines"]]) for item in listed
+    ] == [([], ["1"])]
+    assert triaged == []
     conn.close()
 
 
