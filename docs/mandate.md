@@ -59,8 +59,8 @@ forced. Every buy must clear the full evidence bar on its own merits.
 ## Discipline: invalidation and review
 
 - When a position hits its written invalidation criteria, a full review is
-  mandatory the same day: exit or trim, or explicitly re-underwrite the
-  thesis with new invalidation criteria.
+  mandatory the same day: exit or trim (verdict: invalidated), or explicitly re-underwrite the
+  thesis with new invalidation criteria (verdict: intact).
 - Re-underwriting is allowed at most once per position. (Honors SB-007: losses do not
   automatically invalidate, but hope is not a good thesis.)
 - A single position down 40% from entry triggers the same mandatory review
