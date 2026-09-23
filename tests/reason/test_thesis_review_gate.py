@@ -3,6 +3,7 @@ import json
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from app.reason.runtime_prepare import assemble_intake
@@ -325,4 +326,35 @@ def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buy
     assert attempt.status == "no_action"
     assert conn.execute("SELECT COUNT(*) FROM decision_records").fetchone()[0] == 0
     assert "NVDA is due a thesis review" in research["passes"][1]["review_gap"]
+    assert attempt.public_summary and "held back this review's new buys" in attempt.public_summary
+    conn.close()
+
+
+def test_a_holdings_gap_with_no_time_left_to_retry_is_still_accepted(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    save_run(conn, run)
+    ticks = iter([0.0, 1790.0])
+    monkeypatch.setattr("app.reason.worker.time", SimpleNamespace(monotonic=lambda: next(ticks)))
+    calls = 0
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        nonlocal calls
+        calls += 1
+        return AuthoredOutput(public_summary="Holdings skipped.")
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+        timeout_seconds=1800,
+    )
+
+    assert (attempt.status, calls) == ("no_action", 1)
     conn.close()

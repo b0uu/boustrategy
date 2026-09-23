@@ -521,12 +521,10 @@ def execute_attempt(
         passes: list[dict[str, Any]] = [
             {"activity": activity, "shortfall": shortfall, "review_gap": review_gap}
         ]
-        if shortfall or review_gap:
-            # One second pass, inside the same time budget, told exactly what was missing.
-            remaining = timeout_seconds - (time.monotonic() - started)
-            if remaining < _MIN_RETRY_SECONDS:
-                _record_research(attempt_log, passes, result)
-                raise RunnerFailure("insufficient_research")
+        # One second pass, inside the same time budget, told exactly what was missing. Without
+        # the time for one, a missing hunt still fails and a holdings gap is accepted below.
+        remaining = timeout_seconds - (time.monotonic() - started)
+        if (shortfall or review_gap) and remaining >= _MIN_RETRY_SECONDS:
             second_log = attempt_log / "second-pass"
             result = author(
                 prompt
@@ -545,16 +543,23 @@ def execute_attempt(
         _record_research(attempt_log, passes, result)
         if shortfall:
             raise RunnerFailure("insufficient_research")
-        if review_gap:
+        buys = [
+            decision
+            for decision in result.decisions
+            if decision.decision in {Decision.BUY, Decision.ADD}
+        ]
+        if review_gap and buys:
             # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
-            # but no new money goes in while they're outstanding. They stay due.
+            # but no new money goes in while they're outstanding. They stay due. The public
+            # summary was written before the buys were held back, so it says so.
             result = result.model_copy(
                 update={
                     "decisions": [
-                        decision
-                        for decision in result.decisions
-                        if decision.decision not in {Decision.BUY, Decision.ADD}
-                    ]
+                        decision for decision in result.decisions if decision not in buys
+                    ],
+                    "public_summary": result.public_summary
+                    + " The trusted worker held back this review's new buys because it left a "
+                    "holding's review unanswered.",
                 }
             )
         due_reasons: dict[str, list[str]] = {}
