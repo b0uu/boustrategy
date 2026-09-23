@@ -25,6 +25,7 @@ from app.x.pipeline import (
     render_digest,
     render_weekly,
     route_predictions,
+    stamp_note_provenance,
     store_note,
 )
 from app.x.posts import (
@@ -319,6 +320,14 @@ def main() -> None:
     media_parser.add_argument("--run", dest="run_id", required=True)
     media_parser.add_argument("--dir")
 
+    provenance_parser = subparsers.add_parser("note-provenance")
+    provenance_parser.add_argument(
+        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+    )
+    provenance_parser.add_argument("--date", dest="note_date")
+    provenance_parser.add_argument("--model", required=True)
+    provenance_parser.add_argument("--reasoning-effort", dest="reasoning_effort", required=True)
+
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument(
         "--slot", choices=("morning", "midday", "close", "weekly"), required=True
@@ -385,6 +394,18 @@ def main() -> None:
             print(f"rendered {out}")
         elif args.command == "media":
             download_media(args.dir or f"data/x_runs/{args.run_id}")
+        elif args.command == "note-provenance":
+            note_date = (
+                date.fromisoformat(args.note_date)
+                if args.note_date
+                else datetime.now(ZoneInfo("America/New_York")).date()
+            )
+            if stamp_note_provenance(conn, note_date, args.slot, args.model, args.reasoning_effort):
+                print(
+                    f"stamped {note_date}-{args.slot} with {args.model} ({args.reasoning_effort})"
+                )
+            else:
+                print(f"no note for {note_date}-{args.slot}; nothing stamped")
         elif args.command == "verify":
             run_date = (
                 date.fromisoformat(args.run_date)

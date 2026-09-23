@@ -274,6 +274,19 @@ def store_note(
     conn.commit()
 
 
+def stamp_note_provenance(
+    conn: sqlite3.Connection, note_date: date, slot: str, model: str, reasoning_effort: str
+) -> bool:
+    """Record which model and effort wrote a digest note, from the wrapper's own settings."""
+    stamped = conn.execute(
+        "UPDATE x_digest_notes SET model = ?, reasoning_effort = ? "
+        "WHERE note_date = ? AND slot = ?",
+        (model, reasoning_effort, note_date.isoformat(), slot),
+    ).rowcount
+    conn.commit()
+    return bool(stamped)
+
+
 def _post_lines(rows: Sequence[sqlite3.Row | tuple[object, ...]], snippet: int) -> list[str]:
     lines: list[str] = []
     for handle, posted_at, text, reason, url in rows:

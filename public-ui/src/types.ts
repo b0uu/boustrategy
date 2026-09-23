@@ -75,7 +75,7 @@ export interface Decision extends Omit<DecisionItem, 'summary_truncated'>, Metad
   claims: Array<{ claim: string; source_type: string; source_timestamp: string }>
   x_usage: { used: boolean; usage_type: string; summary: string; confirmed_outside_x: boolean }
   x_posts?: XPost[]
-  model_provenance: { status: string; model_label?: string | null; requested_model?: string; observed_model?: string | null }
+  model_provenance: { status: string; model_label?: string | null; requested_model?: string; observed_model?: string | null; digest_models?: string[]; collector_model?: string | null; execution_model?: string | null }
   execution: { status: string; reason?: string; quantity: DecimalValue; gross_notional: DecimalValue; fees: DecimalValue; total?: number; truncated?: boolean; slippage_reason?: string; items: Array<{ occurred_at: string; side: string; quantity: string; price: string; gross_notional: string; fee: string | null; order_state: string; canceled_quantity: string; settled_at: string | null }> }
   sized_order: { notional: DecimalValue; limit_price: DecimalValue; side: string; order_type: string; sized_at: string; expires_at: string; status: string } | null
   requested_order: { notional: DecimalValue; limit_price: DecimalValue; order_type: string; broker_status: string; submitted_at: string } | null

@@ -108,6 +108,13 @@ if ($ExitCode -eq 0) {
     $ExitCode = $LASTEXITCODE
     $VerifyOutput | Out-File -FilePath $LogFile -Append -Encoding utf8
 }
+if ($ExitCode -eq 0) {
+    # The public decision trace names the model behind each digest a review read; the wrapper,
+    # not the session, is the authority on which model ran.
+    & python -m app.x.run note-provenance --slot $Slot --model $DigestModel `
+        --reasoning-effort $DigestReasoningEffort 2>&1 |
+        Out-File -FilePath $LogFile -Append -Encoding utf8
+}
 "--- exit code: $ExitCode ---" | Out-File -FilePath $LogFile -Append -Encoding utf8
 
 $CombinedOutput = (@($SessionOutput) + @($VerifyOutput)) -join "`n"

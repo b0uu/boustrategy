@@ -260,6 +260,11 @@ def test_execute_pending_runs_one_session_per_intent_and_verifies_ledger(tmp_pat
     assert "ref_id" in seen["prompt"] and "Never run git" in seen["prompt"]
     ledger = (tmp_path / "broker-logs" / "executions.jsonl").read_text(encoding="utf-8")
     assert json.loads(ledger.splitlines()[0])["report"]["broker_order_id"] == "rh-9"
+    conn = connect(db_path)
+    assert conn.execute("SELECT order_intent_id, model FROM execution_sessions").fetchall() == [
+        (intent.order_intent_id, "gpt-5.6-sol")
+    ]
+    conn.close()
 
 
 def test_execute_pending_reports_session_failure_and_clean_non_placement(tmp_path: Path) -> None:

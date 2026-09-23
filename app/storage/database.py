@@ -268,6 +268,12 @@ CREATE TABLE IF NOT EXISTS x_digest_notes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (note_date, slot)
 );
+CREATE TABLE IF NOT EXISTS execution_sessions (
+    order_intent_id TEXT NOT NULL,
+    attempted_at TEXT NOT NULL,
+    model TEXT NOT NULL,
+    PRIMARY KEY (order_intent_id, attempted_at)
+);
 CREATE TABLE IF NOT EXISTS swap_pairs (
     buy_decision_id TEXT PRIMARY KEY,
     sell_decision_id TEXT NOT NULL,
@@ -414,6 +420,8 @@ def connect(db_path: str | Path, *, wal: bool = False) -> sqlite3.Connection:
             {"submission_snapshot_id": "TEXT NOT NULL DEFAULT ''"},
         )
         _ensure_columns(conn, "x_route_decisions", {"tickers": "TEXT NOT NULL DEFAULT '[]'"})
+        # Stamped by the digester wrapper from its own settings; NULL on notes written before.
+        _ensure_columns(conn, "x_digest_notes", {"model": "TEXT", "reasoning_effort": "TEXT"})
         _ensure_columns(
             conn, "paper_fills", {"simulation_version": "TEXT NOT NULL DEFAULT 'legacy_close_v1'"}
         )

@@ -82,6 +82,8 @@ class LivePortfolioSnapshot(BaseModel):
     buying_power: float = Field(ge=0.0)
     positions: list[LivePosition] = Field(default_factory=list)
     reporting: ValuationObservation | None = None
+    # The model that read the account; None on snapshots taken before this was recorded.
+    collector_model: str | None = None
 
     @model_validator(mode="after")
     def require_unique_positions(self) -> "LivePortfolioSnapshot":

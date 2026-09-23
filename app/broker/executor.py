@@ -286,6 +286,12 @@ def execute_pending(
             "side": intent.side.value,
             "attempted_at": started.isoformat(),
         }
+        with closing(connect(db_path)) as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO execution_sessions VALUES (?, ?, ?)",
+                (intent.order_intent_id, started.isoformat(), model),
+            )
+            conn.commit()
         try:
             report = session(
                 execution_prompt(intent, profile, attempts),

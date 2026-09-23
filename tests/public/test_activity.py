@@ -103,6 +103,22 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
         retry=True,
     )
     assert attempt.status == "completed"
+    # One digest stamped with its model, an older one written before stamping existed, and one
+    # written after the review was prepared, which it can't have read.
+    conn.executemany(
+        "INSERT INTO x_digest_notes (note_date, slot, synthesis, author, created_at, model, "
+        "reasoning_effort) VALUES (?, ?, 'note', 'predictor', ?, ?, ?)",
+        [
+            ("2026-06-10", "midday", "2026-06-10T17:00:00+00:00", "gpt-5.6-luna", "low"),
+            ("2026-06-09", "close", "2026-06-09T22:00:00+00:00", None, None),
+            ("2026-06-10", "close", "2026-06-10T22:30:00+00:00", "gpt-5.7", "high"),
+        ],
+    )
+    conn.execute(
+        "INSERT INTO execution_sessions SELECT order_intent_id, '2026-06-10T21:50:00+00:00', "
+        "'gpt-5.6-sol' FROM order_intents ORDER BY order_intent_id LIMIT 1"
+    )
+    conn.commit()
     publish(source, public)
     client = TestClient(create_public_app(public))
     runs = client.get("/api/public/v2/portfolios/paper/activity").json()
@@ -114,6 +130,16 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
     params = {"portfolio_id": "paper", "run_id": public_id, "limit": 1}
     page = client.get("/api/public/v2/decisions", params=params).json()
     assert page["total"] == 2 and page["items"][0]["public_run_id"] == public_id
+    provenance = [
+        client.get(f"/api/public/v2/decisions/{item['public_id']}").json()["model_provenance"]
+        for item in client.get("/api/public/v2/decisions", params={"portfolio_id": "paper"}).json()[
+            "items"
+        ]
+    ]
+    assert {tuple(item["digest_models"]) for item in provenance} == {
+        ("Not recorded", "gpt-5.6-luna (low)")
+    }
+    assert sorted(str(item["execution_model"]) for item in provenance) == ["None", "gpt-5.6-sol"]
     assert (
         client.get(
             "/api/public/v2/decisions",

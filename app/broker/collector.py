@@ -262,6 +262,7 @@ def collect_snapshot(
         buying_power=observed.buying_power,
         positions=positions,
         reporting=_valuation(observed, profile, positions, reporting_positions, captured, stamp),
+        collector_model=model,
     )
     save_live_portfolio_snapshot(conn, snapshot, profile)
     return snapshot

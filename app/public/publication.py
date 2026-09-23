@@ -466,9 +466,19 @@ def publish(
             public_runs = {}
             run_ids: dict[str, str | None] = {}
             if table_exists(source, "runtime_attempts"):
-                for decision_id, run_id, attempt_id, model, observed in source.execute(
+                for (
+                    decision_id,
+                    run_id,
+                    attempt_id,
+                    model,
+                    observed,
+                    session_date,
+                    prepared_at,
+                    reasoning_run_id,
+                ) in source.execute(
                     "SELECT d.decision_id, r.run_id, a.public_id, a.model, "
-                    "a.observed_model FROM decision_records d JOIN runtime_attempts a "
+                    "a.observed_model, r.session_date, r.prepared_at, r.reasoning_run_id "
+                    "FROM decision_records d JOIN runtime_attempts a "
                     "ON a.attempt_id=d.runtime_attempt_id JOIN runtime_runs r ON "
                     "r.run_id=a.run_id WHERE d.decision_id IN (" + selected_ids + ")"
                 ):
@@ -478,11 +488,43 @@ def publish(
                             (hashlib.sha256(run_id.encode()).hexdigest(),),
                         ).fetchone()
                         run_ids[run_id] = mapped[0] if mapped else None
+                    # The models behind every stage of the trace, so a switch shows on each
+                    # later decision: the digests the review read (the intake takes the three
+                    # latest daily digests), the account read it started from, and execution.
+                    digest_models = sorted(
+                        {
+                            f"{digest_model} ({effort})" if digest_model else "Not recorded"
+                            for digest_model, effort in source.execute(
+                                "SELECT model, reasoning_effort FROM x_digest_notes "
+                                "WHERE slot != 'weekly' AND note_date IN (SELECT DISTINCT "
+                                "note_date FROM x_digest_notes WHERE slot != 'weekly' AND "
+                                "note_date <= ? ORDER BY note_date DESC LIMIT 3) "
+                                "AND julianday(created_at) <= julianday(?)",
+                                (session_date, prepared_at),
+                            )
+                        }
+                    )
+                    collector = source.execute(
+                        "SELECT json_extract(s.snapshot_json, '$.collector_model') "
+                        "FROM reasoning_runs rr JOIN live_portfolio_snapshots s "
+                        "ON s.portfolio_snapshot_id = rr.portfolio_snapshot_id "
+                        "WHERE rr.reasoning_run_id = ?",
+                        (reasoning_run_id,),
+                    ).fetchone()
+                    executor = source.execute(
+                        "SELECT e.model FROM execution_sessions e JOIN order_intents o "
+                        "ON o.order_intent_id = e.order_intent_id WHERE o.decision_id = ? "
+                        "ORDER BY e.attempted_at DESC LIMIT 1",
+                        (decision_id,),
+                    ).fetchone()
                     runtime_provenance[decision_id] = {
                         "public_run_id": run_ids[run_id],
                         "public_attempt_id": attempt_id,
                         "requested_model": model,
                         "observed_model": observed,
+                        "digest_models": digest_models,
+                        "collector_model": collector[0] if collector else None,
+                        "execution_model": executor[0] if executor else None,
                     }
             if table_exists(source, "reasoning_run_decisions"):
                 for decision_id, legacy_id in source.execute(

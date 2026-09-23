@@ -77,6 +77,7 @@ def test_a_held_position_quoted_during_the_session_does_not_break_the_valuation(
 
     snapshot = collect_snapshot(conn, _profile(), session=session, codex_home=tmp_path)
 
+    assert snapshot.collector_model == "gpt-5.6-luna"
     reporting = snapshot.reporting
     assert reporting is not None
     assert snapshot.captured_at >= quoted > started
