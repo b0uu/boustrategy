@@ -525,3 +525,16 @@ it('marks an unreviewed holding in prose alone, without a status badge', async (
   expect((await screen.findAllByText('No public thesis review is available for this holding.')).length).toBeGreaterThan(0)
   expect(screen.queryByText('Not reviewed')).not.toBeInTheDocument()
 })
+
+it('says why a holding was reviewed', async () => {
+  const positions = data['live/positions'] as { items: Array<Record<string, unknown>> }
+  positions.items[0] = {
+    ...positions.items[0],
+    thesis_review: { state: 'intact', reviewed_at: '2026-09-23T17:20:00Z', summary: 'Demand still outruns supply.', review_reasons: ['scheduled_review', 'price_move'] },
+  }
+  await dashboard()
+
+  fireEvent.click(screen.getByRole('button', { name: 'positions' }))
+
+  expect(await screen.findByText('Why it was reviewed: Scheduled review, Large daily price move.')).toBeInTheDocument()
+})

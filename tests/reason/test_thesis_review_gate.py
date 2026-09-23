@@ -7,12 +7,14 @@ from typing import Any
 
 from app.reason.runtime_prepare import assemble_intake
 from app.reason.worker import execute_attempt, unreviewed_holdings
+from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.reasoning_run import ReasoningRun
 from app.schemas.runtime import AuthoredOutput, AuthoredThesisReview, RuntimeRun
 from app.storage.database import connect
 from app.storage.holding_reviews import live_holding_episodes
 from app.storage.records import save_reasoning_run
 from app.storage.runtime import save_run
+from tests.fixtures.decision_records import valid_decision_record_data
 from tests.reason.test_live_submit import _profile
 from tests.storage.test_holding_reviews import ACCOUNT, snapshot_at
 
@@ -84,32 +86,70 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
     conn.close()
 
 
-def test_a_due_holding_needs_a_verdict_a_summary_and_an_opened_source(tmp_path: Path) -> None:
-    conn = connect(tmp_path / "boustrategy.db")
-    run = live_review(conn, tmp_path)
-    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
-    complete = AuthoredThesisReview(
+def complete_review(episode: str) -> AuthoredThesisReview:
+    return AuthoredThesisReview(
         episode_id=episode,
         ticker="NVDA",
         state="intact",
-        summary="Data-center demand still outruns supply at today's price.",
+        summary="Would still own it at today's price.",
         sources_opened=["https://investor.nvidia.com/"],
     )
+
+
+def test_a_due_holding_needs_a_summary_and_an_opened_source(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    complete = complete_review(episode)
 
     shortfalls = [
         unreviewed_holdings(conn, run, AuthoredOutput(thesis_reviews=reviews, public_summary="x"))
         for reviews in (
             [],
-            [complete.model_copy(update={"state": "not_reviewed"})],
+            [complete.model_copy(update={"summary": None})],
             [complete.model_copy(update={"sources_opened": []})],
+            [complete.model_copy(update={"episode_id": "live:guessed"})],
             [complete],
         )
     ]
 
     assert shortfalls[0] and "NVDA is due a thesis review" in shortfalls[0]
-    assert shortfalls[1] and "state other than not_reviewed" in shortfalls[1]
+    assert shortfalls[1] and "needs a summary" in shortfalls[1]
     assert shortfalls[2] and "no opened source URL" in shortfalls[2]
-    assert shortfalls[3] is None
+    assert shortfalls[3] and "isn't a current holding episode" in shortfalls[3]
+    assert shortfalls[4] is None
+    conn.close()
+
+
+def test_an_invalidated_holding_must_be_sold_or_trimmed_while_the_market_is_open(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    invalidated = complete_review(episode).model_copy(update={"state": "invalidated"})
+    sell = InvestmentDecisionRecord.model_validate(
+        {**valid_decision_record_data(), "ticker": "NVDA", "decision": "SELL"}
+    )
+
+    kept = unreviewed_holdings(
+        conn, run, AuthoredOutput(thesis_reviews=[invalidated], public_summary="x")
+    )
+    sold = unreviewed_holdings(
+        conn,
+        run,
+        AuthoredOutput(decisions=[sell], thesis_reviews=[invalidated], public_summary="x"),
+    )
+    closed = unreviewed_holdings(
+        conn,
+        run,
+        AuthoredOutput(thesis_reviews=[invalidated], public_summary="x"),
+        trading_open=False,
+    )
+
+    assert kept and "record a SELL or TRIM" in kept
+    assert sold is None
+    assert closed is None
     conn.close()
 
 
@@ -124,19 +164,7 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
 
     def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
         prompts.append(prompt)
-        reviews = (
-            []
-            if len(prompts) == 1
-            else [
-                AuthoredThesisReview(
-                    episode_id=episode,
-                    ticker="NVDA",
-                    state="intact",
-                    summary="Would still buy it today at this price.",
-                    sources_opened=["https://investor.nvidia.com/"],
-                )
-            ]
-        )
+        reviews = [] if len(prompts) == 1 else [complete_review(episode)]
         return AuthoredOutput(thesis_reviews=reviews, public_summary="Holdings reviewed.")
 
     attempt = execute_attempt(
@@ -153,5 +181,37 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
     assert attempt.status == "no_action"
     assert "holding NVDA is due a thesis review" in prompts[1]
     assert [(item["episode_id"], item["state"]) for item in stored] == [(episode, "intact")]
+    assert stored[0]["review_reasons"] == ["scheduled_review"]
     assert "sources_opened" not in stored[0]
+    conn.close()
+
+
+def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buys(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    save_run(conn, run)
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        buy = InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), "decision_id": namespace + "buy"}
+        )
+        return AuthoredOutput(decisions=[buy], public_summary="A new idea, holdings skipped.")
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    research = json.loads((tmp_path / "logs" / attempt.attempt_id / "research.json").read_text())
+    assert attempt.status == "no_action"
+    assert conn.execute("SELECT COUNT(*) FROM decision_records").fetchone()[0] == 0
+    assert "NVDA is due a thesis review" in research["passes"][1]["review_gap"]
     conn.close()

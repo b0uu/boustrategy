@@ -230,11 +230,12 @@ def assemble_intake(
             [
                 "# Holdings due for thesis review",
                 json.dumps(due, sort_keys=True),
-                "Every holding listed here is REVIEW DUE. Return a thesis_reviews entry for "
-                "its episode_id, re-underwritten on current evidence as if you were deciding "
-                "to buy it today at today's price. Give it a state other than not_reviewed "
-                "and a summary, and list the URLs you opened for it in sources_opened. A "
-                "review that leaves a due holding out is rejected.",
+                "Every holding listed here is REVIEW DUE, for the reasons given. Return a "
+                "thesis_reviews entry for its episode_id, judged on current evidence as if "
+                "deciding today whether to own it at today's price, with a summary and the "
+                "URLs you opened for it in sources_opened. A holding due only for "
+                "invalidated_without_exit was already judged invalidated; it needs a SELL or "
+                "TRIM while the market is open, not another review.",
             ]
         )
     prior_context = []

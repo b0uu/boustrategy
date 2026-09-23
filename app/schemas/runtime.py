@@ -95,7 +95,8 @@ class SchedulerObservation(RuntimeModel):
 class AuthoredThesisReview(RuntimeModel):
     episode_id: str = Field(min_length=1, max_length=200)
     ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
-    state: Literal["not_reviewed", "intact", "under_review", "invalidated"]
+    # Would we still own it at today's price? An invalidated holding must be sold or trimmed.
+    state: Literal["intact", "invalidated"]
     summary: str | None = Field(default=None, max_length=4000)
     narrative: PublicNarrative | None = None
     approved_for_publication: bool = False

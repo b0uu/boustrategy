@@ -34,6 +34,7 @@ from app.schemas.reporting import (
     ReportingObservation,
     ValuationObservation,
 )
+from app.storage.holding_reviews import live_holding_episodes
 from app.x.calendar import NEW_YORK, CalendarCoverageError, completed_session
 
 _PUBLIC_LIFECYCLE = {
@@ -1152,6 +1153,16 @@ def publish(
                 by_episode = {item["episode_id"]: item for item in full_episodes}
                 for episode in episodes:
                     episode["thesis_review"] = by_episode[episode["episode_id"]]["thesis_review"]
+                # Live reviews are keyed to snapshot episodes when returns-grade ones are missing.
+                snapshot_episodes = (
+                    live_holding_episodes(
+                        source,
+                        reporting_account,
+                        datetime.fromisoformat(latest_live["captured_at"]),
+                    )
+                    if portfolio["mode"] == "live" and latest_live and reporting_account
+                    else {}
+                )
                 for position in portfolio["positions"]:
                     episode = next(
                         (
@@ -1161,12 +1172,45 @@ def publish(
                         ),
                         None,
                     )
-                    position["holding_episode_id"] = episode["episode_id"] if episode else None
-                    position["thesis_review"] = (
-                        episode["thesis_review"]
+                    snapshot_episode = snapshot_episodes.get(position["ticker"])
+                    episode_review = (
+                        reviews.get(
+                            (portfolio["mode"], review_account or "", episode["episode_id"])
+                        )
                         if episode
-                        else explanations.thesis_projection(None, sources)
+                        else None
                     )
+                    snapshot_review = (
+                        reviews.get(("live", review_account or "", snapshot_episode["episode_id"]))
+                        if snapshot_episode
+                        else None
+                    )
+                    if (
+                        snapshot_episode
+                        and snapshot_review
+                        and (
+                            episode_review is None
+                            or episode_review.reviewed_at < snapshot_review.reviewed_at
+                        )
+                    ):
+                        # The raw identity carries the account fingerprint, so only its hash
+                        # is published, as returns-grade episode identities are.
+                        position["holding_episode_id"] = (
+                            "holding_"
+                            + hashlib.sha256(snapshot_episode["episode_id"].encode()).hexdigest()[
+                                :24
+                            ]
+                        )
+                        position["thesis_review"] = explanations.thesis_projection(
+                            snapshot_review, sources
+                        )
+                    else:
+                        position["holding_episode_id"] = episode["episode_id"] if episode else None
+                        position["thesis_review"] = (
+                            episode["thesis_review"]
+                            if episode
+                            else explanations.thesis_projection(None, sources)
+                        )
                     latest = target.execute(
                         "SELECT public_id, summary FROM public_decisions WHERE portfolio_id=? "
                         "AND ticker=? AND revoked=0 AND withdrawn=0 ORDER BY created_at DESC, "

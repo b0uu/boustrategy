@@ -27,11 +27,16 @@ from app.reason.codex_runner import (
 from app.reason.run import submit_decision
 from app.reason.runtime_prepare import live_readiness
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
-from app.schemas.live_execution import ExecutionProfile
+from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
 from app.schemas.public_authoring import ThesisReview
-from app.schemas.runtime import AuthoredOutput, RuntimeAttempt, RuntimeRun
-from app.storage.holding_reviews import holdings_due
+from app.schemas.runtime import (
+    AuthoredOutput,
+    AuthoredThesisReview,
+    RuntimeAttempt,
+    RuntimeRun,
+)
+from app.storage.holding_reviews import holdings_due, live_holding_episodes
 from app.storage.public_records import save_thesis_review
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import (
@@ -66,10 +71,16 @@ action without it is rejected.
 Research is read-only. You have no authority to call broker tools, submit orders, modify
 files, or start other agents, and a search result never licenses skipping a reasoning step.
 Return the required structured JSON. Every holding the intake marks REVIEW DUE needs a
-thesis_reviews entry for its episode: re-underwrite it on current evidence as if buying it today
-at today's price, never by defending the thesis it was bought on. Open at least one current
-source for it, list those URLs in sources_opened, and give it a state and summary. A holding that
-isn't due may still be reviewed; otherwise thesis_reviews may be empty.
+thesis_reviews entry for its episode: judge it on current evidence as if deciding today whether
+to own it at today's price, never by defending the thesis it was bought on. Its state is intact
+when you would still own it at this price and invalidated when you would not. An invalidated
+holding must be sold or trimmed: record a SELL or TRIM for it in this review while the market is
+open, or in the next review that can trade. Open at least one current source for it and list
+those URLs in sources_opened. Write its summary as plain public prose for the dashboard and set
+approved_for_publication to true; keep private reasoning in private_notes. A holding that isn't
+due may still be reviewed; otherwise thesis_reviews may be empty. A review that leaves a due
+holding unanswered is sent back, and if it's still unanswered, its BUY and ADD records are
+discarded.
 Record only what you actually read. Every source claim needs a real identifier you retrieved
 and the source's own publication timestamp; reconstruct neither from memory. A search that
 fails or returns nothing usable is a research limitation to state, not a gap to fill in.
@@ -279,32 +290,67 @@ def unanswered_short_calls(
     return "; ".join(problems) or None
 
 
-def unreviewed_holdings(
-    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput
-) -> str | None:
-    """Say which due holdings this review left without a real thesis review, if any."""
-    if run.mode != "live":
-        return None
+def _starting_snapshot(conn: sqlite3.Connection, run: RuntimeRun) -> LivePortfolioSnapshot:
     legacy = get_reasoning_run(conn, run.reasoning_run_id or "")
     snapshot = get_live_portfolio_snapshot(conn, legacy.portfolio_snapshot_id) if legacy else None
     if snapshot is None:
         raise RunnerFailure("snapshot_stale")
+    return snapshot
+
+
+def _review_gap(review: AuthoredThesisReview) -> str | None:
+    if not review.summary:
+        return "its review needs a summary"
+    if not any(url.startswith(("https://", "http://")) for url in review.sources_opened):
+        return "its review records no opened source URL"
+    return None
+
+
+def unreviewed_holdings(
+    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput, *, trading_open: bool = True
+) -> str | None:
+    """Say which holdings this review left unanswered, if any.
+
+    Every due holding needs a real thesis review. A holding judged invalidated must be sold or
+    trimmed in the first review that can trade, whether it was judged so now or earlier.
+    """
+    if run.mode != "live":
+        return None
+    snapshot = _starting_snapshot(conn, run)
+    episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
+    open_episodes = {episode["episode_id"] for episode in episodes.values()}
+    exits = {
+        decision.ticker
+        for decision in result.decisions
+        if decision.decision in {Decision.SELL, Decision.TRIM}
+    }
     reviews = {review.episode_id: review for review in result.thesis_reviews}
-    problems = []
+    problems = [
+        f"the review of {review.ticker} names episode {review.episode_id}, which isn't a current "
+        "holding episode from the intake"
+        for review in result.thesis_reviews
+        if review.episode_id not in open_episodes
+    ]
     for holding in holdings_due(conn, snapshot, run.prepared_at):
         review = reviews.get(holding["episode_id"])
         label = (
             f"holding {holding['ticker']} is due a thesis review "
             f"({', '.join(holding['reasons'])}, episode {holding['episode_id']})"
         )
-        if review is None:
-            problems.append(label + " and this review has none")
-        elif review.state == "not_reviewed" or not review.summary:
+        if set(holding["reasons"]) - {"invalidated_without_exit"}:
+            gap = "this review has none" if review is None else _review_gap(review)
+            if gap:
+                problems.append(f"{label}; {gap}")
+        elif trading_open and holding["ticker"] not in exits:
             problems.append(
-                label + "; its review needs a state other than not_reviewed and a summary"
+                f"holding {holding['ticker']} was judged invalidated and hasn't been sold or "
+                "trimmed; record a SELL or TRIM"
             )
-        elif not any(url.startswith(("https://", "http://")) for url in review.sources_opened):
-            problems.append(label + "; its review records no opened source URL")
+    problems.extend(
+        f"{review.ticker} is judged invalidated in this review; record a SELL or TRIM for it"
+        for review in result.thesis_reviews
+        if review.state == "invalidated" and trading_open and review.ticker not in exits
+    )
     return "; ".join(problems) or None
 
 
@@ -344,14 +390,20 @@ def _review_shortfall(
     required: int,
     trading_open: bool,
     clock: Callable[[], datetime],
-) -> str | None:
-    """Everything the trusted worker demands of a review: the hunt, due short calls and holdings."""
+) -> tuple[str | None, str | None]:
+    """What the trusted worker demands of a review, as (required, holdings).
+
+    The hunt and due short calls are required outright. Unanswered holdings come back apart: a
+    review with that gap is still accepted, without its new buys.
+    """
     parts = [
         hunt_shortfall(result, activity, required, trading_open=trading_open),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
-        unreviewed_holdings(conn, run, result),
     ]
-    return "; ".join(part for part in parts if part) or None
+    return (
+        "; ".join(part for part in parts if part) or None,
+        unreviewed_holdings(conn, run, result, trading_open=trading_open),
+    )
 
 
 def execute_attempt(
@@ -437,9 +489,13 @@ def execute_attempt(
 
         result = author(prompt, attempt_log, timeout_seconds)
         activity = research_activity(attempt_log)
-        shortfall = _review_shortfall(conn, run, result, activity, required, trading_open, clock)
-        passes: list[dict[str, Any]] = [{"activity": activity, "shortfall": shortfall}]
-        if shortfall:
+        shortfall, review_gap = _review_shortfall(
+            conn, run, result, activity, required, trading_open, clock
+        )
+        passes: list[dict[str, Any]] = [
+            {"activity": activity, "shortfall": shortfall, "review_gap": review_gap}
+        ]
+        if shortfall or review_gap:
             # One second pass, inside the same time budget, told exactly what was missing.
             remaining = timeout_seconds - (time.monotonic() - started)
             if remaining < _MIN_RETRY_SECONDS:
@@ -449,20 +505,46 @@ def execute_attempt(
             result = author(
                 prompt
                 + "\nYOUR PREVIOUS ANSWER WAS REJECTED BY THE TRUSTED WORKER: "
-                + shortfall
+                + "; ".join(part for part in (shortfall, review_gap) if part)
                 + ". Redo the review from the start: hunt, open primary sources for each "
                 "candidate, record them in candidates_considered, and return the complete JSON.",
                 second_log,
                 remaining,
             )
             activity = research_activity(second_log)
-            shortfall = _review_shortfall(
+            shortfall, review_gap = _review_shortfall(
                 conn, run, result, activity, required, trading_open, clock
             )
-            passes.append({"activity": activity, "shortfall": shortfall})
+            passes.append({"activity": activity, "shortfall": shortfall, "review_gap": review_gap})
         _record_research(attempt_log, passes, result)
         if shortfall:
             raise RunnerFailure("insufficient_research")
+        if review_gap:
+            # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
+            # but no new money goes in while they're outstanding. They stay due.
+            result = result.model_copy(
+                update={
+                    "decisions": [
+                        decision
+                        for decision in result.decisions
+                        if decision.decision not in {Decision.BUY, Decision.ADD}
+                    ]
+                }
+            )
+        due_reasons: dict[str, list[str]] = {}
+        open_episodes: set[str] = set()
+        if run.mode == "live":
+            snapshot = _starting_snapshot(conn, run)
+            open_episodes = {
+                episode["episode_id"]
+                for episode in live_holding_episodes(
+                    conn, run.account_id, snapshot.captured_at
+                ).values()
+            }
+            due_reasons = {
+                holding["episode_id"]: holding["reasons"]
+                for holding in holdings_due(conn, snapshot, run.prepared_at)
+            }
         authored_at = clock()
         heartbeat(conn, attempt.attempt_id, attempt.fence, authored_at, stage="validating")
         if run.mode == "live" and (
@@ -504,8 +586,13 @@ def execute_attempt(
                 fence=attempt.fence,
             )
         for draft_review in result.thesis_reviews:
+            if run.mode == "live" and (
+                draft_review.episode_id not in open_episodes or _review_gap(draft_review)
+            ):
+                continue
             review = ThesisReview(
                 **draft_review.model_dump(exclude={"sources_opened"}),
+                review_reasons=due_reasons.get(draft_review.episode_id, []),
                 review_id="review_" + uuid4().hex,
                 mode=run.mode,
                 account_id=run.account_id,

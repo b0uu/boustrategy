@@ -10,6 +10,7 @@ function Thesis({ review }: { review: ThesisReview | undefined }) {
     <div className="section-heading"><h3>Recorded thesis review</h3>{review && <Badge value={review.state} />}</div>
     <p>{review?.summary ?? 'No public thesis review is available for this holding.'}</p>
     {review?.reviewed_at && <p className="as-of">Reviewed {when(review.reviewed_at)}{review.author === 'operator' ? ' by the operator' : ''}.</p>}
+    {review?.review_reasons?.length ? <p className="as-of">Why it was reviewed: {review.review_reasons.map(label).join(', ')}.</p> : null}
     {review?.narrative?.conditions && <details className="compact-disclosure"><summary><Chevron /> Management conditions</summary><div className="condition-grid">{(['add', 'trim', 'exit', 'invalidation'] as const).map(key => <div key={key}><h3>{label(key)}</h3><TextList items={review.narrative!.conditions![key]} /></div>)}</div></details>}
   </div>
 }

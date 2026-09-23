@@ -648,3 +648,53 @@ def test_broker_milestones_and_requested_size_do_not_fabricate_fills(tmp_path: P
     assert detail["execution"]["quantity"] is None and detail["execution"]["gross_notional"] is None
     assert detail["milestones"][-1]["stage"] == "broker_canceled"
     assert "PRIVATE" not in json.dumps(detail) and "private-" not in json.dumps(detail)
+
+
+def test_a_live_snapshot_episode_review_is_published_without_the_account(tmp_path: Path) -> None:
+    from datetime import timedelta
+
+    from app.schemas.public_authoring import ThesisReview
+    from app.storage.holding_reviews import live_holding_episodes
+    from app.storage.public_records import save_thesis_review
+    from tests.storage.test_holding_reviews import ACCOUNT, MONDAY_MORNING, snapshot_at
+
+    source, public = tmp_path / "source.db", tmp_path / "public.db"
+    conn = connect(source)
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 230)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    reviewed = MONDAY_MORNING + timedelta(minutes=10)
+    save_thesis_review(
+        conn,
+        ThesisReview(
+            review_id="snapshot-review",
+            mode="live",
+            account_id=ACCOUNT,
+            episode_id=episode,
+            ticker="NVDA",
+            reviewed_at=reviewed,
+            recorded_at=reviewed,
+            author="operator",
+            state="intact",
+            summary="Data-center demand still outruns supply.",
+            approved_for_publication=True,
+            private_notes="PRIVATE_REVIEW",
+            review_reasons=["scheduled_review", "price_move"],
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    publish(source, public, live_profiles=("codex",))
+    positions = TestClient(create_public_app(public)).get(
+        "/api/public/v2/portfolios/live/positions"
+    )
+
+    item = positions.json()["items"][0]
+    assert (item["thesis_review"]["state"], item["thesis_review"]["review_reasons"]) == (
+        "intact",
+        ["scheduled_review", "price_move"],
+    )
+    assert item["thesis_review"]["summary"] == "Data-center demand still outruns supply."
+    assert item["holding_episode_id"].startswith("holding_")
+    assert ACCOUNT not in positions.text
+    assert "PRIVATE_REVIEW" not in positions.text

@@ -183,6 +183,11 @@ class ThesisReview(PublicAuthoringModel):
     narrative: PublicNarrative | None = None
     approved_for_publication: bool = False
     private_notes: Text | None = None
+    # Why the review was due (scheduled, a named trigger, or a mandatory review); empty when
+    # it was volunteered.
+    review_reasons: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(
+        default_factory=list, max_length=10
+    )
 
     @model_validator(mode="after")
     def review_identity(self) -> "ThesisReview":

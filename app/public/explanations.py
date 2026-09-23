@@ -261,6 +261,7 @@ def thesis_projection(
         "summary": review.summary,
         "narrative": narrative,
         "author": review.author,
+        "review_reasons": review.review_reasons,
         "run_provenance": "recorded"
         if review.reasoning_run_id or review.runtime_attempt_id
         else "operator_review",

@@ -61,13 +61,28 @@ reported without selecting a verdict.
 A live intake also shows each holding's weight, quantity, average cost, price and
 unrealized return from the starting snapshot, and derives holding episodes from
 broker snapshots, because live activity coverage isn't recorded. It lists the
-holdings due for a thesis review. At 2% of equity or more, a holding is due at each
-review point (Monday 09:00, Wednesday 12:00 and Friday 12:00 ET, so the Monday
-morning, Wednesday midday and Friday midday reviews) until a review recorded after
-that point covers it. A missed point carries to the next review that runs. A holding
-down 40% from cost is due in every session until reviewed that day. The worker
-rejects an output that leaves a due holding without a review carrying a verdict, a
-summary and an opened source URL, retries once, then fails the attempt.
+holdings due for a thesis review, with the reasons:
+
+- On schedule: at 2% of equity or more, a holding is due at each review point
+  (Monday 09:00, Wednesday 12:00 and Friday 12:00 ET, so the Monday morning,
+  Wednesday midday and Friday midday reviews) until a review recorded after that
+  point covers it. A missed point carries to the next review that runs.
+- On a trigger since its last review: a daily price move of 5% or more, a volume
+  spike, reported earnings, an X digest headline naming the ticker, or its first
+  close 15% under cost.
+- For three days after a trigger-driven review, neither the schedule nor another
+  trigger makes the holding due.
+- Regardless of the cooldown: its first close 40% under cost, or an invalidated
+  verdict with no sale since.
+
+Preparation tracks prices, earnings and triggers for live holdings whether or not
+the watchlist names them. The agent's verdict is binary: `intact` (it would still
+own the holding at today's price) or `invalidated`. An invalidated holding needs a
+SELL or TRIM in the first review that can trade. The worker sends back an output
+that leaves a due holding without a review carrying a summary and an opened source
+URL. If the retry still leaves one unanswered, the output is accepted without its
+BUY and ADD records, and the holding stays due. Each saved review records why it was
+due, and the public positions panel shows the latest approved review.
 
 For a paper intake you've already prepared:
 

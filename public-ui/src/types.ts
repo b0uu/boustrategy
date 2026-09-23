@@ -22,7 +22,7 @@ export interface Narrative {
   trigger_summary: string | null; x_summary: string | null; x_posts?: XPost[]; conviction_rationale: string | null
   extraordinary_opportunity_summary: string | null; conditions: Conditions | null
 }
-export interface ThesisReview { state: string; reviewed_at: string | null; summary: string | null; reason?: string; narrative?: Narrative | null; author?: string }
+export interface ThesisReview { state: string; reviewed_at: string | null; summary: string | null; reason?: string; narrative?: Narrative | null; author?: string; review_reasons?: string[] }
 export interface Position {
   ticker: string; name?: string | null; shares: DecimalValue; average_cost: DecimalValue
   latest_price: DecimalValue; market_value: DecimalValue; weight: number | null

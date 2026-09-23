@@ -18,7 +18,7 @@ from app.prices.cache import refresh_ticker
 from app.reason.live_context import live_portfolio_context
 from app.regime.run import score_date
 from app.schemas.decision_record import RegimeState
-from app.schemas.live_execution import ExecutionProfile
+from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
 from app.schemas.policy_reporting import PolicyInputIdentity
 from app.schemas.reasoning_run import ReasoningRun, ReasoningRunResult, reasoning_run_id
@@ -121,8 +121,23 @@ def prepare_session(
         for call in short_watchlist_history(conn, mode)
         if call.removed_at is None
     }
+    # Live holdings come due for thesis review on their price moves, volume, earnings and
+    # drawdowns, so they're tracked whether or not the watchlist names them.
+    live_holdings = {
+        position.ticker
+        for (snapshot_json,) in conn.execute(
+            "SELECT snapshot_json FROM live_portfolio_snapshots s WHERE julianday(captured_at)="
+            "(SELECT MAX(julianday(captured_at)) FROM live_portfolio_snapshots "
+            "WHERE execution_profile_id=s.execution_profile_id)"
+        )
+        for position in LivePortfolioSnapshot.model_validate_json(snapshot_json).positions
+    }
     tracked_tickers = sorted(
-        set(parse_watchlist(watchlist_path)) | set(position_tickers(conn)) | set(pending) | shorts
+        set(parse_watchlist(watchlist_path))
+        | set(position_tickers(conn))
+        | set(pending)
+        | shorts
+        | live_holdings
     )
     default_start = on_date - timedelta(days=35)
     refresh_starts = {
