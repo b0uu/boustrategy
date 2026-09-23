@@ -46,6 +46,9 @@ RULE_LABELS = {
     "watchlist_entry_restated": (
         "A ticker already on the watchlist can only be restated with a different entry bound."
     ),
+    "no_upside_to_realization": (
+        "A BUY or ADD needs upside left before its thesis is fully priced in."
+    ),
 }
 
 
@@ -174,6 +177,14 @@ RULES = {
             "eq",
             "boolean",
             "portfolio",
+        ),
+        (
+            "no_upside_to_realization",
+            "Upside to thesis realization",
+            True,
+            "eq",
+            "boolean",
+            "decision",
         ),
     )
 }

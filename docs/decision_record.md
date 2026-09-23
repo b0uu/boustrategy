@@ -55,6 +55,9 @@ This would be valid schema but rejected due to policy evaluation.
   refuses the packet when the ask is above it, so an idea that gets priced in between
   authoring and placement stops instead of being chased. Required on every live buy.
 - `entry_price_min`: the same bound for a SELL or TRIM, checked against the bid.
+- `realization_price_low`: the price at which a BUY or ADD thesis's expected outcome is fully priced in. Required on every live buy, with the two below.
+- `realization_price_high`: the price above which the market pays for more than the thesis claims.
+- `invalidation_price`: the price that says the thesis is wrong.
 - `source_claims`: specific claims tied to source IDs and timestamps
 - `x_signal_usage`: records whether X influenced the decision and whether it was confirmed outside X.
 - `public_summary`: summary for public dashboard
@@ -78,6 +81,7 @@ This would be valid schema but rejected due to policy evaluation.
 - X usage fields are internally consistent across `used`, `usage_type`, and `confirmed_outside_x`
 - `extraordinary_opportunity=true` requires a non-empty `extraordinary_justification`
 - `primary_theme_id` must be one of `theme_ids` and is required for BUY and ADD
+- `realization_price_low` and `realization_price_high` are recorded together with low ≤ high, and `invalidation_price` sits below `realization_price_low` and, on a BUY or ADD, below `reference_price`
 
 ## Policy rules
 - reject BUY or ADD in RED unless the record declares an extraordinary opportunity with justification.
@@ -92,6 +96,7 @@ This would be valid schema but rejected due to policy evaluation.
 - reject SHORT_WATCHLIST_REMOVE for a ticker that isn't on the short watchlist (requires portfolio context).
 - reject SHORT_WATCHLIST whose `review_by` is more than 30 days after the record's creation date.
 - reject WATCHLIST for a ticker already on the watchlist unless `entry_price_max` differs from its latest statement (requires portfolio context).
+- reject BUY or ADD whose `reference_price` is at or above its `realization_price_low`.
 
 ## Short watchlist history
 

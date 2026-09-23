@@ -2,8 +2,8 @@
   "live/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.317063+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.531406+00:00",
     "allocation": [
       {
         "asset_class": "cash",
@@ -31,7 +31,7 @@
       "status": "available"
     },
     "data_as_of": "2026-06-12T20:00:00+00:00",
-    "decision_count_date": "2026-09-17",
+    "decision_count_date": "2026-09-23",
     "decision_counts": {
       "approved": 44,
       "rejected": 11,
@@ -97,8 +97,8 @@
   "live/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.330209+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.544656+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "status": "available",
@@ -110,13 +110,16 @@
         "asset_class": "equity",
         "average_cost": "145",
         "holding_episode_id": "holding_52952b9c4fd8fb825c6d8e21",
-        "latest_decision_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
+        "invalidation_price": null,
+        "latest_decision_id": "dec_5d4deacdd40046c19ebe4f50683e7910",
         "latest_price": "158",
         "latest_public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "market_value": "3179.75",
         "name": "NVIDIA",
         "price_quality": "current",
         "quote_at": "2026-06-12T20:00:00+00:00",
+        "realization_price_high": null,
+        "realization_price_low": null,
         "shares": "20.125",
         "theme": "AI infrastructure",
         "thesis_review": {
@@ -127,6 +130,7 @@
         },
         "ticker": "NVDA",
         "unrealized_return_percent": 8.96551724137931,
+        "upside_to_fully_priced_percent": null,
         "weight": 0.3057451923076923
       }
     ]
@@ -134,8 +138,8 @@
   "live/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.362342+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.553551+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "benchmarks": [
@@ -229,8 +233,8 @@
   "live/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.390315+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.561111+00:00",
     "portfolio_id": "live",
     "status": "available",
     "current_asset_exposure": [
@@ -307,7 +311,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_d19ef594d3d745febe54f0765b39748b",
+          "public_id": "dec_f50c30e36e9948608511b53d85d1b631",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -466,6 +470,18 @@
         "unit": "boolean",
         "version": "decision-policy-1",
         "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+        "name": "Upside to thesis realization",
+        "rule_id": "no_upside_to_realization",
+        "scope": "decision",
+        "threshold": true,
+        "unit": "boolean",
+        "version": "decision-policy-1",
+        "last_triggered": null
       }
     ],
     "execution_controls": [
@@ -531,11 +547,11 @@
   "live/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.398073+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.567508+00:00",
     "portfolio_id": "live",
     "active_run": null,
-    "as_of": "2026-09-17T22:05:17.048598+00:00",
+    "as_of": "2026-09-23T17:05:56.372553+00:00",
     "latest_run": {
       "attempt_count": 1,
       "attempts_truncated": false,
@@ -544,7 +560,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
+        "public_id": "attempt_73bfdc6861ae4574a252400117ba10ee",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -554,7 +570,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
+      "public_id": "run_cd3514ff21284898b568c40a7c37fb1e",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -566,8 +582,8 @@
   "live/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.403787+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.576015+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -578,7 +594,7 @@
           "finished_at": "2026-06-10T21:45:25+00:00",
           "heartbeat_at": "2026-06-10T21:45:00Z",
           "observed_model": null,
-          "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
+          "public_id": "attempt_73bfdc6861ae4574a252400117ba10ee",
           "reason": null,
           "requested_model": "fixture-model-a",
           "stage": "finished",
@@ -588,7 +604,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
+        "public_id": "run_cd3514ff21284898b568c40a7c37fb1e",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -602,8 +618,8 @@
   "live/shorts": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.419023+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.585092+00:00",
     "portfolio_id": "live",
     "status": "available",
     "reason": null,
@@ -612,8 +628,8 @@
   "live/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.426291+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.601864+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -624,7 +640,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
+        "public_id": "dec_5d4deacdd40046c19ebe4f50683e7910",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -641,7 +657,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_063efa919fdf4ee48ed69b85f660b024",
+        "public_id": "dec_231e929ac84849abb3dcf0fe6ff654db",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -658,7 +674,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_3a99b43217a847428b875cb0e78f31db",
+        "public_id": "dec_b0e127fc85124f038e762713c9d10374",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -675,7 +691,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d1d99dec72704864aae2a672c18d3f96",
+        "public_id": "dec_b824f3ab56164026997ade407e068135",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -692,7 +708,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_2353493cc8294dd78307e7ac43928b36",
+        "public_id": "dec_f9b8aa565166421f9f382c689784a3f8",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -709,7 +725,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_e379eb751a38401da008bb387a52b1f4",
+        "public_id": "dec_b1ad9896373f45d8b827b99b02819bf4",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -726,7 +742,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f56feee47a9c4753ae8a8d07252e1974",
+        "public_id": "dec_adfa1376254d47a2865c0bfd6460e98d",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -743,7 +759,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_cb8bb6e4005741b6ad97288b4e09a6bc",
+        "public_id": "dec_cbbc87aefed14f0e93b6e2501bd2677d",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -760,7 +776,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f43f85e293c347ab99385028297c01d6",
+        "public_id": "dec_98beeaee688c426181979d73e1a86f17",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -777,7 +793,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_4a6151cfd9964021983cb4e1d92d10d8",
+        "public_id": "dec_3f4ce4f27a09414eba81df7ca46bef80",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -794,7 +810,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_5854e468b9c046f9b8258f5044b60a8c",
+        "public_id": "dec_5b535f076bc14137944f46854f66473f",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -811,7 +827,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_3144eddf372f4da8b1c37fdc571f8511",
+        "public_id": "dec_716a71eb0d1a444499160f8fc380357a",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -828,7 +844,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_81ecb23f33f74412ace453ca13d203df",
+        "public_id": "dec_95e3836191214ca6b04fdac2a8434944",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -845,7 +861,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d9f8b70edc784eb4a0db5a76442aa635",
+        "public_id": "dec_ea22006357d742f0992fea318cd2248f",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -862,7 +878,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_eef79f554f0d4c6eae081f5d430903f3",
+        "public_id": "dec_94a710a255d742a9b8323717afb5716e",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -879,7 +895,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_cbffb62f5bdd4b509a9b2d5749814f0a",
+        "public_id": "dec_bf645bf9bd9146f4b9e1f6dc0d1e22eb",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -896,7 +912,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_828444e51301412f810e05dc2be1a558",
+        "public_id": "dec_341a3cb2f4d74377bcfffa015cb42d55",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -913,7 +929,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_2c72d17cf41746f6b8c683e2e3e84ea3",
+        "public_id": "dec_429d59f9c9044f49b5a8421e6ea5db52",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -930,7 +946,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_05699998b1f3430a8848c7fac9e8ceb8",
+        "public_id": "dec_725e118b6ef7457fb935db675f954eb0",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -947,7 +963,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_c6ef51ea51204502a05de77983f6baa7",
+        "public_id": "dec_973514db19fc4c37a133d778e06cc888",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -964,7 +980,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_4989ae22cfa746c3856e9f7350cf96c3",
+        "public_id": "dec_04d7fbadce494bc69c5e9b8d7ea2d22f",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -981,7 +997,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_3f9ba12f65ad44cfaf33e490a96c2706",
+        "public_id": "dec_c200179153f34b168c3ee9a6f5bca26b",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -998,7 +1014,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_b307be4b54ce40189ca60b5ecef7b44d",
+        "public_id": "dec_b1114c9e2bf24217b3ecb6c6815cefac",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1015,7 +1031,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_8a58791dcbdd4e0b9ffaed159f181800",
+        "public_id": "dec_d0c8222213fe4fa0bac850dddf816881",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1032,7 +1048,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_81ae1db9798b4767a4a7586004e2e135",
+        "public_id": "dec_dc72e232430840d7a24e4060e769a00c",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1049,7 +1065,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_6412b2ee0a7348f782497c149bd42eca",
+        "public_id": "dec_960405154aff49c0a5c2ba65532a58b2",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1066,7 +1082,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_00de2437f16549878134542330f51067",
+        "public_id": "dec_5aa557656f5b477aae4ec9dfd5a807f1",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1083,7 +1099,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_2f39c6a2a43e499c872c092b400c7f39",
+        "public_id": "dec_e6b33ad9dbc543dbb92a8d4c4da25532",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1100,7 +1116,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d62b366eae554175a4c0d01124282028",
+        "public_id": "dec_cd92602e74544d7080149daa8cad1a0d",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1117,7 +1133,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_fdcf182fcc5e4239acd7cbf33c57e6ae",
+        "public_id": "dec_a103afbc6e1843beac9faf0be20bd3f8",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1134,7 +1150,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_634cb87f66f64dc9a2a4715ce9f214fe",
+        "public_id": "dec_7e7cccf225154a7fb5823fb999f3dc80",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1151,7 +1167,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_981391f268a14970a66c47920d20b33f",
+        "public_id": "dec_14d6d24187344d919dd1d45a02be5c52",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1168,7 +1184,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_32ce435bcb174c58b60a4a39eb4b2ca4",
+        "public_id": "dec_f50c30e36e9948608511b53d85d1b631",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1185,7 +1201,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_24fe0d69d0944b58bb41a9c2a99cf4bc",
+        "public_id": "dec_d232a5fd552e48d28865a3a41a91a690",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1202,7 +1218,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_9c2355a7bf424698bc5826b7cfd93dbf",
+        "public_id": "dec_95300b51193a42828f3cbec371e078e6",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1219,7 +1235,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f172634a386d4161b05a423f3776a70e",
+        "public_id": "dec_c5963e4754d349d2ac43af38d1dbae2f",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1236,7 +1252,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_c42abaaf44194a1abdf0a75431f31865",
+        "public_id": "dec_70098a2561c7445aaf1cddd7c8db6cad",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1253,7 +1269,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_cf7a8292ea0c45b8a77c660eb3e2bc6e",
+        "public_id": "dec_d95b71afbb82456cb061ef9a86f8e6d2",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1270,7 +1286,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_770fa84417a843ed82575103d13c03c6",
+        "public_id": "dec_3654da33f37941308bbb66c0469413e1",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1287,7 +1303,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_b3480a6efbc34f188a0a5a6f82b391c6",
+        "public_id": "dec_64694b4d94f844d09dd76a9a7f5e6bcd",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1304,7 +1320,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_1e0275e93c17494cad3d79b33a067604",
+        "public_id": "dec_59f4e210e39c4566a2808c22e4a17e7c",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1321,7 +1337,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_0f00746fd2aa4729a83259e11c3df316",
+        "public_id": "dec_c8cf43660c904cf18992b9261a3a6560",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1338,7 +1354,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_d19ef594d3d745febe54f0765b39748b",
+        "public_id": "dec_32e3e435cb034e4db25d648af17ae8d6",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1355,7 +1371,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_c171e14a3a4b4d07a38d2af844561c8d",
+        "public_id": "dec_f1bf39b9d9a54922a377cb8df6fcf173",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1372,7 +1388,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_87a23b7fee0f4739b37ebf0b1c10b4db",
+        "public_id": "dec_c239e4e1684b4be99eaf0701d421cf6e",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1389,7 +1405,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_430a22f7c8844123a71c8f7f6448d650",
+        "public_id": "dec_70806d26a1264520871ac00c35ff6ba6",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1406,7 +1422,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f779be52de474e09936521e8d9b7a007",
+        "public_id": "dec_32c968b88f6947c4beff552af4fd3f98",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1423,7 +1439,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_0c2780f9c0f94f48a346e76149a951f3",
+        "public_id": "dec_af619a17a9cd4fa286a63f95a56583c2",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1440,7 +1456,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d5b1c759c7b8412793c272e54d675103",
+        "public_id": "dec_3025f51946a3473aaf7dd29d9aceb901",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1457,7 +1473,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_8d8f513be0f54c11a1e4893521583550",
+        "public_id": "dec_f50035693e7849d9922b7b554d0eee5a",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1474,7 +1490,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_0cc017e52395485a9fb28a70b4290cad",
+        "public_id": "dec_b7f2ca744fe947da976fcffa52e87a0e",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1491,7 +1507,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_6b76a58f2cc741c1b736cd33acae3f13",
+        "public_id": "dec_63c2e9ee238246ff9c579330d75edd59",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1508,7 +1524,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_c5bc2c83e3284febbe1bc9d8018079d9",
+        "public_id": "dec_090d9383f1df4ddbbb313a95de659f4c",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1525,7 +1541,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_21fbbb82c43a459abb5c71abb250ac54",
+        "public_id": "dec_5830095f8cd5484d8f1a1123671a71f3",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1542,7 +1558,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_05e2e1873e3e419ca18f04f178827967",
+        "public_id": "dec_d73b7de7a3214eca84096bc475ec856e",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1559,11 +1575,11 @@
       "high_water": 59
     }
   },
-  "dec_2305c9c8e898495ca219887f67d2e1bd": {
+  "dec_5d4deacdd40046c19ebe4f50683e7910": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.440845+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.614031+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -1630,9 +1646,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_345158e6f3e9e0478b5e567b",
+          "public_id": "claim_42deb037be3b82a646838541",
           "source_ids": [
-            "src_d5575392d62d488b8de7b224d65d94d9"
+            "src_0f784e5977a7423896ca6b4d2d88d7ba"
           ]
         }
       ],
@@ -1656,7 +1672,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_d5575392d62d488b8de7b224d65d94d9",
+          "public_id": "src_0f784e5977a7423896ca6b4d2d88d7ba",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -1667,7 +1683,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_345158e6f3e9e0478b5e567b"
+            "claim_42deb037be3b82a646838541"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -1676,7 +1692,7 @@
         },
         {
           "claim_ids": [
-            "claim_345158e6f3e9e0478b5e567b"
+            "claim_42deb037be3b82a646838541"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -1685,7 +1701,7 @@
         },
         {
           "claim_ids": [
-            "claim_345158e6f3e9e0478b5e567b"
+            "claim_42deb037be3b82a646838541"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -1694,7 +1710,7 @@
         },
         {
           "claim_ids": [
-            "claim_345158e6f3e9e0478b5e567b"
+            "claim_42deb037be3b82a646838541"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -1703,7 +1719,7 @@
         },
         {
           "claim_ids": [
-            "claim_345158e6f3e9e0478b5e567b"
+            "claim_42deb037be3b82a646838541"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -1714,7 +1730,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_345158e6f3e9e0478b5e567b"
+          "claim_42deb037be3b82a646838541"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -1984,6 +2000,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -2007,13 +2038,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_2305c9c8e898495ca219887f67d2e1bd",
+    "public_id": "dec_5d4deacdd40046c19ebe4f50683e7910",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -2043,11 +2074,11 @@
       "used": false
     }
   },
-  "dec_063efa919fdf4ee48ed69b85f660b024": {
+  "dec_231e929ac84849abb3dcf0fe6ff654db": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.446523+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.620863+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -2351,6 +2382,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -2374,13 +2420,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_063efa919fdf4ee48ed69b85f660b024",
+    "public_id": "dec_231e929ac84849abb3dcf0fe6ff654db",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -2397,11 +2443,11 @@
       "used": false
     }
   },
-  "dec_3a99b43217a847428b875cb0e78f31db": {
+  "dec_b0e127fc85124f038e762713c9d10374": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.454282+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.626136+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -2705,6 +2751,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -2728,13 +2789,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_3a99b43217a847428b875cb0e78f31db",
+    "public_id": "dec_b0e127fc85124f038e762713c9d10374",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -2751,11 +2812,11 @@
       "used": false
     }
   },
-  "dec_d1d99dec72704864aae2a672c18d3f96": {
+  "dec_b824f3ab56164026997ade407e068135": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.460529+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.635750+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -3059,6 +3120,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -3082,13 +3158,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d1d99dec72704864aae2a672c18d3f96",
+    "public_id": "dec_b824f3ab56164026997ade407e068135",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -3105,11 +3181,11 @@
       "used": false
     }
   },
-  "dec_2353493cc8294dd78307e7ac43928b36": {
+  "dec_f9b8aa565166421f9f382c689784a3f8": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.468186+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.644731+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -3413,6 +3489,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -3436,13 +3527,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_2353493cc8294dd78307e7ac43928b36",
+    "public_id": "dec_f9b8aa565166421f9f382c689784a3f8",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -3459,11 +3550,11 @@
       "used": false
     }
   },
-  "dec_e379eb751a38401da008bb387a52b1f4": {
+  "dec_b1ad9896373f45d8b827b99b02819bf4": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.474895+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.651823+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -3772,6 +3863,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -3795,13 +3901,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_e379eb751a38401da008bb387a52b1f4",
+    "public_id": "dec_b1ad9896373f45d8b827b99b02819bf4",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -3818,11 +3924,11 @@
       "used": false
     }
   },
-  "dec_f56feee47a9c4753ae8a8d07252e1974": {
+  "dec_adfa1376254d47a2865c0bfd6460e98d": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.480836+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.662153+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -4126,6 +4232,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -4149,13 +4270,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f56feee47a9c4753ae8a8d07252e1974",
+    "public_id": "dec_adfa1376254d47a2865c0bfd6460e98d",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -4172,11 +4293,11 @@
       "used": false
     }
   },
-  "dec_cb8bb6e4005741b6ad97288b4e09a6bc": {
+  "dec_cbbc87aefed14f0e93b6e2501bd2677d": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.488042+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.670819+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -4480,6 +4601,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -4503,13 +4639,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_cb8bb6e4005741b6ad97288b4e09a6bc",
+    "public_id": "dec_cbbc87aefed14f0e93b6e2501bd2677d",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -4526,11 +4662,11 @@
       "used": false
     }
   },
-  "dec_f43f85e293c347ab99385028297c01d6": {
+  "dec_98beeaee688c426181979d73e1a86f17": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.493736+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.678184+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -4834,6 +4970,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -4857,13 +5008,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f43f85e293c347ab99385028297c01d6",
+    "public_id": "dec_98beeaee688c426181979d73e1a86f17",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -4880,11 +5031,11 @@
       "used": false
     }
   },
-  "dec_4a6151cfd9964021983cb4e1d92d10d8": {
+  "dec_3f4ce4f27a09414eba81df7ca46bef80": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.499136+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.683061+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -5188,6 +5339,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -5211,13 +5377,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_4a6151cfd9964021983cb4e1d92d10d8",
+    "public_id": "dec_3f4ce4f27a09414eba81df7ca46bef80",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -5234,11 +5400,11 @@
       "used": false
     }
   },
-  "dec_5854e468b9c046f9b8258f5044b60a8c": {
+  "dec_5b535f076bc14137944f46854f66473f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.506316+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.688825+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -5547,6 +5713,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -5570,13 +5751,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_5854e468b9c046f9b8258f5044b60a8c",
+    "public_id": "dec_5b535f076bc14137944f46854f66473f",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -5593,11 +5774,11 @@
       "used": false
     }
   },
-  "dec_3144eddf372f4da8b1c37fdc571f8511": {
+  "dec_716a71eb0d1a444499160f8fc380357a": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.510750+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.694324+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -5901,6 +6082,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -5924,13 +6120,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_3144eddf372f4da8b1c37fdc571f8511",
+    "public_id": "dec_716a71eb0d1a444499160f8fc380357a",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -5947,11 +6143,11 @@
       "used": false
     }
   },
-  "dec_81ecb23f33f74412ace453ca13d203df": {
+  "dec_95e3836191214ca6b04fdac2a8434944": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.517335+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.711861+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -6255,6 +6451,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -6278,13 +6489,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_81ecb23f33f74412ace453ca13d203df",
+    "public_id": "dec_95e3836191214ca6b04fdac2a8434944",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -6301,11 +6512,11 @@
       "used": false
     }
   },
-  "dec_d9f8b70edc784eb4a0db5a76442aa635": {
+  "dec_ea22006357d742f0992fea318cd2248f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.522692+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.731122+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -6609,6 +6820,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -6632,13 +6858,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d9f8b70edc784eb4a0db5a76442aa635",
+    "public_id": "dec_ea22006357d742f0992fea318cd2248f",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -6655,11 +6881,11 @@
       "used": false
     }
   },
-  "dec_eef79f554f0d4c6eae081f5d430903f3": {
+  "dec_94a710a255d742a9b8323717afb5716e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.528935+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.736255+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -6963,6 +7189,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -6986,13 +7227,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_eef79f554f0d4c6eae081f5d430903f3",
+    "public_id": "dec_94a710a255d742a9b8323717afb5716e",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -7009,11 +7250,11 @@
       "used": false
     }
   },
-  "dec_cbffb62f5bdd4b509a9b2d5749814f0a": {
+  "dec_bf645bf9bd9146f4b9e1f6dc0d1e22eb": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.535465+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.754349+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -7322,6 +7563,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -7345,13 +7601,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_cbffb62f5bdd4b509a9b2d5749814f0a",
+    "public_id": "dec_bf645bf9bd9146f4b9e1f6dc0d1e22eb",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -7368,11 +7624,11 @@
       "used": false
     }
   },
-  "dec_828444e51301412f810e05dc2be1a558": {
+  "dec_341a3cb2f4d74377bcfffa015cb42d55": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.540557+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.764481+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -7676,6 +7932,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -7699,13 +7970,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_828444e51301412f810e05dc2be1a558",
+    "public_id": "dec_341a3cb2f4d74377bcfffa015cb42d55",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -7722,11 +7993,11 @@
       "used": false
     }
   },
-  "dec_2c72d17cf41746f6b8c683e2e3e84ea3": {
+  "dec_429d59f9c9044f49b5a8421e6ea5db52": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.544618+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.769350+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -8030,6 +8301,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -8053,13 +8339,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_2c72d17cf41746f6b8c683e2e3e84ea3",
+    "public_id": "dec_429d59f9c9044f49b5a8421e6ea5db52",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -8076,11 +8362,11 @@
       "used": false
     }
   },
-  "dec_05699998b1f3430a8848c7fac9e8ceb8": {
+  "dec_725e118b6ef7457fb935db675f954eb0": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.549250+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.774063+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -8384,6 +8670,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -8407,13 +8708,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_05699998b1f3430a8848c7fac9e8ceb8",
+    "public_id": "dec_725e118b6ef7457fb935db675f954eb0",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -8430,11 +8731,11 @@
       "used": false
     }
   },
-  "dec_c6ef51ea51204502a05de77983f6baa7": {
+  "dec_973514db19fc4c37a133d778e06cc888": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.556160+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.779789+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -8738,6 +9039,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -8761,13 +9077,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_c6ef51ea51204502a05de77983f6baa7",
+    "public_id": "dec_973514db19fc4c37a133d778e06cc888",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -8784,11 +9100,11 @@
       "used": false
     }
   },
-  "dec_4989ae22cfa746c3856e9f7350cf96c3": {
+  "dec_04d7fbadce494bc69c5e9b8d7ea2d22f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.564480+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.786212+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -9097,6 +9413,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -9120,13 +9451,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_4989ae22cfa746c3856e9f7350cf96c3",
+    "public_id": "dec_04d7fbadce494bc69c5e9b8d7ea2d22f",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -9143,11 +9474,11 @@
       "used": false
     }
   },
-  "dec_3f9ba12f65ad44cfaf33e490a96c2706": {
+  "dec_c200179153f34b168c3ee9a6f5bca26b": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.573403+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.797251+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -9451,6 +9782,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -9474,13 +9820,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_3f9ba12f65ad44cfaf33e490a96c2706",
+    "public_id": "dec_c200179153f34b168c3ee9a6f5bca26b",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -9497,11 +9843,11 @@
       "used": false
     }
   },
-  "dec_b307be4b54ce40189ca60b5ecef7b44d": {
+  "dec_b1114c9e2bf24217b3ecb6c6815cefac": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.580888+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.819547+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -9805,6 +10151,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -9828,13 +10189,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_b307be4b54ce40189ca60b5ecef7b44d",
+    "public_id": "dec_b1114c9e2bf24217b3ecb6c6815cefac",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -9851,11 +10212,11 @@
       "used": false
     }
   },
-  "dec_8a58791dcbdd4e0b9ffaed159f181800": {
+  "dec_d0c8222213fe4fa0bac850dddf816881": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.591128+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.825343+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -10159,6 +10520,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -10182,13 +10558,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_8a58791dcbdd4e0b9ffaed159f181800",
+    "public_id": "dec_d0c8222213fe4fa0bac850dddf816881",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -10205,11 +10581,11 @@
       "used": false
     }
   },
-  "dec_81ae1db9798b4767a4a7586004e2e135": {
+  "dec_dc72e232430840d7a24e4060e769a00c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.597911+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.831334+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -10513,6 +10889,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -10536,13 +10927,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_81ae1db9798b4767a4a7586004e2e135",
+    "public_id": "dec_dc72e232430840d7a24e4060e769a00c",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -10559,11 +10950,11 @@
       "used": false
     }
   },
-  "dec_6412b2ee0a7348f782497c149bd42eca": {
+  "dec_960405154aff49c0a5c2ba65532a58b2": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.604256+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.838155+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -10872,6 +11263,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -10895,13 +11301,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_6412b2ee0a7348f782497c149bd42eca",
+    "public_id": "dec_960405154aff49c0a5c2ba65532a58b2",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -10918,11 +11324,11 @@
       "used": false
     }
   },
-  "dec_00de2437f16549878134542330f51067": {
+  "dec_5aa557656f5b477aae4ec9dfd5a807f1": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.611683+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.847580+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -11226,6 +11632,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -11249,13 +11670,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_00de2437f16549878134542330f51067",
+    "public_id": "dec_5aa557656f5b477aae4ec9dfd5a807f1",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -11272,11 +11693,11 @@
       "used": false
     }
   },
-  "dec_2f39c6a2a43e499c872c092b400c7f39": {
+  "dec_e6b33ad9dbc543dbb92a8d4c4da25532": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.617031+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.854074+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -11580,6 +12001,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -11603,13 +12039,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_2f39c6a2a43e499c872c092b400c7f39",
+    "public_id": "dec_e6b33ad9dbc543dbb92a8d4c4da25532",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -11626,11 +12062,11 @@
       "used": false
     }
   },
-  "dec_d62b366eae554175a4c0d01124282028": {
+  "dec_cd92602e74544d7080149daa8cad1a0d": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.625532+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.862766+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -11934,6 +12370,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -11957,13 +12408,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d62b366eae554175a4c0d01124282028",
+    "public_id": "dec_cd92602e74544d7080149daa8cad1a0d",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -11980,11 +12431,11 @@
       "used": false
     }
   },
-  "dec_fdcf182fcc5e4239acd7cbf33c57e6ae": {
+  "dec_a103afbc6e1843beac9faf0be20bd3f8": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.636273+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.872008+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -12288,6 +12739,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -12311,13 +12777,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_fdcf182fcc5e4239acd7cbf33c57e6ae",
+    "public_id": "dec_a103afbc6e1843beac9faf0be20bd3f8",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -12334,11 +12800,11 @@
       "used": false
     }
   },
-  "dec_634cb87f66f64dc9a2a4715ce9f214fe": {
+  "dec_7e7cccf225154a7fb5823fb999f3dc80": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.640868+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.880286+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -12647,6 +13113,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -12670,13 +13151,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_634cb87f66f64dc9a2a4715ce9f214fe",
+    "public_id": "dec_7e7cccf225154a7fb5823fb999f3dc80",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -12693,11 +13174,11 @@
       "used": false
     }
   },
-  "dec_981391f268a14970a66c47920d20b33f": {
+  "dec_14d6d24187344d919dd1d45a02be5c52": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.649884+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.900220+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -13001,6 +13482,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -13024,13 +13520,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_981391f268a14970a66c47920d20b33f",
+    "public_id": "dec_14d6d24187344d919dd1d45a02be5c52",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -13047,11 +13543,11 @@
       "used": false
     }
   },
-  "dec_32ce435bcb174c58b60a4a39eb4b2ca4": {
+  "dec_f50c30e36e9948608511b53d85d1b631": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.670511+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.904715+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -13355,6 +13851,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -13378,13 +13889,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_32ce435bcb174c58b60a4a39eb4b2ca4",
+    "public_id": "dec_f50c30e36e9948608511b53d85d1b631",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -13401,11 +13912,11 @@
       "used": false
     }
   },
-  "dec_24fe0d69d0944b58bb41a9c2a99cf4bc": {
+  "dec_d232a5fd552e48d28865a3a41a91a690": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.679385+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.910528+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -13709,6 +14220,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -13732,13 +14258,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_24fe0d69d0944b58bb41a9c2a99cf4bc",
+    "public_id": "dec_d232a5fd552e48d28865a3a41a91a690",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -13755,11 +14281,11 @@
       "used": false
     }
   },
-  "dec_9c2355a7bf424698bc5826b7cfd93dbf": {
+  "dec_95300b51193a42828f3cbec371e078e6": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.687341+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.918633+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -14063,6 +14589,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -14086,13 +14627,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_9c2355a7bf424698bc5826b7cfd93dbf",
+    "public_id": "dec_95300b51193a42828f3cbec371e078e6",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -14109,11 +14650,11 @@
       "used": false
     }
   },
-  "dec_f172634a386d4161b05a423f3776a70e": {
+  "dec_c5963e4754d349d2ac43af38d1dbae2f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.701400+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.925034+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -14422,6 +14963,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -14445,13 +15001,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f172634a386d4161b05a423f3776a70e",
+    "public_id": "dec_c5963e4754d349d2ac43af38d1dbae2f",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -14468,11 +15024,11 @@
       "used": false
     }
   },
-  "dec_c42abaaf44194a1abdf0a75431f31865": {
+  "dec_70098a2561c7445aaf1cddd7c8db6cad": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.706873+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.932725+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -14776,6 +15332,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -14799,13 +15370,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_c42abaaf44194a1abdf0a75431f31865",
+    "public_id": "dec_70098a2561c7445aaf1cddd7c8db6cad",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -14822,11 +15393,11 @@
       "used": false
     }
   },
-  "dec_cf7a8292ea0c45b8a77c660eb3e2bc6e": {
+  "dec_d95b71afbb82456cb061ef9a86f8e6d2": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.711770+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.941237+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -15130,6 +15701,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -15153,13 +15739,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_cf7a8292ea0c45b8a77c660eb3e2bc6e",
+    "public_id": "dec_d95b71afbb82456cb061ef9a86f8e6d2",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -15176,11 +15762,11 @@
       "used": false
     }
   },
-  "dec_770fa84417a843ed82575103d13c03c6": {
+  "dec_3654da33f37941308bbb66c0469413e1": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.718837+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.954073+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -15484,6 +16070,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -15507,13 +16108,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_770fa84417a843ed82575103d13c03c6",
+    "public_id": "dec_3654da33f37941308bbb66c0469413e1",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -15530,11 +16131,11 @@
       "used": false
     }
   },
-  "dec_b3480a6efbc34f188a0a5a6f82b391c6": {
+  "dec_64694b4d94f844d09dd76a9a7f5e6bcd": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.724395+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.961322+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -15838,6 +16439,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -15861,13 +16477,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_b3480a6efbc34f188a0a5a6f82b391c6",
+    "public_id": "dec_64694b4d94f844d09dd76a9a7f5e6bcd",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -15884,11 +16500,11 @@
       "used": false
     }
   },
-  "dec_1e0275e93c17494cad3d79b33a067604": {
+  "dec_59f4e210e39c4566a2808c22e4a17e7c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.730220+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.971031+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -16197,6 +16813,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -16220,13 +16851,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_1e0275e93c17494cad3d79b33a067604",
+    "public_id": "dec_59f4e210e39c4566a2808c22e4a17e7c",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -16243,11 +16874,11 @@
       "used": false
     }
   },
-  "dec_0f00746fd2aa4729a83259e11c3df316": {
+  "dec_c8cf43660c904cf18992b9261a3a6560": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.735763+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.986690+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -16551,6 +17182,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -16574,13 +17220,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_0f00746fd2aa4729a83259e11c3df316",
+    "public_id": "dec_c8cf43660c904cf18992b9261a3a6560",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -16597,11 +17243,11 @@
       "used": false
     }
   },
-  "dec_d19ef594d3d745febe54f0765b39748b": {
+  "dec_32e3e435cb034e4db25d648af17ae8d6": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.741039+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.992364+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -16905,6 +17551,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -16928,13 +17589,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_d19ef594d3d745febe54f0765b39748b",
+    "public_id": "dec_32e3e435cb034e4db25d648af17ae8d6",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -16951,11 +17612,11 @@
       "used": false
     }
   },
-  "dec_c171e14a3a4b4d07a38d2af844561c8d": {
+  "dec_f1bf39b9d9a54922a377cb8df6fcf173": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.749134+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:56.996922+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -17259,6 +17920,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -17282,13 +17958,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_c171e14a3a4b4d07a38d2af844561c8d",
+    "public_id": "dec_f1bf39b9d9a54922a377cb8df6fcf173",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -17305,11 +17981,11 @@
       "used": false
     }
   },
-  "dec_87a23b7fee0f4739b37ebf0b1c10b4db": {
+  "dec_c239e4e1684b4be99eaf0701d421cf6e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.757616+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.003888+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -17613,6 +18289,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -17636,13 +18327,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_87a23b7fee0f4739b37ebf0b1c10b4db",
+    "public_id": "dec_c239e4e1684b4be99eaf0701d421cf6e",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -17659,11 +18350,11 @@
       "used": false
     }
   },
-  "dec_430a22f7c8844123a71c8f7f6448d650": {
+  "dec_70806d26a1264520871ac00c35ff6ba6": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.764574+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.008997+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -17972,6 +18663,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -17995,13 +18701,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_430a22f7c8844123a71c8f7f6448d650",
+    "public_id": "dec_70806d26a1264520871ac00c35ff6ba6",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -18018,11 +18724,11 @@
       "used": false
     }
   },
-  "dec_f779be52de474e09936521e8d9b7a007": {
+  "dec_32c968b88f6947c4beff552af4fd3f98": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.770014+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.020943+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -18326,6 +19032,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -18349,13 +19070,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f779be52de474e09936521e8d9b7a007",
+    "public_id": "dec_32c968b88f6947c4beff552af4fd3f98",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -18372,11 +19093,11 @@
       "used": false
     }
   },
-  "dec_0c2780f9c0f94f48a346e76149a951f3": {
+  "dec_af619a17a9cd4fa286a63f95a56583c2": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.775697+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.030544+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -18680,6 +19401,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -18703,13 +19439,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_0c2780f9c0f94f48a346e76149a951f3",
+    "public_id": "dec_af619a17a9cd4fa286a63f95a56583c2",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -18726,11 +19462,11 @@
       "used": false
     }
   },
-  "dec_d5b1c759c7b8412793c272e54d675103": {
+  "dec_3025f51946a3473aaf7dd29d9aceb901": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.783990+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.039302+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -19034,6 +19770,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -19057,13 +19808,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d5b1c759c7b8412793c272e54d675103",
+    "public_id": "dec_3025f51946a3473aaf7dd29d9aceb901",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -19080,11 +19831,11 @@
       "used": false
     }
   },
-  "dec_8d8f513be0f54c11a1e4893521583550": {
+  "dec_f50035693e7849d9922b7b554d0eee5a": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.793811+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.059195+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -19388,6 +20139,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -19411,13 +20177,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_8d8f513be0f54c11a1e4893521583550",
+    "public_id": "dec_f50035693e7849d9922b7b554d0eee5a",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -19434,11 +20200,11 @@
       "used": false
     }
   },
-  "dec_0cc017e52395485a9fb28a70b4290cad": {
+  "dec_b7f2ca744fe947da976fcffa52e87a0e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.798598+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.068229+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -19747,6 +20513,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -19770,13 +20551,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_0cc017e52395485a9fb28a70b4290cad",
+    "public_id": "dec_b7f2ca744fe947da976fcffa52e87a0e",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -19793,11 +20574,11 @@
       "used": false
     }
   },
-  "dec_6b76a58f2cc741c1b736cd33acae3f13": {
+  "dec_63c2e9ee238246ff9c579330d75edd59": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.803824+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.076220+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -20101,6 +20882,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -20124,13 +20920,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_6b76a58f2cc741c1b736cd33acae3f13",
+    "public_id": "dec_63c2e9ee238246ff9c579330d75edd59",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -20147,11 +20943,11 @@
       "used": false
     }
   },
-  "dec_c5bc2c83e3284febbe1bc9d8018079d9": {
+  "dec_090d9383f1df4ddbbb313a95de659f4c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.808944+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.084383+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -20455,6 +21251,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -20478,13 +21289,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_c5bc2c83e3284febbe1bc9d8018079d9",
+    "public_id": "dec_090d9383f1df4ddbbb313a95de659f4c",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -20501,11 +21312,11 @@
       "used": false
     }
   },
-  "dec_21fbbb82c43a459abb5c71abb250ac54": {
+  "dec_5830095f8cd5484d8f1a1123671a71f3": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.817467+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.094430+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -20809,6 +21620,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -20832,13 +21658,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_21fbbb82c43a459abb5c71abb250ac54",
+    "public_id": "dec_5830095f8cd5484d8f1a1123671a71f3",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -20855,11 +21681,11 @@
       "used": false
     }
   },
-  "dec_05e2e1873e3e419ca18f04f178827967": {
+  "dec_d73b7de7a3214eca84096bc475ec856e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.823387+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.099272+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -21163,6 +21989,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -21186,13 +22027,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_05e2e1873e3e419ca18f04f178827967",
+    "public_id": "dec_d73b7de7a3214eca84096bc475ec856e",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -21209,11 +22050,11 @@
       "used": false
     }
   },
-  "run_602e09b47eea406eb54c8b6e0efe0769": {
+  "run_cd3514ff21284898b568c40a7c37fb1e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.840455+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.107093+00:00",
     "portfolio_id": "live",
     "attempt_count": 1,
     "attempts": [
@@ -21222,7 +22063,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_5bb54a0c6d4b4e8087a1cf8fd5551bea",
+        "public_id": "attempt_73bfdc6861ae4574a252400117ba10ee",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -21234,7 +22075,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_602e09b47eea406eb54c8b6e0efe0769",
+    "public_id": "run_cd3514ff21284898b568c40a7c37fb1e",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",
@@ -21243,8 +22084,8 @@
   "paper/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.846096+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.113316+00:00",
     "capabilities": {
       "cash": false,
       "quantities": true,
@@ -21252,7 +22093,7 @@
     },
     "cash": null,
     "data_as_of": null,
-    "decision_count_date": "2026-09-17",
+    "decision_count_date": "2026-09-23",
     "decision_counts": {
       "approved": 3,
       "rejected": 1,
@@ -21274,8 +22115,8 @@
   "paper/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.854238+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.120745+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "status": "unavailable",
@@ -21287,8 +22128,8 @@
   "paper/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.859453+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.125496+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "benchmarks": [],
@@ -21303,8 +22144,8 @@
   "paper/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.864921+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.131232+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "current_asset_exposure": [],
@@ -21358,7 +22199,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_ff625466b27b458486d17a683c9c0391",
+          "public_id": "dec_6b9a07dee7f040ebb3cee01844c4509a",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -21517,6 +22358,18 @@
         "unit": "boolean",
         "version": "decision-policy-1",
         "last_triggered": null
+      },
+      {
+        "category": "decision_policy",
+        "comparator": "eq",
+        "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+        "name": "Upside to thesis realization",
+        "rule_id": "no_upside_to_realization",
+        "scope": "decision",
+        "threshold": true,
+        "unit": "boolean",
+        "version": "decision-policy-1",
+        "last_triggered": null
       }
     ],
     "execution_controls": [
@@ -21582,11 +22435,11 @@
   "paper/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.868935+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.136068+00:00",
     "portfolio_id": "paper",
     "active_run": null,
-    "as_of": "2026-09-17T22:05:17.048598+00:00",
+    "as_of": "2026-09-23T17:05:56.372553+00:00",
     "latest_run": {
       "attempt_count": 2,
       "attempts_truncated": false,
@@ -21595,7 +22448,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_ca3cb8f484c14c948f5d02cd3fcacc7a",
+        "public_id": "attempt_7440e4e9bfde49eabdcee8d322c79821",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -21605,7 +22458,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_4f3674280611481288c45e8fd2bc222e",
+      "public_id": "run_f650de374bd94a899e808be4c4bb69e3",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -21617,8 +22470,8 @@
   "paper/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.874021+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.142655+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -21629,7 +22482,7 @@
           "finished_at": "2026-06-10T21:45:30+00:00",
           "heartbeat_at": "2026-06-10T21:45:12Z",
           "observed_model": null,
-          "public_id": "attempt_ca3cb8f484c14c948f5d02cd3fcacc7a",
+          "public_id": "attempt_7440e4e9bfde49eabdcee8d322c79821",
           "reason": null,
           "requested_model": "fixture-model-b",
           "stage": "finished",
@@ -21639,7 +22492,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_4f3674280611481288c45e8fd2bc222e",
+        "public_id": "run_f650de374bd94a899e808be4c4bb69e3",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -21653,8 +22506,8 @@
   "paper/shorts": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.878010+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.150573+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "reason": null,
@@ -21663,8 +22516,8 @@
   "paper/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.885079+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.159331+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -21675,7 +22528,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_9eba20d518fc47fc99bc0a7154134410",
+        "public_id": "dec_2cc10c4bbb624bc8aeb78a8c27a59ee5",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -21692,7 +22545,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_405558a366f442909162ffc4750c6f22",
+        "public_id": "dec_4befb59f627243d089bc7435ec13e473",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -21709,7 +22562,7 @@
         "mode": "paper",
         "policy_outcome": "rejected",
         "portfolio_id": "paper",
-        "public_id": "dec_ff625466b27b458486d17a683c9c0391",
+        "public_id": "dec_6b9a07dee7f040ebb3cee01844c4509a",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -21726,7 +22579,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_5dcc6146318c4d9180c29340ab6ff1fc",
+        "public_id": "dec_84cddaeff1a74787b8131f8ff37bc3bf",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -21743,11 +22596,11 @@
       "high_water": 59
     }
   },
-  "dec_9eba20d518fc47fc99bc0a7154134410": {
+  "dec_2cc10c4bbb624bc8aeb78a8c27a59ee5": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.890809+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.164866+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -21814,9 +22667,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_be219fda9af9a960387638cc",
+          "public_id": "claim_6f200099f3692cf553e8c3fa",
           "source_ids": [
-            "src_d5575392d62d488b8de7b224d65d94d9"
+            "src_0f784e5977a7423896ca6b4d2d88d7ba"
           ]
         }
       ],
@@ -21840,7 +22693,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_d5575392d62d488b8de7b224d65d94d9",
+          "public_id": "src_0f784e5977a7423896ca6b4d2d88d7ba",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -21851,7 +22704,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_be219fda9af9a960387638cc"
+            "claim_6f200099f3692cf553e8c3fa"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -21860,7 +22713,7 @@
         },
         {
           "claim_ids": [
-            "claim_be219fda9af9a960387638cc"
+            "claim_6f200099f3692cf553e8c3fa"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -21869,7 +22722,7 @@
         },
         {
           "claim_ids": [
-            "claim_be219fda9af9a960387638cc"
+            "claim_6f200099f3692cf553e8c3fa"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -21878,7 +22731,7 @@
         },
         {
           "claim_ids": [
-            "claim_be219fda9af9a960387638cc"
+            "claim_6f200099f3692cf553e8c3fa"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -21887,7 +22740,7 @@
         },
         {
           "claim_ids": [
-            "claim_be219fda9af9a960387638cc"
+            "claim_6f200099f3692cf553e8c3fa"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -21898,7 +22751,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_be219fda9af9a960387638cc"
+          "claim_6f200099f3692cf553e8c3fa"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -22168,6 +23021,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -22191,13 +23059,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_9eba20d518fc47fc99bc0a7154134410",
+    "public_id": "dec_2cc10c4bbb624bc8aeb78a8c27a59ee5",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -22227,11 +23095,11 @@
       "used": false
     }
   },
-  "dec_405558a366f442909162ffc4750c6f22": {
+  "dec_4befb59f627243d089bc7435ec13e473": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.898302+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.171731+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -22535,6 +23403,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -22558,13 +23441,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_405558a366f442909162ffc4750c6f22",
+    "public_id": "dec_4befb59f627243d089bc7435ec13e473",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -22581,11 +23464,11 @@
       "used": false
     }
   },
-  "dec_ff625466b27b458486d17a683c9c0391": {
+  "dec_6b9a07dee7f040ebb3cee01844c4509a": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.903908+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.176395+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -22889,6 +23772,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -22912,13 +23810,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "rejected",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_ff625466b27b458486d17a683c9c0391",
+    "public_id": "dec_6b9a07dee7f040ebb3cee01844c4509a",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -22935,11 +23833,11 @@
       "used": false
     }
   },
-  "dec_5dcc6146318c4d9180c29340ab6ff1fc": {
+  "dec_84cddaeff1a74787b8131f8ff37bc3bf": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.912205+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.181137+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
@@ -23243,6 +24141,21 @@
         },
         {
           "category": "decision_policy",
+          "comparator": "eq",
+          "explanation": null,
+          "failure_explanation": "A BUY or ADD needs upside left before its thesis is fully priced in.",
+          "headroom": null,
+          "name": "Upside to thesis realization",
+          "observed": null,
+          "result": "not_applicable",
+          "rule_id": "no_upside_to_realization",
+          "scope": "decision",
+          "threshold": true,
+          "unit": "boolean",
+          "version": "decision-policy-1"
+        },
+        {
+          "category": "decision_policy",
           "comparator": "lte",
           "explanation": null,
           "failure_explanation": "A short call must be reviewed again within the horizon.",
@@ -23266,13 +24179,13 @@
       "policy_version": "decision-policy-1",
       "regime_evidence": null,
       "status": "available",
-      "validator_schema_sha256": "138983a7e5c3a369834e87a91450c9df50ca76fa2aa8ff48615e7fbc1339208b",
+      "validator_schema_sha256": "4afbbfdc4f9c895516cc6ebbe0d553ab6bdf7d9e210d6647b904b53c7ff5771f",
       "validator_version": "decision-record-public-1"
     },
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_5dcc6146318c4d9180c29340ab6ff1fc",
+    "public_id": "dec_84cddaeff1a74787b8131f8ff37bc3bf",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -23289,11 +24202,11 @@
       "used": false
     }
   },
-  "run_4f3674280611481288c45e8fd2bc222e": {
+  "run_f650de374bd94a899e808be4c4bb69e3": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-09-17T22:05:17.048598+00:00",
-    "server_now": "2026-09-17T22:05:17.920909+00:00",
+    "published_at": "2026-09-23T17:05:56.372553+00:00",
+    "server_now": "2026-09-23T17:05:57.187414+00:00",
     "portfolio_id": "paper",
     "attempt_count": 2,
     "attempts": [
@@ -23302,7 +24215,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_ca3cb8f484c14c948f5d02cd3fcacc7a",
+        "public_id": "attempt_7440e4e9bfde49eabdcee8d322c79821",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -23315,7 +24228,7 @@
         "finished_at": "2026-06-10T21:45:10+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_32b0d12bd09c4ab6af27bb13c7e36355",
+        "public_id": "attempt_e8d8262f41ec45d493d731b2af16fbc0",
         "reason": "runner_failed",
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -23327,7 +24240,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_4f3674280611481288c45e8fd2bc222e",
+    "public_id": "run_f650de374bd94a899e808be4c4bb69e3",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",

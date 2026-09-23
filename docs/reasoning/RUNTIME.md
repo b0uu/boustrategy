@@ -66,7 +66,7 @@ holdings due for a thesis review, with the reasons:
 - On schedule: at 2% of equity or more, a holding is due at each review point
   (Monday 09:00, Wednesday 12:00 and Friday 12:00 ET, so the Monday morning,
   Wednesday midday and Friday midday reviews) until a review recorded after that
-  point covers it. A missed point carries to the next review that runs.
+  point, or in the 24 hours before it, covers it. A missed point carries to the next review that runs.
 - On a trigger since its last review: a daily price move of 5% or more, a volume
   spike, reported earnings, or its first close 15% under cost. Earnings dates come
   from the feed and from the review agent, which records every date it reads with
@@ -97,12 +97,26 @@ executor sends it only after its sale fills (`awaiting_swap_sale`), never after 
 failed one (`swap_sell_failed`). If a review is accepted without its buys, a sale that
 only funded one is held back too, unless that holding was judged invalidated.
 
+Every BUY or ADD, and every thesis review, states where the thesis ends:
+`realization_price_low` (fully priced in), `realization_price_high` (overpriced) and
+`invalidation_price`. A holding's current range is its latest statement, from a review
+or a BUY or ADD. Raising the range or lowering the invalidation price needs
+`range_change_evidence`; raises aren't capped, and every statement is kept. A holding's
+first close at or above its fully priced price is a trigger (`realization_reached`).
+Trading at or above its overpriced price (`above_realization_range`) or at or below its
+invalidation price (`below_invalidation_price`) is mandatory, whatever the cooldown,
+until a sale goes through or a review moves the range past the price with evidence; a
+review that leaves the price beyond the range while the market is open needs a SELL or
+TRIM. The intake shows each holding's upside to fully priced, downside to invalidation
+and their ratio, and the public positions panel shows the range and upside.
+
 Preparation tracks prices, earnings and triggers for live holdings whether or not
 the watchlist names them. The agent's verdict is binary: `intact` (it would still
 own the holding at today's price) or `invalidated`. An invalidated holding needs a
 SELL or TRIM in the first review that can trade. The worker sends back an output
 that leaves a due holding without a review carrying a summary and an opened source
-URL. If the retry still leaves one unanswered, the output is accepted without its
+URL. Holdings don't count toward the hunt's three researched candidates, and the
+session must open at least three pages plus one per thesis review it returns. If the retry still leaves one unanswered, the output is accepted without its
 BUY and ADD records, and the holding stays due. Each saved review records why it was
 due, and the public positions panel shows the latest approved review.
 

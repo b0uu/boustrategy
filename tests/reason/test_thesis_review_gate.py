@@ -92,6 +92,12 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
         "average_cost": "200.0",
         "price": "230.0",
         "unrealized_return_percent": 15.0,
+        "realization_price_low": None,
+        "realization_price_high": None,
+        "invalidation_price": None,
+        "upside_to_fully_priced_percent": None,
+        "downside_to_invalidation_percent": None,
+        "reward_to_risk": None,
     }
     assert [(item["episode_id"], item["reasons"]) for item in due] == [
         (episode, ["scheduled_review"])
@@ -99,13 +105,16 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
     conn.close()
 
 
-def complete_review(episode: str) -> AuthoredThesisReview:
+def complete_review(episode: str, ticker: str = "NVDA", price: float = 230) -> AuthoredThesisReview:
     return AuthoredThesisReview(
         episode_id=episode,
-        ticker="NVDA",
+        ticker=ticker,
         state="intact",
         summary="Would still own it at today's price.",
         sources_opened=["https://investor.nvidia.com/"],
+        realization_price_low=price * 1.3,
+        realization_price_high=price * 1.5,
+        invalidation_price=price * 0.7,
     )
 
 
@@ -294,7 +303,7 @@ def test_a_candidate_cash_cannot_fund_is_tested_against_a_reviewed_holding(
     conn = connect(tmp_path / "boustrategy.db")
     run = live_review(conn, tmp_path, FULLY_INVESTED)
     episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
-    mu_review = complete_review(episodes["MU"]["episode_id"]).model_copy(update={"ticker": "MU"})
+    mu_review = complete_review(episodes["MU"]["episode_id"], "MU", 73)
     swap = AuthoredChallenger(
         candidate="AMD",
         incumbent="MU",
@@ -385,7 +394,7 @@ def test_a_swap_submits_its_sale_first_and_pairs_the_buy_outside_the_daily_limit
             ],
             thesis_reviews=[
                 complete_review(episodes["NVDA"]["episode_id"]),
-                complete_review(episodes["MU"]["episode_id"]).model_copy(update={"ticker": "MU"}),
+                complete_review(episodes["MU"]["episode_id"], "MU", 73),
             ],
             candidates_considered=[amd_clears_the_bar()],
             challenger_reviews=[
@@ -527,4 +536,69 @@ def test_a_holdings_gap_with_no_time_left_to_retry_is_still_accepted(
     )
 
     assert (attempt.status, calls) == ("no_action", 1)
+    conn.close()
+
+
+def test_a_review_restates_the_range_and_loosens_it_only_with_evidence(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path).model_copy(
+        update={"prepared_at": WEDNESDAY_MIDDAY + timedelta(minutes=5)}
+    )
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    # Never reviewed, so due: its review must state the range.
+    no_prices = unreviewed_holdings(
+        conn,
+        run,
+        AuthoredOutput(
+            thesis_reviews=[
+                complete_review(episode).model_copy(update={"realization_price_low": None})
+            ],
+            public_summary="x",
+        ),
+    )
+    review(conn, episode, "NVDA", WEDNESDAY_MIDDAY, prices=(260, 300, 180))
+    stated = complete_review(episode).model_copy(
+        update={
+            "realization_price_low": 260.0,
+            "realization_price_high": 300.0,
+            "invalidation_price": 180.0,
+        }
+    )
+    raised = stated.model_copy(update={"realization_price_low": 280.0})
+
+    def gap(thesis_review: AuthoredThesisReview) -> str | None:
+        return unreviewed_holdings(
+            conn, run, AuthoredOutput(thesis_reviews=[thesis_review], public_summary="x")
+        )
+
+    unexplained = gap(raised)
+    explained = gap(raised.model_copy(update={"range_change_evidence": "Guidance rose 20%."}))
+    overpriced = gap(complete_review(episode, price=150))
+
+    assert no_prices and "must restate realization_price_low" in no_prices
+    assert unexplained and "without range_change_evidence" in unexplained
+    assert explained is None
+    assert overpriced and "at or above its overpriced bound 225.00" in overpriced
+    assert gap(stated) is None
+    conn.close()
+
+
+def test_the_intake_ranks_holdings_by_upside_against_downside(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    episode = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", WEDNESDAY_MIDDAY, prices=(299, 345, 184))
+    conn.commit()
+
+    prepared = assemble_intake(conn, run, tmp_path / "out", _profile())
+
+    text = Path(prepared.intake_path).read_text(encoding="utf-8")
+    position = json.loads(text.split("# Starting portfolio facts\n\n")[1].split("\n\n", 1)[0])[
+        "positions"
+    ][0]
+    assert (
+        position["upside_to_fully_priced_percent"],
+        position["downside_to_invalidation_percent"],
+        position["reward_to_risk"],
+    ) == (30.0, 20.0, 1.5)
     conn.close()

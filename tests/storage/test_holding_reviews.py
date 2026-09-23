@@ -8,7 +8,12 @@ from app.broker.collector import collect_snapshot
 from app.schemas.live_execution import LivePortfolioSnapshot
 from app.schemas.public_authoring import ThesisReview
 from app.storage.database import connect
-from app.storage.holding_reviews import holdings_due, latest_review_point, live_holding_episodes
+from app.storage.holding_reviews import (
+    holdings_due,
+    latest_review_point,
+    live_holding_episodes,
+    thesis_prices,
+)
 from app.storage.public_records import save_thesis_review
 from app.triggers.store import insert_trigger
 from tests.reason.test_live_submit import _profile
@@ -60,6 +65,7 @@ def review(
     *,
     state: Literal["intact", "invalidated"] = "intact",
     reasons: list[str] | None = None,
+    prices: tuple[float, float, float] | None = None,
 ) -> None:
     save_thesis_review(
         conn,
@@ -75,6 +81,9 @@ def review(
             state=state,
             summary="Still holds.",
             review_reasons=reasons or [],
+            realization_price_low=prices[0] if prices else None,
+            realization_price_high=prices[1] if prices else None,
+            invalidation_price=prices[2] if prices else None,
         ),
     )
 
@@ -337,4 +346,96 @@ def test_an_invalidated_holding_stays_due_until_a_sale_goes_through(tmp_path: Pa
     assert [item["reasons"] for item in before] == [["invalidated_without_exit"]]
     assert after == []
     assert [item["reasons"] for item in failed] == [["invalidated_without_exit"]]
+    conn.close()
+
+
+def test_the_thesis_range_triggers_at_fully_priced_and_demands_a_sale_when_overpriced(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(minutes=20), prices=(230, 260, 150))
+    tuesday = MONDAY_MORNING + timedelta(days=1)
+    fully_priced = snapshot_at(conn, tmp_path, tuesday, {"NVDA": (0.1, 200, 240)})
+    overpriced = snapshot_at(
+        conn, tmp_path, tuesday + timedelta(hours=1), {"NVDA": (0.1, 200, 265)}
+    )
+
+    reached = holdings_due(conn, fully_priced, tuesday + timedelta(minutes=30))
+    beyond = holdings_due(conn, overpriced, tuesday + timedelta(hours=1, minutes=30))
+    conn.execute(
+        "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
+        "execution_mode, execution_profile_id, intent_json) "
+        "VALUES ('trim', 'trim', ?, 'NVDA', 'SELL', 'LIVE', 'codex', '{}')",
+        ((tuesday + timedelta(hours=1, minutes=10)).isoformat(),),
+    )
+    trimmed = holdings_due(conn, overpriced, tuesday + timedelta(hours=1, minutes=30))
+
+    assert [item["reasons"] for item in reached] == [["realization_reached"]]
+    assert [item["reasons"] for item in beyond] == [
+        ["realization_reached", "above_realization_range"]
+    ]
+    assert [item["reasons"] for item in trimmed] == [["realization_reached"]]
+    conn.close()
+
+
+def test_a_close_at_the_invalidation_price_is_due_regardless_of_a_cooldown(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"F": (0.1, 10, 9)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["F"]["episode_id"]
+    review(
+        conn,
+        episode,
+        "F",
+        MONDAY_MORNING + timedelta(minutes=20),
+        reasons=["price_move"],
+        prices=(12, 14, 8),
+    )
+    broken = snapshot_at(conn, tmp_path, MONDAY_MORNING + timedelta(hours=2), {"F": (0.1, 10, 7.9)})
+
+    due = holdings_due(conn, broken, MONDAY_MORNING + timedelta(hours=3))
+
+    assert [item["reasons"] for item in due] == [["below_invalidation_price"]]
+    conn.close()
+
+
+def test_the_latest_statement_of_a_holding_range_wins(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+
+    def decided(decision_id: str, action: str, at: datetime, low: float) -> None:
+        record = {
+            "realization_price_low": low,
+            "realization_price_high": low + 40,
+            "invalidation_price": 150.0,
+        }
+        conn.execute(
+            "INSERT INTO decision_records VALUES (?, ?, 'NVDA', ?, ?, '')",
+            (decision_id, at.isoformat(), action, json.dumps(record)),
+        )
+        conn.execute(
+            "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
+            "execution_mode, execution_profile_id, intent_json) "
+            "VALUES (?, ?, ?, 'NVDA', 'BUY', 'LIVE', 'codex', '{}')",
+            (decision_id, decision_id, at.isoformat()),
+        )
+
+    decided("buy", "BUY", MONDAY_MORNING - timedelta(minutes=5), 230)
+    bought = thesis_prices(conn, ACCOUNT, "codex", "NVDA", episode, MONDAY_MORNING)
+    review(conn, episode, "NVDA", MONDAY_MORNING + timedelta(hours=1), prices=(250, 280, 170))
+    reviewed = thesis_prices(
+        conn, ACCOUNT, "codex", "NVDA", episode, MONDAY_MORNING + timedelta(hours=2)
+    )
+    decided("add", "ADD", MONDAY_MORNING + timedelta(hours=3), 270)
+    added = thesis_prices(
+        conn, ACCOUNT, "codex", "NVDA", episode, MONDAY_MORNING + timedelta(hours=4)
+    )
+
+    assert [item and item["realization_price_low"] for item in (bought, reviewed, added)] == [
+        230,
+        250,
+        270,
+    ]
     conn.close()

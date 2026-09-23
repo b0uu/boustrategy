@@ -188,6 +188,28 @@ class ThesisReview(PublicAuthoringModel):
     review_reasons: list[Annotated[str, Field(min_length=1, max_length=40)]] = Field(
         default_factory=list, max_length=10
     )
+    # The holding's thesis range as this review restates it; see the decision record's fields.
+    realization_price_low: float | None = Field(default=None, gt=0.0)
+    realization_price_high: float | None = Field(default=None, gt=0.0)
+    invalidation_price: float | None = Field(default=None, gt=0.0)
+    range_change_evidence: Text | None = None
+
+    @model_validator(mode="after")
+    def ordered_prices(self) -> "ThesisReview":
+        low, high = self.realization_price_low, self.realization_price_high
+        if (low is None) != (high is None):
+            raise ValueError(
+                "realization_price_low and realization_price_high are recorded together"
+            )
+        if low is not None and high is not None and low > high:
+            raise ValueError("realization_price_low cannot exceed realization_price_high")
+        if (
+            self.invalidation_price is not None
+            and low is not None
+            and self.invalidation_price >= low
+        ):
+            raise ValueError("invalidation_price must sit below realization_price_low")
+        return self
 
     @model_validator(mode="after")
     def review_identity(self) -> "ThesisReview":

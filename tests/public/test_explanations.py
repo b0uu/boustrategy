@@ -679,6 +679,9 @@ def test_a_live_snapshot_episode_review_is_published_without_the_account(tmp_pat
             approved_for_publication=True,
             private_notes="PRIVATE_REVIEW",
             review_reasons=["scheduled_review", "price_move"],
+            realization_price_low=276.0,
+            realization_price_high=320.0,
+            invalidation_price=180.0,
         ),
     )
     conn.commit()
@@ -696,5 +699,9 @@ def test_a_live_snapshot_episode_review_is_published_without_the_account(tmp_pat
     )
     assert item["thesis_review"]["summary"] == "Data-center demand still outruns supply."
     assert item["holding_episode_id"].startswith("holding_")
+    assert (item["realization_price_low"], round(item["upside_to_fully_priced_percent"], 1)) == (
+        276.0,
+        20.0,
+    )
     assert ACCOUNT not in positions.text
     assert "PRIVATE_REVIEW" not in positions.text

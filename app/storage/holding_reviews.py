@@ -25,10 +25,25 @@ TRIGGER_COOLDOWN = timedelta(days=3)
 DRAWDOWN_TRIGGER_PERCENT = -15.0
 MANDATORY_REVIEW_RETURN_PERCENT = -40.0
 TRIGGER_REASONS = frozenset(
-    {"price_move", "volume_spike", "earnings_reported", "x_digest", "down_15_percent_from_cost"}
+    {
+        "price_move",
+        "volume_spike",
+        "earnings_reported",
+        "x_digest",
+        "down_15_percent_from_cost",
+        "realization_reached",
+    }
 )
 # The mandate requires these the same day, so no cooldown holds them back.
-MANDATORY_REASONS = frozenset({"down_40_percent_from_cost", "invalidated_without_exit"})
+MANDATORY_REASONS = frozenset(
+    {
+        "down_40_percent_from_cost",
+        "invalidated_without_exit",
+        "above_realization_range",
+        "below_invalidation_price",
+    }
+)
+PRICE_FIELDS = ("realization_price_low", "realization_price_high", "invalidation_price")
 
 
 def live_holding_episodes(
@@ -63,6 +78,90 @@ def live_holding_episodes(
     }
 
 
+def thesis_prices(
+    conn: sqlite3.Connection,
+    account_id: str,
+    execution_profile_id: str,
+    ticker: str,
+    episode_id: str,
+    as_of: datetime,
+) -> dict[str, Any] | None:
+    """A holding's current realization range and invalidation price, and when they were set.
+
+    The latest statement wins: a thesis review of this episode, or a BUY or ADD of the ticker.
+    """
+    statements = [
+        (datetime.fromisoformat(review["reviewed_at"]), review)
+        for review in (
+            json.loads(row[0])
+            for row in conn.execute(
+                "SELECT record_json FROM thesis_reviews WHERE mode='live' AND account_id=? "
+                "AND episode_id=? AND julianday(reviewed_at)<=julianday(?) "
+                "AND json_extract(record_json, '$.realization_price_low') IS NOT NULL "
+                "ORDER BY julianday(reviewed_at) DESC LIMIT 1",
+                (account_id, episode_id, as_of.isoformat()),
+            )
+        )
+    ] + [
+        (datetime.fromisoformat(created_at), json.loads(record_json))
+        for record_json, created_at in conn.execute(
+            "SELECT d.record_json, o.created_at FROM decision_records d JOIN order_intents o "
+            "ON o.decision_id=d.decision_id WHERE o.execution_mode='LIVE' "
+            "AND o.execution_profile_id=? AND o.ticker=? AND d.decision IN ('BUY', 'ADD') "
+            "AND julianday(o.created_at)<=julianday(?) "
+            "AND json_extract(d.record_json, '$.realization_price_low') IS NOT NULL "
+            "ORDER BY julianday(o.created_at) DESC LIMIT 1",
+            (execution_profile_id, ticker, as_of.isoformat()),
+        )
+    ]
+    if not statements:
+        return None
+    set_at, statement = max(statements, key=lambda item: item[0])
+    return {**{field: statement.get(field) for field in PRICE_FIELDS}, "set_at": set_at.isoformat()}
+
+
+def _stretch_start(
+    history: list[tuple[datetime, float]], after: datetime, *, limit: float, above: bool
+) -> datetime | None:
+    """When the latest unbroken stretch at or past a limit began, if the last value is there."""
+    start = None
+    for at, value in history:
+        if at < after:
+            continue
+        if not (value >= limit if above else value <= limit):
+            start = None
+        elif start is None:
+            start = at
+    return start
+
+
+def _sold_since(
+    conn: sqlite3.Connection,
+    execution_profile_id: str,
+    ticker: str,
+    since: str,
+    session_open: datetime,
+) -> bool:
+    # A sale counts once it fills or while it can still fill: at the broker, or not yet
+    # attempted in the session it was decided in. A failed or expired one doesn't.
+    return (
+        conn.execute(
+            "SELECT 1 FROM order_intents o LEFT JOIN broker_execution_records r "
+            "ON r.order_intent_id=o.order_intent_id WHERE o.execution_mode='LIVE' "
+            "AND o.execution_profile_id=? AND o.ticker=? AND o.side='SELL' "
+            "AND julianday(o.created_at)>=julianday(?) AND ("
+            "(r.broker_execution_record_id IS NULL "
+            "AND julianday(o.created_at)>=julianday(?)) OR "
+            "(SELECT e.status FROM broker_execution_events e "
+            "WHERE e.broker_execution_record_id=r.broker_execution_record_id "
+            "ORDER BY julianday(e.occurred_at) DESC, e.rowid DESC LIMIT 1) "
+            "NOT IN ('FAILED', 'CANCELED'))",
+            (execution_profile_id, ticker, since, session_open.isoformat()),
+        ).fetchone()
+        is not None
+    )
+
+
 def latest_review_point(moment: datetime) -> datetime:
     local = moment.astimezone(NEW_YORK)
     for days_back in range(8):
@@ -94,7 +193,9 @@ def holdings_due(
     episodes = live_holding_episodes(conn, account_id, snapshot.captured_at)
     point = latest_review_point(prepared_at)
     session_day = prepared_at.astimezone(NEW_YORK).date()
+    session_open = datetime.combine(session_day, time(9, 30), NEW_YORK)
     returns: dict[str, list[tuple[datetime, float]]] = {}
+    prices: dict[str, list[tuple[datetime, float]]] = {}
     for (snapshot_json,) in conn.execute(
         "SELECT snapshot_json FROM live_portfolio_snapshots "
         "WHERE julianday(captured_at)<=julianday(?) ORDER BY julianday(captured_at)",
@@ -104,6 +205,8 @@ def holdings_due(
         if earlier.broker_account_fingerprint != account_id or earlier.reporting is None:
             continue
         for held in earlier.reporting.positions or []:
+            if held.price is not None:
+                prices.setdefault(held.ticker, []).append((earlier.captured_at, float(held.price)))
             if held.average_cost and held.price is not None:
                 returns.setdefault(held.ticker, []).append(
                     (earlier.captured_at, float(held.price / held.average_cost - 1) * 100)
@@ -174,40 +277,42 @@ def holdings_due(
             (DRAWDOWN_TRIGGER_PERCENT, "down_15_percent_from_cost"),
             (MANDATORY_REVIEW_RETURN_PERCENT, "down_40_percent_from_cost"),
         ):
-            # The start of the current stretch below the threshold, if the holding is below it.
-            crossed = None
-            for at, return_percent in returns.get(ticker, []):
-                if at < opened_at:
-                    continue
-                if return_percent > threshold:
-                    crossed = None
-                elif crossed is None:
-                    crossed = at
+            crossed = _stretch_start(
+                returns.get(ticker, []), opened_at, limit=threshold, above=False
+            )
             if crossed is not None and since < crossed:
                 reasons.append(reason)
+        stated = thesis_prices(
+            conn,
+            account_id,
+            snapshot.execution_profile_id,
+            ticker,
+            episode["episode_id"],
+            prepared_at,
+        )
+        history = prices.get(ticker, [])
+        if stated is not None and history:
+            reached = _stretch_start(
+                history, opened_at, limit=stated["realization_price_low"], above=True
+            )
+            if reached is not None and since < reached:
+                reasons.append("realization_reached")
+            price = history[-1][1]
+            beyond = []
+            if price >= stated["realization_price_high"]:
+                beyond.append("above_realization_range")
+            if stated["invalidation_price"] is not None and price <= stated["invalidation_price"]:
+                beyond.append("below_invalidation_price")
+            if beyond and not _sold_since(
+                conn, snapshot.execution_profile_id, ticker, stated["set_at"], session_open
+            ):
+                reasons.extend(beyond)
         if (
             reviews
             and reviews[0]["state"] == "invalidated"
-            # A sale counts once it fills or while it can still fill: at the broker, or not yet
-            # attempted in the session it was decided in. A failed or expired one doesn't.
-            and not conn.execute(
-                "SELECT 1 FROM order_intents o LEFT JOIN broker_execution_records r "
-                "ON r.order_intent_id=o.order_intent_id WHERE o.execution_mode='LIVE' "
-                "AND o.execution_profile_id=? AND o.ticker=? AND o.side='SELL' "
-                "AND julianday(o.created_at)>=julianday(?) AND ("
-                "(r.broker_execution_record_id IS NULL "
-                "AND julianday(o.created_at)>=julianday(?)) OR "
-                "(SELECT e.status FROM broker_execution_events e "
-                "WHERE e.broker_execution_record_id=r.broker_execution_record_id "
-                "ORDER BY julianday(e.occurred_at) DESC, e.rowid DESC LIMIT 1) "
-                "NOT IN ('FAILED', 'CANCELED'))",
-                (
-                    snapshot.execution_profile_id,
-                    ticker,
-                    reviews[0]["reviewed_at"],
-                    datetime.combine(session_day, time(9, 30), NEW_YORK).isoformat(),
-                ),
-            ).fetchone()
+            and not _sold_since(
+                conn, snapshot.execution_profile_id, ticker, reviews[0]["reviewed_at"], session_open
+            )
         ):
             reasons.append("invalidated_without_exit")
         triggered = next(

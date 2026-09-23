@@ -28,7 +28,7 @@ export interface Position {
   latest_price: DecimalValue; market_value: DecimalValue; weight: number | null
   unrealized_return_percent: DecimalValue; theme: string | null; asset_class?: string
   price_quality?: string; quote_at?: string | null; latest_public_summary: string | null
-  latest_decision_id: string | null; holding_episode_id?: string | null; thesis_review?: ThesisReview
+  latest_decision_id: string | null; holding_episode_id?: string | null; thesis_review?: ThesisReview; realization_price_low?: number | null; realization_price_high?: number | null; invalidation_price?: number | null; upside_to_fully_priced_percent?: number | null
 }
 export interface Episode { episode_id: string; ticker: string; status: string; opened_at: string | null; first_observed_at: string; closed_at: string | null; quantity: string; thesis_review?: ThesisReview }
 export interface Overview extends Metadata {

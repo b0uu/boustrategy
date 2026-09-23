@@ -498,3 +498,17 @@ def test_regime_mismatch_reported_even_when_underlying_decision_would_pass():
 
     assert not result.approved
     assert result.reasons == ["regime_state_mismatch"]
+
+
+def test_rejects_buy_with_no_upside_left_to_its_fully_priced_price():
+    from datetime import UTC, datetime
+
+    read_at = datetime(2026, 7, 1, 14, tzinfo=UTC)
+    priced_in = decision_record_with(reference_price=265.0, reference_price_at=read_at)
+    room_left = decision_record_with(reference_price=200.0, reference_price_at=read_at)
+
+    rejected = evaluate_decision_policy(priced_in, portfolio_context())
+    approved = evaluate_decision_policy(room_left, portfolio_context())
+
+    assert "no_upside_to_realization" in rejected.reasons
+    assert "no_upside_to_realization" not in approved.reasons

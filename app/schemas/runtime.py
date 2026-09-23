@@ -102,6 +102,11 @@ class AuthoredThesisReview(RuntimeModel):
     approved_for_publication: bool = False
     private_notes: str | None = Field(default=None, max_length=4000)
     sources_opened: list[str] = Field(default_factory=list, max_length=12)
+    realization_price_low: float | None = Field(default=None, gt=0.0)
+    realization_price_high: float | None = Field(default=None, gt=0.0)
+    invalidation_price: float | None = Field(default=None, gt=0.0)
+    # The new fact behind raising the range or lowering the invalidation price.
+    range_change_evidence: str | None = Field(default=None, max_length=2000)
 
 
 class CandidateConsidered(RuntimeModel):

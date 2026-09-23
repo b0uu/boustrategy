@@ -157,6 +157,14 @@ class InvestmentDecisionRecord(BaseModel):
     reference_price: float | None = Field(default=None, gt=0.0)
     reference_price_at: AwareDatetime | None = None
 
+    # Where the thesis ends, derived from its own numbers. At realization_price_low its expected
+    # outcome is fully priced in; above realization_price_high the market pays for more than it
+    # claims. invalidation_price is where the thesis is wrong. Together they rank holdings by
+    # reward to risk and give exits structure.
+    realization_price_low: float | None = Field(default=None, gt=0.0)
+    realization_price_high: float | None = Field(default=None, gt=0.0)
+    invalidation_price: float | None = Field(default=None, gt=0.0)
+
     # Only a SHORT_WATCHLIST carries these; they are what the removal monitor watches.
     short_removal_conditions: ShortRemovalConditions | None = None
 
@@ -179,6 +187,26 @@ class InvestmentDecisionRecord(BaseModel):
             raise ValueError("entry_price_min cannot exceed entry_price_max")
         if (self.reference_price is None) != (self.reference_price_at is None):
             raise ValueError("reference_price and reference_price_at are recorded together")
+        low, high = self.realization_price_low, self.realization_price_high
+        if (low is None) != (high is None):
+            raise ValueError(
+                "realization_price_low and realization_price_high are recorded together"
+            )
+        if low is not None and high is not None and low > high:
+            raise ValueError("realization_price_low cannot exceed realization_price_high")
+        if (
+            self.invalidation_price is not None
+            and low is not None
+            and self.invalidation_price >= low
+        ):
+            raise ValueError("invalidation_price must sit below realization_price_low")
+        if (
+            self.decision in {Decision.BUY, Decision.ADD}
+            and self.invalidation_price is not None
+            and self.reference_price is not None
+            and self.invalidation_price >= self.reference_price
+        ):
+            raise ValueError("a BUY or ADD's invalidation_price must sit below its reference_price")
         return self
 
     @field_validator("ticker")

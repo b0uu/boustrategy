@@ -34,7 +34,7 @@ from app.schemas.reporting import (
     ReportingObservation,
     ValuationObservation,
 )
-from app.storage.holding_reviews import live_holding_episodes
+from app.storage.holding_reviews import live_holding_episodes, thesis_prices
 from app.x.calendar import NEW_YORK, CalendarCoverageError, completed_session
 
 _PUBLIC_LIFECYCLE = {
@@ -1173,6 +1173,29 @@ def publish(
                         None,
                     )
                     snapshot_episode = snapshot_episodes.get(position["ticker"])
+                    stated = (
+                        thesis_prices(
+                            source,
+                            reporting_account or "",
+                            latest_live["execution_profile_id"],
+                            position["ticker"],
+                            snapshot_episode["episode_id"],
+                            datetime.now(UTC),
+                        )
+                        if snapshot_episode and latest_live
+                        else None
+                    )
+                    for field in ("realization_price_low", "realization_price_high"):
+                        position[field] = stated[field] if stated else None
+                    position["invalidation_price"] = (
+                        stated["invalidation_price"] if stated else None
+                    )
+                    position["upside_to_fully_priced_percent"] = (
+                        (stated["realization_price_low"] / float(position["latest_price"]) - 1)
+                        * 100
+                        if stated and position.get("latest_price")
+                        else None
+                    )
                     episode_review = (
                         reviews.get(
                             (portfolio["mode"], review_account or "", episode["episode_id"])

@@ -281,3 +281,25 @@ def test_watchlist_does_not_require_primary_theme():
     record = InvestmentDecisionRecord.model_validate(data)
 
     assert record.decision == "WATCHLIST"
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"realization_price_high": None}, "recorded together"),
+        ({"realization_price_low": 310.0}, "cannot exceed realization_price_high"),
+        ({"invalidation_price": 260.0}, "below realization_price_low"),
+        (
+            {
+                "reference_price": 140.0,
+                "reference_price_at": datetime.fromisoformat("2026-07-01T14:00:00+00:00"),
+            },
+            "below its reference_price",
+        ),
+    ],
+)
+def test_the_thesis_range_is_ordered(overrides: dict[str, object], message: str) -> None:
+    data = {**valid_decision_record_data(), **overrides}
+
+    with pytest.raises(ValidationError, match=message):
+        InvestmentDecisionRecord.model_validate(data)

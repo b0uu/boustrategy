@@ -16,6 +16,7 @@ from app.storage.holding_reviews import (
     MIN_INITIAL_POSITION,
     holdings_due,
     live_holding_episodes,
+    thesis_prices,
 )
 from app.storage.records import get_live_portfolio_snapshot, get_reasoning_run
 from app.storage.runtime import save_run
@@ -79,9 +80,27 @@ def assemble_intake(
             position.ticker: position
             for position in (snapshot.reporting.positions or [] if snapshot.reporting else [])
         }
+        live_episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
         positions = []
         for position in snapshot.positions:
             cost = costs.get(position.ticker)
+            price = float(cost.price) if cost and cost.price is not None else None
+            stated = thesis_prices(
+                conn,
+                run.account_id,
+                snapshot.execution_profile_id,
+                position.ticker,
+                live_episodes[position.ticker]["episode_id"],
+                run.prepared_at,
+            )
+            upside = (
+                (stated["realization_price_low"] / price - 1) * 100 if stated and price else None
+            )
+            downside = (
+                (1 - stated["invalidation_price"] / price) * 100
+                if stated and price and stated["invalidation_price"] is not None
+                else None
+            )
             positions.append(
                 {
                     **position.model_dump(mode="json"),
@@ -98,6 +117,18 @@ def assemble_intake(
                     )
                     if cost and cost.price is not None and cost.average_cost
                     else None,
+                    "realization_price_low": stated["realization_price_low"] if stated else None,
+                    "realization_price_high": stated["realization_price_high"] if stated else None,
+                    "invalidation_price": stated["invalidation_price"] if stated else None,
+                    "upside_to_fully_priced_percent": round(upside, 2)
+                    if upside is not None
+                    else None,
+                    "downside_to_invalidation_percent": round(downside, 2)
+                    if downside is not None
+                    else None,
+                    "reward_to_risk": round(upside / downside, 2)
+                    if upside is not None and downside
+                    else None,
                 }
             )
         facts: dict[str, Any] = {
@@ -107,7 +138,6 @@ def assemble_intake(
             "buying_power": snapshot.buying_power,
             "positions": positions,
         }
-        live_episodes = live_holding_episodes(conn, run.account_id, snapshot.captured_at)
         due = holdings_due(conn, snapshot, run.prepared_at)
         minimum = MIN_INITIAL_POSITION * snapshot.account_equity
         cash_shortfall = (

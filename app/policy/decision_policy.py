@@ -225,6 +225,18 @@ def evaluate_decision_policy(
         passed=not duplicate,
         missing=watchlist is None,
     )
+    fully_priced = record.realization_price_low
+    has_upside = (
+        fully_priced is not None
+        and record.reference_price is not None
+        and record.reference_price < fully_priced
+    )
+    check(
+        "no_upside_to_realization",
+        applicable=increasing and fully_priced is not None and record.reference_price is not None,
+        observed=has_upside,
+        passed=has_upside,
+    )
     conditions = record.short_removal_conditions
     horizon = (conditions.review_by - record.created_at.date()).days if conditions else None
     check(
