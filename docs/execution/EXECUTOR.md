@@ -13,8 +13,10 @@ Live placement remains disabled unless all of these inputs already exist:
   regular-market-hours state;
 - one unexpired `LiveExecutionPacket` persisted by `python -m app.broker.run packet`.
 
-For the initial live trial, use a 60-second maximum quote age. Discard an expired packet and
-rebuild it from a new broker preflight quote. Never extend an existing packet's expiry.
+A packet expires the profile's maximum quote age after its quote (90 seconds for the live
+profile). Expiry gates the broker review: if the packet expires before the `REVIEWED` event is
+recorded, discard it and rebuild it from a new broker preflight quote, at most three times in one
+session. Never extend an existing packet's expiry.
 
 For one packet, follow this order:
 
@@ -23,8 +25,9 @@ For one packet, follow this order:
    several accounts, including personal ones; compute the SHA-256 fingerprint of each candidate
    account identifier and use only the account whose first 16 hex characters equal the packet's
    `broker_account_fingerprint`. Stop on any mismatch.
-2. Confirm the packet has not expired. Never place from an expired packet. Refresh broker state
-   and build a new packet instead.
+2. Confirm the packet has not expired before the broker review. If it has, refresh broker state
+   and build a new packet. Once the `REVIEWED` event is recorded in time, place the order even
+   if the packet expires afterward: from then on the final quote check guards the price.
 3. Use Robinhood's account, position, quote, and tradability tools to verify that the packet still
    matches current broker state. Stop if the account fingerprint, ticker, side, notional, buying
    power, fractional eligibility, or regular-hours state differs, or if the market has moved

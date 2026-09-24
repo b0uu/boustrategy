@@ -503,6 +503,49 @@ def test_execution_attempts_back_off_and_stop_at_the_cap(tmp_path: Path) -> None
     assert sessions == MAX_ATTEMPTS_PER_INTENT
 
 
+def test_an_expired_packet_is_retried_at_once_but_only_once(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 14, 0, tzinfo=UTC)
+    intent = _live_intent(db_path, now - timedelta(minutes=30))
+    expired = {
+        "order_intent_id": intent.order_intent_id,
+        "outcome": "blocked",
+        "reason_code": "packet_expired",
+    }
+    priced_out = {**expired, "reason_code": "price_above_allowed_range"}
+    reports = [expired, expired, priced_out]
+    sessions = 0
+
+    def scripted(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        nonlocal sessions
+        sessions += 1
+        return schema.model_validate(reports.pop(0))
+
+    first_tick = execute_pending(
+        db_path,
+        _profile(),
+        now=now,
+        session=scripted,
+        codex_home=tmp_path,
+        log_dir=tmp_path / "logs",
+    )
+    later_tick = execute_pending(
+        db_path,
+        _profile(),
+        now=now + timedelta(minutes=15),
+        session=scripted,
+        codex_home=tmp_path,
+        log_dir=tmp_path / "logs",
+    )
+
+    assert [item["report"]["reason_code"] for item in first_tick] == [
+        "packet_expired",
+        "packet_expired",
+    ]
+    assert [item["report"]["reason_code"] for item in later_tick] == ["price_above_allowed_range"]
+    assert sessions == MAX_ATTEMPTS_PER_INTENT
+
+
 def test_a_retry_is_told_to_check_broker_history_before_placing_again(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
     now = datetime(2026, 9, 10, 14, 0, tzinfo=UTC)

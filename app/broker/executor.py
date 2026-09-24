@@ -178,8 +178,13 @@ def execution_prompt(
         f"{profile.broker_account_fingerprint}. Limits: maximum order notional "
         f"${profile.max_order_notional:.2f}, maximum quote age "
         f"{profile.max_quote_age_seconds} seconds, maximum spread "
-        f"{profile.max_spread_bps} bps. Run repository commands with the python on PATH from "
-        "the repository root and write files only under data/broker/. Never run git. Never "
+        f"{profile.max_spread_bps} bps. The packet expires "
+        f"{profile.max_quote_age_seconds} seconds after its quote, so go straight from the "
+        "quote to the packet and the broker review. EXECUTOR.md and this prompt hold everything "
+        "you need: don't search the repository, logs or earlier sessions. For the current time "
+        'run python -c "from datetime import UTC, datetime; '
+        'print(datetime.now(UTC).isoformat())". Run repository commands with the python on PATH '
+        "from the repository root and write files only under data/broker/. Never run git. Never "
         "research, resize, substitute a ticker or account, or continue to another intent. Place "
         "at most one order, with ref_id set to the UUID derived from the execution packet ID as "
         "EXECUTOR.md shows. Report every blocked outcome with its reason_code. If placement "
@@ -283,49 +288,63 @@ def execute_pending(
                 }
             )
             continue
-        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-        result: dict[str, Any] = {
-            "order_intent_id": intent.order_intent_id,
-            "ticker": intent.ticker,
-            "side": intent.side.value,
-            "attempted_at": started.isoformat(),
-        }
-        with closing(connect(db_path)) as conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO execution_sessions VALUES (?, ?, ?)",
-                (intent.order_intent_id, started.isoformat(), model),
-            )
-            conn.commit()
-        try:
-            report = session(
-                execution_prompt(intent, profile, attempts),
-                schema=ExecutionReport,
-                model=model,
-                codex_home=codex_home or default_codex_home(),
-                sandbox="workspace-write",
-                cwd=repo_root,
-                timeout_seconds=720,
-                log_path=log_dir / f"execute-{intent.order_intent_id}-{stamp}.log",
-                approved_tools=EXECUTION_TOOLS,
-            )
-        except BrokerSessionFailure as error:
-            report = None
-            result["session_failure"] = str(error)
-        with closing(connect(db_path)) as conn:
-            if report is not None:
-                result["report"] = report.model_dump(mode="json")
-                result["problems"] = verify_report(conn, intent, report)
-            else:
-                row = conn.execute(
-                    "SELECT broker_order_id FROM broker_execution_records WHERE order_intent_id=?",
-                    (intent.order_intent_id,),
-                ).fetchone()
-                result["problems"] = [
-                    "session_failed_after_submission" if row else "session_failed"
-                ]
-        with ledger_path.open("a", encoding="utf-8") as ledger:
-            ledger.write(json.dumps(result) + "\n")
-        results.append(result)
+        for rerun in (False, True):
+            stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+            result: dict[str, Any] = {
+                "order_intent_id": intent.order_intent_id,
+                "ticker": intent.ticker,
+                "side": intent.side.value,
+                "attempted_at": started.isoformat(),
+            }
+            with closing(connect(db_path)) as conn:
+                conn.execute(
+                    "INSERT OR IGNORE INTO execution_sessions VALUES (?, ?, ?)",
+                    (intent.order_intent_id, started.isoformat(), model),
+                )
+                conn.commit()
+            try:
+                report = session(
+                    execution_prompt(intent, profile, attempts),
+                    schema=ExecutionReport,
+                    model=model,
+                    codex_home=codex_home or default_codex_home(),
+                    sandbox="workspace-write",
+                    cwd=repo_root,
+                    timeout_seconds=720,
+                    log_path=log_dir / f"execute-{intent.order_intent_id}-{stamp}.log",
+                    approved_tools=EXECUTION_TOOLS,
+                )
+            except BrokerSessionFailure as error:
+                report = None
+                result["session_failure"] = str(error)
+            with closing(connect(db_path)) as conn:
+                if report is not None:
+                    result["report"] = report.model_dump(mode="json")
+                    result["problems"] = verify_report(conn, intent, report)
+                else:
+                    row = conn.execute(
+                        "SELECT broker_order_id FROM broker_execution_records "
+                        "WHERE order_intent_id=?",
+                        (intent.order_intent_id,),
+                    ).fetchone()
+                    result["problems"] = [
+                        "session_failed_after_submission" if row else "session_failed"
+                    ]
+            with ledger_path.open("a", encoding="utf-8") as ledger:
+                ledger.write(json.dumps(result) + "\n")
+            results.append(result)
+            attempts += 1
+            # An expired packet or a stale quote says nothing about the price, only that the
+            # session was slow, so waiting a tick to retry just delays the order. One more
+            # session runs at once instead.
+            if (
+                rerun
+                or attempts >= max_attempts
+                or report is None
+                or report.outcome != "blocked"
+                or report.reason_code not in {"packet_expired", "stale_quote"}
+            ):
+                break
     # Holdings are published only from broker observations, so a fill is invisible to the
     # public portfolio until the next snapshot. Take one now; a failure is reported, not fatal.
     if snapshot is not None and any(

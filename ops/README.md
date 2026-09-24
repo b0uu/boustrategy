@@ -9,7 +9,7 @@ As of September 9, 2026 the maintainer decided to skip the paper phase and opera
 dedicated Robinhood Agentic account with its small balance as the risk envelope. Every unattended
 agent session runs through a dedicated Codex identity: a cheaper model for X digests and broker
 reads, a stronger model for the investment review and for order execution. Task Scheduler is the
-host trigger. The deterministic policy gate, the $20 per-order cap, the 60-second quote age and
+host trigger. The deterministic policy gate, the $20 per-order cap, the 90-second quote age and
 the broker fingerprint checks are unchanged.
 
 Fourteen tasks exist across two installers:
