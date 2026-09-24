@@ -33,6 +33,27 @@ $ExitCode = $LASTEXITCODE
 $Output | Out-File -FilePath $LogFile -Append -Encoding utf8
 
 $Combined = $Output -join "`n"
+# Like the scheduled poller, hand a review's new intents to execution at once rather than letting
+# them wait for the next 15-minute tick. The execution task refuses to overlap itself.
+if ($ExitCode -eq 0 -and $Combined -match '"attempt":\s*"completed"') {
+    $ExecuteTask = Get-ScheduledTask -TaskName "boustrategy-live-execute" -ErrorAction SilentlyContinue
+    $HandOff = if (-not $ExecuteTask -or $ExecuteTask.State -eq "Disabled") {
+        "execution task is disabled or missing; not started"
+    }
+    elseif ($ExecuteTask.State -eq "Running") {
+        "execution is already running"
+    }
+    else {
+        try {
+            Start-ScheduledTask -TaskName "boustrategy-live-execute" -ErrorAction Stop
+            "started boustrategy-live-execute"
+        }
+        catch {
+            "could not start boustrategy-live-execute: $($_.Exception.GetType().Name)"
+        }
+    }
+    "--- execution hand-off: $HandOff ---" | Out-File -FilePath $LogFile -Append -Encoding utf8
+}
 if (-not [string]::IsNullOrWhiteSpace($DiscordWebhookUrl) -and
     ($ExitCode -ne 0 -or $Combined -notmatch '"cause": null')) {
     $Message = if ($ExitCode -ne 0) { "BouStrategy event review FAILED: exit=$ExitCode" } `
