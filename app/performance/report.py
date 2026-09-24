@@ -491,18 +491,14 @@ def materialize(
             start_session_date=start_day.isoformat(),
             return_percent=ranges["All"]["return_percent"],
         )
-        closes: dict[tuple[str, str], float] = (
-            {
-                (ticker, day): close
-                for ticker, day, close in conn.execute(
-                    "SELECT ticker, bar_date, adj_close FROM daily_prices "
-                    "WHERE ticker IN ('SPY', 'QQQ') AND bar_date IN (?, ?)",
-                    (
-                        start_day.isoformat(),
-                        (latest.session_date or start_day).isoformat(),
-                    ),
+        start_closes: dict[str, float] = (
+            dict(
+                conn.execute(
+                    "SELECT ticker, adj_close FROM daily_prices "
+                    "WHERE ticker IN ('SPY', 'QQQ') AND bar_date = ?",
+                    (start_day.isoformat(),),
                 )
-            }
+            )
             if table_exists(conn, "daily_prices")
             else {}
         )
@@ -520,10 +516,8 @@ def materialize(
         )
         live_prices = json.loads(snapshot_row[0]) if snapshot_row and snapshot_row[0] else {}
         for ticker in ("SPY", "QQQ"):
-            start_close = closes.get((ticker, start_day.isoformat()))
+            start_close = start_closes.get(ticker)
             end_price = live_prices.get(ticker)
-            if end_price is None and latest.phase == "session_close" and latest.session_date:
-                end_price = closes.get((ticker, latest.session_date.isoformat()))
             available = bool(start_close and end_price)
             comparison["benchmarks"].append(
                 {
