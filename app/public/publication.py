@@ -475,10 +475,11 @@ def publish(
                     session_date,
                     prepared_at,
                     reasoning_run_id,
+                    attempt_number,
                 ) in source.execute(
                     "SELECT d.decision_id, r.run_id, a.public_id, a.model, "
-                    "a.observed_model, r.session_date, r.prepared_at, r.reasoning_run_id "
-                    "FROM decision_records d JOIN runtime_attempts a "
+                    "a.observed_model, r.session_date, r.prepared_at, r.reasoning_run_id, "
+                    "a.attempt_number FROM decision_records d JOIN runtime_attempts a "
                     "ON a.attempt_id=d.runtime_attempt_id JOIN runtime_runs r ON "
                     "r.run_id=a.run_id WHERE d.decision_id IN (" + selected_ids + ")"
                 ):
@@ -525,6 +526,7 @@ def publish(
                         "digest_models": digest_models,
                         "collector_model": collector[0] if collector else None,
                         "execution_model": executor[0] if executor else None,
+                        "attempt_number": attempt_number,
                     }
             if table_exists(source, "reasoning_run_decisions"):
                 for decision_id, legacy_id in source.execute(
@@ -728,6 +730,11 @@ def publish(
                     "public_id": public_id,
                     "public_run_id": runtime_provenance.get(decision_id, {}).get("public_run_id")
                     or public_runs.get(decision_id),
+                    # A review only gets a second attempt when one is started explicitly, after the
+                    # first failed, so a later attempt number marks a retried review.
+                    "retry_attempt": runtime_provenance.get(decision_id, {}).get("attempt_number")
+                    if (runtime_provenance.get(decision_id, {}).get("attempt_number") or 1) > 1
+                    else None,
                     "portfolio_id": scope,
                     "mode": scope,
                     "company_name": company_names.get((scope, str(raw["ticker"]))),
@@ -852,6 +859,7 @@ def publish(
                         "theme",
                         "public_id",
                         "public_run_id",
+                        "retry_attempt",
                         "portfolio_id",
                         "mode",
                         "company_name",

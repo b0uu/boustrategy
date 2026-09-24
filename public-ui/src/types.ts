@@ -3,7 +3,7 @@ export type Range = '1M' | '3M' | 'YTD' | 'All'
 export type DecimalValue = string | number | null
 export interface Metadata { api_version: number; revision: number; server_now: string; published_at: string | null }
 export interface DecisionItem {
-  public_id: string; public_run_id: string | null; portfolio_id: Scope; mode: Scope
+  public_id: string; public_run_id: string | null; retry_attempt?: number | null; portfolio_id: Scope; mode: Scope
   ticker: string; company_name: string | null; created_at: string; decision: string
   public_summary: string; summary_truncated: boolean; policy_outcome: string
   schema_outcome: string; lifecycle: string; regime: string; theme: string | null

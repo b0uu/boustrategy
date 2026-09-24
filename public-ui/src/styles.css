@@ -126,6 +126,7 @@ main:focus, h1:focus { outline: none; }
 .profile-about { font-size: 12px; line-height: 1.5; color: var(--text-2); }
 .profile-about p + p { margin-top: 8px; }
 .external-link { display: inline-flex; align-items: center; gap: 3px; }
+.retry-mark { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; color: var(--text-3); font-size: 11px; vertical-align: middle; }
 .external-link svg { flex: none; }
 
 /* --- Shared controls -------------------------------------------------------------- */

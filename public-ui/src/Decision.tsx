@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { ArrowLeft, ArrowRight, ArrowUpRight } from '@phosphor-icons/react'
+import { ArrowCounterClockwise, ArrowLeft, ArrowRight, ArrowUpRight } from '@phosphor-icons/react'
 import { PublicError, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary, TextList } from './common'
 import { amount, clock, label, money, publicUrl, ruleValue, weight, when } from './format'
@@ -78,7 +78,7 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
     <SectionBoundary resetKey={data} retry={resource.refresh} name="decision trace">
       <header className="trace-head"><div className="trace-title"><h1 className="mono" tabIndex={-1}>{data.ticker}</h1><span className="action">{label(data.decision)}</span><Badge value={data.lifecycle} /><time dateTime={data.created_at}>{when(data.created_at)}</time></div>
         <p>{data.public_summary}</p>
-        <dl className="trace-meta"><Fact name="Decision">{data.public_id}</Fact><Fact name="Review">{data.public_run_id ?? 'Not recorded'}</Fact><Fact name="Portfolio">{data.mode === 'paper' ? 'Paper simulation' : 'Live account'}</Fact><Fact name="Review model">{data.model_provenance.requested_model ?? data.model_provenance.model_label ?? 'Not recorded'}</Fact><Fact name="Schema">{label(data.schema_outcome)}</Fact><Fact name="Policy">{label(data.policy_outcome)}</Fact></dl>
+        <dl className="trace-meta"><Fact name="Decision">{data.public_id}</Fact><Fact name="Review">{data.public_run_id ?? 'Not recorded'}{data.retry_attempt ? <span className="retry-mark" title="The first attempt failed; this review was run again."><ArrowCounterClockwise size={12} weight="bold" aria-hidden="true" /> Retried review, attempt {data.retry_attempt}</span> : null}</Fact><Fact name="Portfolio">{data.mode === 'paper' ? 'Paper simulation' : 'Live account'}</Fact><Fact name="Review model">{data.model_provenance.requested_model ?? data.model_provenance.model_label ?? 'Not recorded'}</Fact><Fact name="Schema">{label(data.schema_outcome)}</Fact><Fact name="Policy">{label(data.policy_outcome)}</Fact></dl>
         <div className="trace-actions"><button className="text-button" onClick={() => void copyLink()}>{copy === 'copied' ? 'Link copied' : 'Copy link'}</button><button className="text-button" disabled={exporting} onClick={() => void exportRecord('json')}>Download JSON</button><button className="text-button" disabled={exporting} onClick={() => void exportRecord('csv')}>Download CSV</button></div>
         <span className="sr-only" role="status">{copy === 'copied' ? 'Link copied to clipboard.' : ''}</span>
         {copy === 'manual' && <label className="copy-fallback">Copy this public link<input ref={copyInput} value={shareUrl} readOnly onFocus={event => event.target.select()} /></label>}

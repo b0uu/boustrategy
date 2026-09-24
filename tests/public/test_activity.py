@@ -130,6 +130,8 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
     params = {"portfolio_id": "paper", "run_id": public_id, "limit": 1}
     page = client.get("/api/public/v2/decisions", params=params).json()
     assert page["total"] == 2 and page["items"][0]["public_run_id"] == public_id
+    # Both decisions came from the second attempt, started explicitly after the first failed.
+    assert [item["retry_attempt"] for item in page["items"]] == [2]
     provenance = [
         client.get(f"/api/public/v2/decisions/{item['public_id']}").json()["model_provenance"]
         for item in client.get("/api/public/v2/decisions", params={"portfolio_id": "paper"}).json()[

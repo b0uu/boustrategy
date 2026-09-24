@@ -57,6 +57,14 @@ it('dismisses agent details when the reader clicks elsewhere', async () => {
   expect(trigger.closest('details')).not.toHaveAttribute('open')
 })
 
+it('marks a decision from a retried review', async () => {
+  const feed = data['live/feed'] as { items: Array<Record<string, unknown>> }
+  feed.items[0] = { ...feed.items[0], retry_attempt: 2 }
+  await dashboard()
+
+  expect((await screen.findAllByTitle('From a retried review (attempt 2)')).length).toBeGreaterThan(0)
+})
+
 it('explains the project from the question mark and closes when the reader clicks elsewhere', async () => {
   await dashboard()
   const trigger = screen.getByLabelText('What is BouStrategy?')

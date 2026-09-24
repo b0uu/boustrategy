@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowClockwise, CheckCircle, Clock, FunnelSimple, MagnifyingGlass, WarningCircle, X } from '@phosphor-icons/react'
+import { ArrowClockwise, ArrowCounterClockwise, CheckCircle, Clock, FunnelSimple, MagnifyingGlass, WarningCircle, X } from '@phosphor-icons/react'
 import { PublicError, readPublic } from './api'
 import { Badge, Empty, RequestIssue } from './common'
 import { ReviewRow, useReviews } from './Activity'
@@ -156,7 +156,7 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
       at: Date.parse(item.created_at),
       node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. ' + label(item.policy_outcome) + '. ' + label(item.lifecycle) + '. View full trace'}>
         <strong className="mono stream-kind">{item.ticker}</strong>
-        <span className="stream-body"><span className="stream-headline">{label(item.decision)}</span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
+        <span className="stream-body"><span className="stream-headline">{label(item.decision)}{item.retry_attempt ? <span className="retry-mark" title={`From a retried review (attempt ${item.retry_attempt})`}><ArrowCounterClockwise size={12} weight="bold" aria-hidden="true" /><span className="sr-only">, from a retried review</span></span> : null}</span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
         <span className="stream-status"><Badge value={item.policy_outcome} /><LifecycleMark value={item.lifecycle} /></span>
         <time dateTime={item.created_at} title={when(item.created_at)}>{when(item.created_at, true)}</time>
         <span className="chevron" aria-hidden="true">&rsaquo;</span>
