@@ -57,6 +57,16 @@ it('dismisses agent details when the reader clicks elsewhere', async () => {
   expect(trigger.closest('details')).not.toHaveAttribute('open')
 })
 
+it('explains the project from the question mark and closes when the reader clicks elsewhere', async () => {
+  await dashboard()
+  const trigger = screen.getByLabelText('What is BouStrategy?')
+  fireEvent.click(trigger)
+  expect(trigger.closest('details')).toHaveAttribute('open')
+  expect(screen.getByText(/starting from \$100/)).toBeInTheDocument()
+  fireEvent.pointerDown(document.body)
+  expect(trigger.closest('details')).not.toHaveAttribute('open')
+})
+
 it('opens light, stores only an explicit choice, and carries dark into the next visit', async () => {
   localStorage.setItem('boustrategy-theme', 'dark') // The retired v1 key held dark for every visitor.
   await dashboard()

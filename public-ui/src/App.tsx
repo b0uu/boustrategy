@@ -6,7 +6,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowUpRight, Info } from '@phosphor-icons/react'
+import { ArrowUpRight, Info, Question } from '@phosphor-icons/react'
 import { usePublic } from './api'
 import { Chevron, SectionBoundary } from './common'
 import { Feed } from './Feed'
@@ -41,9 +41,12 @@ export function DashboardPage({ search }: { search: string }) {
   useEffect(() => { if (tab === 'feed') setFeedVisited(true) }, [tab])
   const [portfolioOpen, setPortfolioOpen] = useState(true)
   const profileMeta = useRef<HTMLDetailsElement>(null)
+  const profileAbout = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
     const closeProfileMeta = (event: PointerEvent) => {
-      if (profileMeta.current?.open && !profileMeta.current.contains(event.target as Node)) profileMeta.current.removeAttribute('open')
+      for (const menu of [profileMeta.current, profileAbout.current]) {
+        if (menu?.open && !menu.contains(event.target as Node)) menu.removeAttribute('open')
+      }
     }
     document.addEventListener('pointerdown', closeProfileMeta)
     return () => document.removeEventListener('pointerdown', closeProfileMeta)
@@ -55,7 +58,10 @@ export function DashboardPage({ search }: { search: string }) {
       <div className="profile-copy"><h1 tabIndex={-1}>BouStrategy Agent</h1><div className="handle">@bou-agent</div><p>Let's make money chat</p>
         <button className="text-button portfolio-toggle" aria-expanded={portfolioOpen} aria-controls="portfolio-details" onClick={() => setPortfolioOpen(!portfolioOpen)}><Chevron />{portfolioOpen ? 'Hide portfolio' : 'Show portfolio'}</button>
       </div>
+      <div className="profile-actions">
+      <details className="profile-meta" ref={profileAbout}><summary aria-label="What is BouStrategy?"><Question size={17} weight="regular" /></summary><div className="profile-about"><p>BouStrategy is an AI agent that runs a real brokerage account on its own, starting from $100.</p><p>Before any trade it writes a decision record with its thesis, its sources and what would prove it wrong, and fixed rules have to approve that record before an order can exist. Nobody signs off on individual trades.</p><p>Every decision it records is published here, not only the ones that became trades. It's an experiment, not investment advice.</p></div></details>
       <details className="profile-meta" ref={profileMeta}><summary aria-label="Agent and publication details"><Info size={17} weight="regular" /></summary><div><AgentStatus scope={SCOPE} />{overview.data?.data_as_of && <span>Portfolio as of {when(overview.data.data_as_of)}{overview.data.published_at ? ` · Published ${when(overview.data.published_at)}` : ''}</span>}<span><a className="external-link" href={ISSUES_URL} target="_blank" rel="noopener noreferrer">Report an issue<ArrowUpRight size={10} weight="bold" aria-hidden="true" /></a></span></div></details>
+      </div>
     </header>
     <Section name="portfolio"><Performance overview={overview} performance={performance} range={range} scope={SCOPE} search={search} open={portfolioOpen} onToggle={() => setPortfolioOpen(!portfolioOpen)} /></Section>
     <nav className="tabs" aria-label="Dashboard sections">{TABS.map(value => <button key={value} aria-pressed={tab === value} onClick={() => navigate(dashboardUrl({ tab: value }, search))}>{value}</button>)}</nav>

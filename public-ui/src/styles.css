@@ -117,11 +117,14 @@ main:focus, h1:focus { outline: none; }
 .agent-status time { font-family: 'IBM Plex Sans', sans-serif; font-variant-numeric: tabular-nums; }
 .activity-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text-3); }
 .activity-dot.is-active { background: var(--green); }
-.profile-meta { margin-left: auto; position: relative; }
+.profile-actions { margin-left: auto; display: flex; gap: 2px; align-self: flex-start; }
+.profile-meta { position: relative; }
 .profile-meta > summary { display: grid; place-items: center; width: 30px; height: 30px; color: var(--text-3); border-radius: 4px; }
 .profile-meta > summary:hover, .profile-meta[open] > summary { color: var(--text); background: var(--surface); }
 .profile-meta > div { position: absolute; z-index: 4; top: 36px; right: 0; width: min(320px, calc(100vw - 40px)); padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: var(--shadow-panel); font-size: 11px; color: var(--text-3); }
 .profile-meta > div > span { display: block; margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--border-soft); }
+.profile-about { font-size: 12px; line-height: 1.5; color: var(--text-2); }
+.profile-about p + p { margin-top: 8px; }
 .external-link { display: inline-flex; align-items: center; gap: 3px; }
 .external-link svg { flex: none; }
 
