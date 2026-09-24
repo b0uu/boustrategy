@@ -180,6 +180,8 @@ p + .detail-grid { margin-top: 14px; }
 /* The toggle rides inside the label line, so it stays the label's height: a taller control would
    push this metric's label below the one beside it. */
 .metric-label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 3px 6px; }
+.benchmark-line { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 8px 0 0; color: var(--text-3); font-size: 11.5px; line-height: 18px; }
+.benchmark-line .mono { color: var(--text-2); }
 /* The buttons are sized by their own line box, never by a fixed height or flex centring: Safari
    doesn't lay a button's content out as flex, so a fixed height clipped the % and $ away entirely. */
 /* iOS gives form controls a 44px min-height, which outranks a plain height, so the buttons carry

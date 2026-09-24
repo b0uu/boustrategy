@@ -315,6 +315,16 @@ it('switches the return between percent and dollars and remembers the choice', a
   expect(screen.getByRole('button', { name: 'Dollars' })).toHaveAttribute('aria-pressed', 'true')
   expect(localStorage.getItem('boustrategy-return-unit')).toBe('dollars')
 })
+it('compares the return with the S&P 500 and QQQ over the same period', async () => {
+  const benchmark = (ticker: string, value: string | null) => ({ ticker, primary: ticker === 'QQQ', status: value ? 'available' : 'unavailable', reason: value ? null : 'matching_adjusted_prices_missing', return_percent: value, convention: 'adjusted_close_to_live_price' })
+  data['live/performance'] = { ...(data['live/performance'] as object), benchmarks: [benchmark('QQQ', '4.760000'), benchmark('SPY', '1.590000'), benchmark('SMH', null)] }
+  await dashboard()
+  expect(document.querySelector('.benchmark-line')).toHaveTextContent('Same periodS&P 500 +1.59%QQQ +4.76%')
+})
+it('leaves out the comparison when no benchmark is available', async () => {
+  await dashboard()
+  expect(document.querySelector('.benchmark-line')).toBeNull()
+})
 it.each([
   ['unfunded', 'The recorded account balance is zero, with no open positions.'],
   ['all_cash', 'No open positions. The complete recorded balance is cash.'],

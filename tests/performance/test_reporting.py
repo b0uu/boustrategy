@@ -617,6 +617,37 @@ def test_daily_pnl_derives_calendar_baseline_without_redundant_previous_date() -
     assert result["baseline_at"] == start.occurred_at.isoformat()
 
 
+def test_an_intraday_benchmark_ends_at_the_index_price_read_with_the_valuation(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "source.db")
+    start = valuation("start", 10, "100")
+    end = valuation(
+        "end", 11, "110", occurred_at=datetime(2026, 6, 11, 17, tzinfo=UTC), phase="intraday"
+    )
+    for ticker, adjusted_close in (("QQQ", 100), ("SPY", 200)):
+        conn.execute(
+            "INSERT INTO daily_prices VALUES(?, '2026-06-10', ?, ?, ?, ?, ?, 1000, 'test', ?)",
+            (ticker, *[adjusted_close] * 5, start.occurred_at.isoformat()),
+        )
+    conn.execute(
+        "INSERT INTO live_portfolio_snapshots VALUES('snap_end', 'codex', ?, 110, ?)",
+        (
+            end.occurred_at.isoformat(),
+            '{"reporting": {"observation_id": "end"}, "index_prices": {"QQQ": 104, "SPY": 201}}',
+        ),
+    )
+
+    _, ranges = materialize(conn, [start, end, coverage()])
+
+    benchmarks = {item["ticker"]: item for item in ranges["All"]["benchmarks"]}
+    assert benchmarks["QQQ"]["return_percent"] == "4.000000"
+    assert benchmarks["SPY"]["return_percent"] == "0.500000"
+    assert benchmarks["SPY"]["convention"] == "adjusted_close_to_live_price"
+    assert benchmarks["SMH"]["reason"] == "matching_session_closes_required"
+    conn.close()
+
+
 @pytest.mark.parametrize(
     "changes,reason",
     [

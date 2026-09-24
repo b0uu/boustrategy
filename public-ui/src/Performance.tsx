@@ -6,6 +6,7 @@ import { dashboardUrl, navigate } from './navigation'
 import type { ChartPoint, Overview, Performance as PerformanceData, Range, Scope } from './types'
 
 const RANGES = ['1M', '3M', 'YTD', 'All'] as const
+const BENCHMARK_NAMES: Record<string, string> = { SPY: 'S&P 500', QQQ: 'QQQ' }
 // A reader's preference, not shared state: percent unless they chose dollars on this browser.
 const RETURN_UNIT = 'boustrategy-return-unit'
 type ReturnUnit = 'percent' | 'dollars'
@@ -139,6 +140,7 @@ export function Performance({ overview, performance, range, scope, search, open 
     } catch { /* nothing to remember the choice with */ }
   }, [unit])
   const shown = unit === 'percent' ? result?.return_percent : result?.investment_pnl
+  const benchmarks = ['SPY', 'QQQ'].flatMap(ticker => result?.benchmarks?.filter(item => item.ticker === ticker && item.status === 'available') ?? [])
   return <section className={`performance${performance.stale || overview.stale ? ' is-updating' : ''}`} aria-label="Live portfolio">
     <ResourceNotice resource={overview} name="portfolio overview" />
     <div className="metrics">
@@ -147,6 +149,7 @@ export function Performance({ overview, performance, range, scope, search, open 
       <div className="return-metric"><strong className={tone(shown)} title={shown == null && result?.reason ? label(result.reason) : undefined}>{shown == null ? '—' : unit === 'percent' ? percent(shown) : `${(numeric(shown) ?? 0) >= .005 ? '+' : ''}${money(shown)}`}</strong><span className="metric-label">Return{single ? ' · since first record' : ''}<span className="unit-toggle" role="group" aria-label="Show return as"><button type="button" aria-label="Percent" aria-pressed={unit === 'percent'} onClick={() => setUnit('percent')}>%</button><button type="button" aria-label="Dollars" aria-pressed={unit === 'dollars'} onClick={() => setUnit('dollars')}>$</button></span></span></div>
       <div><strong>{data ? data.decisions_today.toLocaleString() : 'Unavailable'}</strong><span>{data?.decisions_today === 1 ? 'Decision today' : 'Decisions today'}</span></div>
     </div>
+    {benchmarks.length > 0 && <p className="benchmark-line" title="Total return of each index fund, dividends included, over the same period as the portfolio's return"><span>Same period</span>{benchmarks.map(item => <span key={item.ticker}>{BENCHMARK_NAMES[item.ticker]} <span className="mono">{percent(item.return_percent)}</span></span>)}</p>}
     <div className="portfolio-details" id="portfolio-details" hidden={!open}>
       <ResourceNotice resource={performance} name="performance history" />
       <SectionBoundary resetKey={result} retry={performance.refresh} name="performance">
