@@ -99,17 +99,18 @@ review that holding in thesis_reviews as if buying it today at today's price, on
 the candidate. The verdict is swap, a SELL or TRIM of the holding and a BUY of the candidate
 sized so the sale funds it, or keep_incumbent. Keeping the holding is a complete answer; no trade
 is ever forced.
-Every BUY or ADD record, and every thesis review, states where the thesis ends:
-realization_price_low, the price at which its expected outcome is fully priced in;
-realization_price_high, the price at which the market pays for more than it claims; and
-invalidation_price, the price that says it's wrong. Derive each from the thesis's own numbers,
-such as the earnings it expects times the multiple they justify, never a round number or a
-percentage cushion. Raising the range or lowering the invalidation price needs
-range_change_evidence naming the new fact. A holding trading at or above its
-realization_price_high must be trimmed or sold, or its range raised with that evidence; one at
-or below its invalidation_price must be exited or trimmed, or given a new invalidation price
-with evidence. The intake ranks holdings by upside to fully priced against downside to
-invalidation.
+Every BUY or ADD record, and every thesis review, states where the thesis ends over the next
+twelve months, as the thesis chain's range step describes: realization_price_low, the price at
+which its expected outcome is fully priced in; realization_price_high, the price at which the
+market pays for more than it claims; and invalidation_price, the price that says it's wrong.
+Derive each from the thesis's own numbers, such as the earnings it expects twelve months out
+times the multiple they justify, never a round number or a percentage cushion, and show that
+arithmetic in range_basis. entry_price_max sits below realization_price_low. Raising the range
+or lowering the invalidation price needs range_change_evidence naming the new fact. A holding
+trading at or above its realization_price_high must be trimmed or sold, or its range raised with
+that evidence; one at or below its invalidation_price must be exited or trimmed, or given a new
+invalidation price with evidence. The intake ranks holdings by upside to fully priced against
+downside to invalidation.
 Record every earnings date you read for a holding or candidate in earnings_dates, with the page
 you read it on and whether the company has confirmed it. Past dates count: a report since a
 holding's last review makes it due. Your dates replace the feed's estimates near them.
@@ -263,15 +264,30 @@ def hunt_shortfall(
                 f"{decision.decision} {decision.ticker} has no reference_price and "
                 "reference_price_at read from an opened quote page"
             )
-        if decision.decision in {Decision.BUY, Decision.ADD} and None in (
-            decision.realization_price_low,
-            decision.realization_price_high,
-            decision.invalidation_price,
-        ):
-            problems.append(
-                f"{decision.decision} {decision.ticker} needs realization_price_low, "
-                "realization_price_high and invalidation_price derived from its thesis"
-            )
+        if decision.decision in {Decision.BUY, Decision.ADD}:
+            if (
+                None
+                in (
+                    decision.realization_price_low,
+                    decision.realization_price_high,
+                    decision.invalidation_price,
+                )
+                or not (decision.range_basis or "").strip()
+            ):
+                problems.append(
+                    f"{decision.decision} {decision.ticker} needs realization_price_low, "
+                    "realization_price_high and invalidation_price derived from its thesis, "
+                    "with the arithmetic in range_basis"
+                )
+            elif (
+                decision.entry_price_max is not None
+                and decision.realization_price_low is not None
+                and decision.entry_price_max >= decision.realization_price_low
+            ):
+                problems.append(
+                    f"{decision.decision} {decision.ticker}'s entry_price_max must sit below its "
+                    "realization_price_low; above it, nothing is left to earn"
+                )
         if decision.decision in _NARRATED_CALLS:
             gap = public_narrative_gap(decision)
             if gap:
@@ -368,14 +384,18 @@ def _review_gap(review: AuthoredThesisReview) -> str | None:
         return "its review needs a summary"
     if not any(url.startswith(("https://", "http://")) for url in review.sources_opened):
         return "its review records no opened source URL"
-    if None in (
-        review.realization_price_low,
-        review.realization_price_high,
-        review.invalidation_price,
+    if (
+        None
+        in (
+            review.realization_price_low,
+            review.realization_price_high,
+            review.invalidation_price,
+        )
+        or not (review.range_basis or "").strip()
     ):
         return (
             "its review must restate realization_price_low, realization_price_high and "
-            "invalidation_price"
+            "invalidation_price, with the arithmetic in range_basis"
         )
     return None
 

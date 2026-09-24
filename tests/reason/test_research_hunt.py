@@ -477,3 +477,24 @@ def test_a_decision_that_used_x_must_link_its_posts() -> None:
     }
     linked = record.model_copy(update={"public_narrative": PublicNarrative.model_validate(story)})
     assert public_narrative_gap(linked) is None
+
+
+def test_a_buy_shows_its_range_arithmetic_and_an_entry_bound_below_fully_priced() -> None:
+    def shortfall(**overrides: object) -> str:
+        record = InvestmentDecisionRecord.model_validate(
+            {**valid_decision_record_data(), **overrides}
+        )
+        output = AuthoredOutput(
+            decisions=[record],
+            candidates_considered=[candidate("NVDA", "BUY")],
+            public_summary="Buy.",
+        )
+        return hunt_shortfall(output, {"opens": 3}, HUNT_MINIMUM) or ""
+
+    unexplained = shortfall(range_basis=None)
+    chasing = shortfall(entry_price_max=265.0)
+    sound = shortfall()
+
+    assert "with the arithmetic in range_basis" in unexplained
+    assert "entry_price_max must sit below its realization_price_low" in chasing
+    assert "range_basis" not in sound and "entry_price_max must" not in sound

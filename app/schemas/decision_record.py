@@ -164,6 +164,8 @@ class InvestmentDecisionRecord(BaseModel):
     realization_price_low: float | None = Field(default=None, gt=0.0)
     realization_price_high: float | None = Field(default=None, gt=0.0)
     invalidation_price: float | None = Field(default=None, gt=0.0)
+    # The arithmetic behind the three prices, over the next twelve months.
+    range_basis: str | None = Field(default=None, max_length=1000)
 
     # Only a SHORT_WATCHLIST carries these; they are what the removal monitor watches.
     short_removal_conditions: ShortRemovalConditions | None = None

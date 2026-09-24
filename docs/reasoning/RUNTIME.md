@@ -99,7 +99,8 @@ only funded one is held back too, unless that holding was judged invalidated.
 
 Every BUY or ADD, and every thesis review, states where the thesis ends:
 `realization_price_low` (fully priced in), `realization_price_high` (overpriced) and
-`invalidation_price`. A holding's current range is its latest statement, from a review
+`invalidation_price`, over the next twelve months, with the arithmetic in `range_basis`.
+A BUY's `entry_price_max` sits below its `realization_price_low`. A holding's current range is its latest statement, from a review
 or a BUY or ADD. Raising the range or lowering the invalidation price needs
 `range_change_evidence`; raises aren't capped, and every statement is kept. A holding's
 first close at or above its fully priced price is a trigger (`realization_reached`).

@@ -33,6 +33,7 @@ def valid_decision_record_data() -> dict[str, Any]:
         "realization_price_low": 260.0,
         "realization_price_high": 300.0,
         "invalidation_price": 150.0,
+        "range_basis": "FY27 EPS $8.00 x 32.5 = $260 fully priced; x 37.5 = $300 overpriced.",
         "source_claims": [
             {
                 "claim": "Company demand is linked to AI infrastructure spending.",

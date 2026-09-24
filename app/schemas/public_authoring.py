@@ -192,6 +192,7 @@ class ThesisReview(PublicAuthoringModel):
     realization_price_low: float | None = Field(default=None, gt=0.0)
     realization_price_high: float | None = Field(default=None, gt=0.0)
     invalidation_price: float | None = Field(default=None, gt=0.0)
+    range_basis: Text | None = None
     range_change_evidence: Text | None = None
 
     @model_validator(mode="after")

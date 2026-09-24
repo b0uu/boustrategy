@@ -1232,6 +1232,7 @@ def publish(
                     position["invalidation_price"] = (
                         stated["invalidation_price"] if stated else None
                     )
+                    position["range_basis"] = stated["range_basis"] if stated else None
                     position["upside_to_fully_priced_percent"] = (
                         (stated["realization_price_low"] / float(position["latest_price"]) - 1)
                         * 100

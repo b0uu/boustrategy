@@ -139,6 +139,20 @@ JSON at step 7.
    tested against the broker's own live ask at placement, not against the
    number you saw. Not having a real-time feed is therefore never a reason to
    leave the bound empty or to decline the trade.
+   For a BUY or ADD, set where the thesis ends over the next twelve months in
+   the same pass. `realization_price_low` is the price at which
+   `refined_thesis`'s expected outcome is fully priced in: the earnings or
+   cash flow it expects twelve months out times the multiple that outcome
+   justifies. `realization_price_high` is the price at which the market pays
+   for more than the thesis claims. `invalidation_price` is the price at which
+   step 7's criteria say it's wrong. Show the arithmetic in `range_basis`, for
+   example "FY27 EPS $9.10 × 28 = $255 fully priced; × 32 = $291 overpriced;
+   below $184 the demand case has broken". None of the three is a round number
+   or a percentage cushion. `entry_price_max` marks where the variant
+   perception stops being variant; `realization_price_low` marks where the
+   whole thesis is paid for, so the entry bound sits below it. A thesis review
+   restates all three with their basis, and moves them only with
+   `range_change_evidence`.
    For a SHORT_WATCHLIST, run this chain in the bearish direction: the initial
    thesis is the case for the price falling, and the counter-thesis is the bull
    case. Skip tier sizing, since both target weights are 0, but meet the

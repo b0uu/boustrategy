@@ -46,6 +46,7 @@ MANDATORY_REASONS = frozenset(
     }
 )
 PRICE_FIELDS = ("realization_price_low", "realization_price_high", "invalidation_price")
+STATEMENT_FIELDS = (*PRICE_FIELDS, "range_basis")
 
 
 def live_holding_episodes(
@@ -119,7 +120,10 @@ def thesis_prices(
     if not statements:
         return None
     set_at, statement = max(statements, key=lambda item: item[0])
-    return {**{field: statement.get(field) for field in PRICE_FIELDS}, "set_at": set_at.isoformat()}
+    return {
+        **{field: statement.get(field) for field in STATEMENT_FIELDS},
+        "set_at": set_at.isoformat(),
+    }
 
 
 def reward_to_risk(

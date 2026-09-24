@@ -114,6 +114,7 @@ def assemble_intake(
                     "realization_price_low": stated["realization_price_low"] if stated else None,
                     "realization_price_high": stated["realization_price_high"] if stated else None,
                     "invalidation_price": stated["invalidation_price"] if stated else None,
+                    "range_basis": stated["range_basis"] if stated else None,
                     "upside_to_fully_priced_percent": round(upside, 2)
                     if upside is not None
                     else None,

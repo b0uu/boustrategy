@@ -55,9 +55,10 @@ This would be valid schema but rejected due to policy evaluation.
   refuses the packet when the ask is above it, so an idea that gets priced in between
   authoring and placement stops instead of being chased. Required on every live buy.
 - `entry_price_min`: the same bound for a SELL or TRIM, checked against the bid.
-- `realization_price_low`: the price at which a BUY or ADD thesis's expected outcome is fully priced in. Required on every live buy, with the two below.
+- `realization_price_low`: the price at which a BUY or ADD thesis's expected outcome is fully priced in over the next twelve months. Required on every live buy, with the three below.
 - `realization_price_high`: the price above which the market pays for more than the thesis claims.
 - `invalidation_price`: the price that says the thesis is wrong.
+- `range_basis`: the arithmetic behind the three prices, e.g. forecast earnings times a justified multiple.
 - `source_claims`: specific claims tied to source IDs and timestamps
 - `x_signal_usage`: records whether X influenced the decision and whether it was confirmed outside X.
 - `public_summary`: summary for public dashboard

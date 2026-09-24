@@ -95,6 +95,7 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
         "realization_price_low": None,
         "realization_price_high": None,
         "invalidation_price": None,
+        "range_basis": None,
         "upside_to_fully_priced_percent": None,
         "downside_to_invalidation_percent": None,
         "reward_to_risk": None,
@@ -115,6 +116,7 @@ def complete_review(episode: str, ticker: str = "NVDA", price: float = 230) -> A
         realization_price_low=price * 1.3,
         realization_price_high=price * 1.5,
         invalidation_price=price * 0.7,
+        range_basis="Forward earnings times the multiple the thesis justifies.",
     )
 
 
