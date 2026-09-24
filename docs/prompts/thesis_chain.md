@@ -140,15 +140,23 @@ JSON at step 7.
    number you saw. Not having a real-time feed is therefore never a reason to
    leave the bound empty or to decline the trade.
    For a BUY or ADD, set where the thesis ends over the next twelve months in
-   the same pass. `realization_price_low` is the price at which
-   `refined_thesis`'s expected outcome is fully priced in: the earnings or
-   cash flow it expects twelve months out times the multiple that outcome
-   justifies. `realization_price_high` is the price at which the market pays
-   for more than the thesis claims. `invalidation_price` is the price at which
-   step 7's criteria say it's wrong. Show the arithmetic in `range_basis`, for
-   example "FY27 EPS $9.10 × 28 = $255 fully priced; × 32 = $291 overpriced;
-   below $184 the demand case has broken". None of the three is a round number
-   or a percentage cushion. `entry_price_max` marks where the variant
+   the same pass. Start from the thesis's own twelve-month earnings or cash
+   flow, not consensus. A figure implied by the quote page's forward P/E is the
+   market's view; a range built on it only restates your opinion of the fair
+   multiple, flags winners as fully priced just as estimates start catching up
+   to the thesis, and misses where the thesis would actually break.
+   `realization_price_low` is your figure times the multiple that outcome
+   justifies: the price at which `refined_thesis` is fully priced in.
+   `realization_price_high` is the price at which the market pays for more
+   than the thesis claims. `invalidation_price` is the price implied when the
+   thesis fails: the earnings level step 7's criteria describe, at the multiple
+   that failure deserves, not today's earnings at a lower multiple. In
+   `range_basis`, give your figure and consensus side by side and explain the
+   gap, which is the variant perception in numbers, for example "Thesis FY27
+   EPS $14.50 vs consensus $11.86: data-center demand runs past guided supply.
+   $14.50 × 25 = $363 fully priced; × 28 = $406 overpriced. If demand stalls,
+   EPS falls to $10 at 20× = $200." None of the three is a round number or a
+   percentage cushion. `entry_price_max` marks where the variant
    perception stops being variant; `realization_price_low` marks where the
    whole thesis is paid for, so the entry bound sits below it. A thesis review
    restates all three with their basis, and moves them only with

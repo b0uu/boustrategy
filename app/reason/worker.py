@@ -103,12 +103,17 @@ Every BUY or ADD record, and every thesis review, states where the thesis ends o
 twelve months, as the thesis chain's range step describes: realization_price_low, the price at
 which its expected outcome is fully priced in; realization_price_high, the price at which the
 market pays for more than it claims; and invalidation_price, the price that says it's wrong.
-Derive each from the thesis's own numbers, such as the earnings it expects twelve months out
-times the multiple they justify, never a round number or a percentage cushion, and show that
-arithmetic in range_basis. entry_price_max sits below realization_price_low. Raising the range
-or lowering the invalidation price needs range_change_evidence naming the new fact. A holding
-trading at or above its realization_price_high must be trimmed or sold, or its range raised with
-that evidence; one at or below its invalidation_price must be exited or trimmed, or given a new
+Build them on the thesis's own twelve-month earnings or cash-flow figure, not consensus: a
+figure implied by the quote page's forward P/E is the market's view, and a range built on it is
+only a fair-multiple opinion. range_basis gives your figure and consensus side by side and
+explains the gap, which is the variant perception in numbers. realization_price_low is your
+figure times the multiple that outcome justifies. invalidation_price is the price implied when
+the thesis fails, the earnings level thesis_invalidation_criteria describe at the multiple that
+failure deserves, not today's earnings at a lower multiple. Never a round number or a percentage
+cushion. entry_price_max sits below realization_price_low. Raising the range or lowering the
+invalidation price needs range_change_evidence naming the new fact. A holding trading at or
+above its realization_price_high must be trimmed or sold, or its range raised with that
+evidence; one at or below its invalidation_price must be exited or trimmed, or given a new
 invalidation price with evidence. The intake ranks holdings by upside to fully priced against
 downside to invalidation.
 Record every earnings date you read for a holding or candidate in earnings_dates, with the page

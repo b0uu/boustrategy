@@ -58,7 +58,7 @@ This would be valid schema but rejected due to policy evaluation.
 - `realization_price_low`: the price at which a BUY or ADD thesis's expected outcome is fully priced in over the next twelve months. Required on every live buy, with the three below.
 - `realization_price_high`: the price above which the market pays for more than the thesis claims.
 - `invalidation_price`: the price that says the thesis is wrong.
-- `range_basis`: the arithmetic behind the three prices, e.g. forecast earnings times a justified multiple.
+- `range_basis`: the arithmetic behind the three prices: the thesis's own twelve-month earnings beside consensus, the gap explained, times the multiples each outcome justifies.
 - `source_claims`: specific claims tied to source IDs and timestamps
 - `x_signal_usage`: records whether X influenced the decision and whether it was confirmed outside X.
 - `public_summary`: summary for public dashboard
