@@ -454,18 +454,6 @@ def unreviewed_holdings(
         if review.episode_id not in open_episodes
     ]
     due = holdings_due(conn, snapshot, run.prepared_at, crisis=crisis)
-    protective = {
-        holding["ticker"] for holding in due if PROTECTIVE_REASONS & set(holding["reasons"])
-    } | {review.ticker for review in result.thesis_reviews if review.state == "invalidated"}
-    problems.extend(
-        f"{decision.decision} {decision.ticker} carries an entry_price_min floor, but a "
-        + ("crisis-mode sale" if crisis else "protective exit")
-        + " must be able to fill wherever the market is; remove the floor"
-        for decision in result.decisions
-        if decision.decision in {Decision.SELL, Decision.TRIM}
-        and decision.entry_price_min is not None
-        and (crisis or decision.ticker in protective)
-    )
     for holding in due:
         review = reviews.get(holding["episode_id"])
         label = (
@@ -954,20 +942,32 @@ def execute_attempt(
         remaining = timeout_seconds - (time.monotonic() - started)
         if (shortfall or review_gap) and remaining >= _MIN_RETRY_SECONDS:
             second_log = attempt_log / "second-pass"
-            result = author(
-                prompt
-                + "\nYOUR PREVIOUS ANSWER WAS REJECTED BY THE TRUSTED WORKER: "
+            # The retry amends the first answer rather than starting over: redone from scratch,
+            # a review re-decides and can reverse itself or drop what it had already done well.
+            correction = (
+                "\nYOUR PREVIOUS ANSWER WAS REJECTED BY THE TRUSTED WORKER: "
                 + "; ".join(part for part in (shortfall, review_gap) if part)
-                + ". Redo the review from the start: hunt, open primary sources for each "
-                "candidate, record them in candidates_considered, and return the complete JSON.",
-                second_log,
-                remaining,
+                + ".\nCorrect only these problems and return the complete JSON. Keep every other "
+                "decision, review, candidate and verdict from your previous answer as it was, "
+                "unless fixing a problem requires changing it; don't reopen settled judgments. "
+                "If a problem asks for more research, open the sources and add to the answer "
+                "rather than replacing it."
             )
+            previous = "\nYOUR PREVIOUS ANSWER:\n" + result.model_dump_json()
+            if len((prompt + correction + previous).encode()) > MAX_PROMPT_BYTES:
+                previous = ""
+            first_result, first_shortfall, first_review_gap = result, shortfall, review_gap
+            result = author(prompt + correction + previous, second_log, remaining)
             activity = research_activity(second_log)
             shortfall, review_gap = _review_shortfall(
                 conn, run, result, activity, required, trading_open, clock, crisis
             )
             passes.append({"activity": activity, "shortfall": shortfall, "review_gap": review_gap})
+            if shortfall and not first_shortfall:
+                # The retry made things worse: the first answer met every required check, so it
+                # stands, with only its holdings gap, which partial acceptance handles below.
+                result, shortfall, review_gap = first_result, None, first_review_gap
+                passes.append({"kept_first_pass": True})
         _record_research(attempt_log, passes, result)
         if shortfall:
             raise RunnerFailure("insufficient_research")
@@ -1002,6 +1002,32 @@ def execute_attempt(
                 + (["x_digest"] if holding["ticker"] in thesis_changing else [])
                 for holding in due
             }
+            # A floor can block an exit exactly when it matters. The worker lifts it itself
+            # rather than sending the whole review back over one field.
+            protective = {
+                holding["ticker"] for holding in due if PROTECTIVE_REASONS & set(holding["reasons"])
+            } | {review.ticker for review in result.thesis_reviews if review.state == "invalidated"}
+            floored = {
+                decision.ticker
+                for decision in result.decisions
+                if decision.decision in {Decision.SELL, Decision.TRIM}
+                and decision.entry_price_min is not None
+                and (crisis or decision.ticker in protective)
+            }
+            if floored:
+                result = result.model_copy(
+                    update={
+                        "decisions": [
+                            decision.model_copy(update={"entry_price_min": None})
+                            if decision.ticker in floored
+                            and decision.decision in {Decision.SELL, Decision.TRIM}
+                            else decision
+                            for decision in result.decisions
+                        ]
+                    }
+                )
+                passes.append({"floors_removed": sorted(floored)})
+                _record_research(attempt_log, passes, result)
         buys = [
             decision
             for decision in result.decisions

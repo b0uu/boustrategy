@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from app.storage.records import get_live_portfolio_snapshot
 from app.storage.runtime import save_run
 from app.triggers.store import insert_trigger
 from tests.reason.test_live_submit import _profile
+from tests.reason.test_research_hunt import candidate, events
 from tests.reason.test_thesis_review_gate import (
     FULLY_INVESTED,
     WEDNESDAY_MIDDAY,
@@ -52,7 +54,88 @@ def test_crisis_mode_turns_off_swaps_and_bans_floors_on_sales(tmp_path: Path) ->
 
     assert calm_swap and "cash can't fund it" in calm_swap
     assert crisis_swap is None
-    assert crisis_floor and "crisis-mode sale must be able to fill" in crisis_floor
+    # A floor is lifted by the worker, never a reason to send the review back.
+    assert crisis_floor is None or "entry_price_min" not in crisis_floor
+    conn.close()
+
+
+def test_the_worker_lifts_a_floor_from_a_protective_exit_instead_of_retrying(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path, FULLY_INVESTED)
+    save_run(conn, run)
+    episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
+    calls: list[str] = []
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        calls.append(prompt)
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        return AuthoredOutput(
+            decisions=[
+                decision(namespace, "MU", "SELL", 0.0).model_copy(update={"entry_price_min": 70.0})
+            ],
+            thesis_reviews=[
+                complete_review(episodes["NVDA"]["episode_id"]),
+                complete_review(episodes["MU"]["episode_id"], "MU", 73).model_copy(
+                    update={"state": "invalidated"}
+                ),
+            ],
+            public_summary="Sold MU.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    floors = conn.execute(
+        "SELECT json_extract(record_json, '$.entry_price_min') FROM decision_records "
+        "WHERE ticker='MU'"
+    ).fetchall()
+    assert floors == [(None,)]
+    assert len(calls) == 1
+    conn.close()
+
+
+def test_a_retry_amends_the_first_answer_and_never_replaces_a_better_one(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    save_run(conn, run)
+    prompts: list[str] = []
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        prompts.append(prompt)
+        first = len(prompts) == 1
+        events(kwargs["log_dir"], opens=5 if first else 0)
+        return AuthoredOutput(
+            candidates_considered=[candidate(ticker) for ticker in ("AMD", "TSM", "LRCX")]
+            if first
+            else [candidate("AMD")],
+            public_summary="First pass." if first else "Second pass.",
+        )
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+        hunt_minimum=3,
+    )
+
+    research = json.loads((tmp_path / "logs" / attempt.attempt_id / "research.json").read_text())
+    assert "Correct only these problems" in prompts[1]
+    assert "YOUR PREVIOUS ANSWER:" in prompts[1] and "First pass." in prompts[1]
+    assert {"kept_first_pass": True} in research["passes"]
+    assert (attempt.status, attempt.public_summary) == ("no_action", "First pass.")
     conn.close()
 
 
