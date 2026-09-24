@@ -512,3 +512,18 @@ def test_rejects_buy_with_no_upside_left_to_its_fully_priced_price():
 
     assert "no_upside_to_realization" in rejected.reasons
     assert "no_upside_to_realization" not in approved.reasons
+
+
+def test_a_buy_in_crisis_mode_needs_the_extraordinary_flag():
+    record = valid_decision_record()
+
+    ordinary = evaluate_decision_policy(record, portfolio_context(crisis_mode=True))
+    extraordinary = evaluate_decision_policy(
+        decision_record_with(
+            extraordinary_opportunity=True, extraordinary_justification="A rare dislocation."
+        ),
+        portfolio_context(crisis_mode=True),
+    )
+
+    assert "buy_or_add_in_crisis_requires_extraordinary_opportunity" in ordinary.reasons
+    assert "buy_or_add_in_crisis_requires_extraordinary_opportunity" not in extraordinary.reasons

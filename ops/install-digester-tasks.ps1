@@ -51,6 +51,9 @@ New-DigesterTask -Name "boustrategy-digester-morning" -Slot "morning" `
 New-DigesterTask -Name "boustrategy-digester-midday" -Slot "midday" `
     -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 12:30)
 
+New-DigesterTask -Name "boustrategy-digester-afternoon" -Slot "afternoon" `
+    -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 14:15)
+
 New-DigesterTask -Name "boustrategy-digester-close-halfday" -Slot "close" -HalfDayOnly `
     -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 14:45)
 

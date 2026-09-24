@@ -46,6 +46,9 @@ RULE_LABELS = {
     "watchlist_entry_restated": (
         "A ticker already on the watchlist can only be restated with a different entry bound."
     ),
+    "buy_or_add_in_crisis_requires_extraordinary_opportunity": (
+        "Increasing exposure in crisis mode requires an extraordinary-opportunity exception."
+    ),
     "no_upside_to_realization": (
         "A BUY or ADD needs upside left before its thesis is fully priced in."
     ),
@@ -173,6 +176,14 @@ RULES = {
         (
             "watchlist_entry_restated",
             "Watchlist restatement",
+            True,
+            "eq",
+            "boolean",
+            "portfolio",
+        ),
+        (
+            "buy_or_add_in_crisis_requires_extraordinary_opportunity",
+            "Crisis exposure exception",
             True,
             "eq",
             "boolean",

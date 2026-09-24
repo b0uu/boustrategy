@@ -177,6 +177,60 @@ def test_a_swap_buy_is_never_sent_after_its_sale_fails(tmp_path: Path) -> None:
     assert seen == {}
 
 
+def test_sales_go_first_and_only_buys_are_paced(tmp_path: Path) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    conn = connect(db_path)
+    for index, action in enumerate(["BUY", "BUY", "BUY", "SELL", "SELL", "SELL"]):
+        record = InvestmentDecisionRecord.model_validate(
+            {
+                **valid_decision_record_data(),
+                "decision_id": f"dec_{index}",
+                "decision": action,
+                **(
+                    {"proposed_target_weight": 0.0, "final_target_weight": 0.0}
+                    if action == "SELL"
+                    else {}
+                ),
+            }
+        )
+        save_decision_record(conn, record)
+        save_order_intent(
+            conn,
+            create_order_intent(
+                record,
+                PolicyResult(approved=True),
+                execution_mode=ExecutionMode.LIVE,
+                execution_profile_id="codex",
+                created_at=now - timedelta(minutes=30 - index),
+            ),
+        )
+    conn.commit()
+    conn.close()
+    sides: list[str] = []
+
+    def session(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        sides.append("SELL" if "(SELL" in prompt else "BUY")
+        return schema.model_validate(
+            {
+                "order_intent_id": prompt.split("order intent: ")[1].split(" ")[0],
+                "outcome": "not_placed",
+            }
+        )
+
+    execute_pending(
+        db_path,
+        _profile(),
+        now=now,
+        session=session,
+        codex_home=tmp_path,
+        repo_root=tmp_path,
+        log_dir=tmp_path / "broker-logs",
+    )
+
+    assert sides == ["SELL", "SELL", "SELL", "BUY", "BUY"]
+
+
 def test_pending_intents_skip_executed_and_out_of_session_ones(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
     now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)

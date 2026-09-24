@@ -300,3 +300,63 @@ def test_reference_price_and_time_are_recorded_together() -> None:
         InvestmentDecisionRecord.model_validate(
             {**valid_decision_record_data(), "reference_price": 198.0}
         )
+
+
+def _sell(**updates: object) -> tuple[OrderIntent, InvestmentDecisionRecord]:
+    record = valid_decision_record().model_copy(
+        update={"decision": "SELL", "final_target_weight": 0.0, **updates}
+    )
+    intent = create_order_intent(
+        record,
+        PolicyResult(approved=True),
+        created_at=NOW,
+        execution_mode=ExecutionMode.LIVE,
+        execution_profile_id="codex",
+    )
+    return intent, record
+
+
+def test_a_sell_anchors_on_the_fresh_bid_so_a_falling_market_cannot_block_the_exit() -> None:
+    # The review read $212; by the time the executor runs, the bid is $199.90.
+    intent, record = _sell(
+        reference_price=212.0, reference_price_at=datetime(2026, 8, 27, 13, 50, tzinfo=UTC)
+    )
+
+    packet = build_execution_packet(
+        intent, record, _profile(), _preflight(current_position_value=15.0), created_at=NOW
+    )
+
+    assert packet.limit_price == round(199.9 * 0.99, 2)
+
+
+def test_crisis_mode_widens_the_spread_a_sell_may_cross_but_not_a_buy() -> None:
+    wide = {"bid": 198.0, "ask": 200.0}
+    intent, record = _sell()
+
+    with pytest.raises(ValueError, match="spread_too_wide"):
+        build_execution_packet(
+            intent,
+            record,
+            _profile(),
+            _preflight(current_position_value=15.0, **wide),
+            created_at=NOW,
+        )
+    sold = build_execution_packet(
+        intent,
+        record,
+        _profile(),
+        _preflight(current_position_value=15.0, **wide),
+        created_at=NOW,
+        crisis=True,
+    )
+    with pytest.raises(ValueError, match="spread_too_wide"):
+        build_execution_packet(
+            _live_intent(),
+            valid_decision_record(),
+            _profile(),
+            _preflight(**wide),
+            created_at=NOW,
+            crisis=True,
+        )
+
+    assert sold.limit_price == round(198.0 * 0.99, 2)

@@ -6,11 +6,13 @@ from app.schemas.live_execution import BrokerPreflight, ExecutionProfile, LiveEx
 from app.schemas.order_intent import ExecutionMode, OrderIntent, OrderSide, OrderType
 
 # The packet's limit_price is the price guard: the worst price this order may fill at. It sits
-# LIMIT_ALLOWANCE (1%, maintainer setting 2026-09-11) from the price the review read, never past
-# the decision's own entry bound. Fractional orders go to Robinhood as dollar-sized market
-# orders, which it requires, so the executor re-reads the quote and refuses to place once it has
-# drifted outside this guard. A decision recorded before reviews captured a reference price is
-# anchored on the preflight quote instead.
+# LIMIT_ALLOWANCE (1%, maintainer setting 2026-09-11) from an anchor, never past the decision's
+# own entry bound. Fractional orders go to Robinhood as dollar-sized market orders, which it
+# requires, so the executor re-reads the quote and refuses to place once it has drifted outside
+# this guard. A buy anchors on the price the review read, so a price that ran away while the
+# review reasoned stops it instead of being chased. A sell anchors on the executor's own fresh bid
+# (maintainer decision 2026-09-24): the review reads its price minutes before submitting, and in a
+# falling market a guard anchored there refused every exit exactly when it mattered.
 LIMIT_ALLOWANCE = 0.01
 
 
@@ -22,8 +24,7 @@ def allowed_price(
         limit = round(anchor * (1 + LIMIT_ALLOWANCE), 2)
         bound = decision.entry_price_max
         return min(limit, bound) if bound is not None else limit
-    anchor = decision.reference_price if decision.reference_price is not None else preflight.bid
-    limit = round(anchor * (1 - LIMIT_ALLOWANCE), 2)
+    limit = round(preflight.bid * (1 - LIMIT_ALLOWANCE), 2)
     floor = decision.entry_price_min
     return max(limit, floor) if floor is not None else limit
 
@@ -35,6 +36,7 @@ def build_execution_packet(
     preflight: BrokerPreflight,
     *,
     created_at: datetime | None = None,
+    crisis: bool = False,
 ) -> LiveExecutionPacket:
     now = created_at or datetime.now(UTC)
     reasons: list[str] = []
@@ -76,7 +78,13 @@ def build_execution_packet(
 
     midpoint = (preflight.bid + preflight.ask) / 2
     spread_bps = (preflight.ask - preflight.bid) / midpoint * 10_000
-    if spread_bps > profile.max_spread_bps:
+    # Spreads widen in a panic; getting out may cost more of one than getting in ever should.
+    spread_cap = (
+        profile.crisis_max_spread_bps
+        if crisis and intent.side == OrderSide.SELL
+        else profile.max_spread_bps
+    )
+    if spread_bps > spread_cap:
         reasons.append("spread_too_wide")
 
     guard = allowed_price(intent, decision, preflight)

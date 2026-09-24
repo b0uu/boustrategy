@@ -60,6 +60,8 @@ class AccountObservation(BaseModel):
     cash: float | None = Field(default=None, ge=0.0)
     positions: list[ObservedPosition] = Field(default_factory=list, max_length=50)
     broker_reported_at: str | None = Field(default=None, max_length=64)
+    spy_price: float | None = Field(default=None, gt=0.0)
+    qqq_price: float | None = Field(default=None, gt=0.0)
 
 
 class QuoteObservation(BaseModel):
@@ -105,7 +107,9 @@ def snapshot_prompt(profile: ExecutionProfile) -> str:
         "share quantity, current market value in dollars, average cost per share, the current "
         "price per share, and quote_at as that quote's own ISO 8601 timestamp with a timezone "
         "offset. Leave price and quote_at null rather than guessing when a quote is "
-        "unavailable. Put the last four characters of the account number in "
+        "unavailable. Also call get_equity_quotes for SPY and QQQ and report their current "
+        "prices as spy_price and qqq_price, or null when unavailable; they tell the reviews "
+        "whether the whole market is moving. Put the last four characters of the account number in "
         "account_number_last4 and the broker's own timestamp, if any, in broker_reported_at. "
         "Return only the JSON object required by the schema."
     )
@@ -263,6 +267,11 @@ def collect_snapshot(
         positions=positions,
         reporting=_valuation(observed, profile, positions, reporting_positions, captured, stamp),
         collector_model=model,
+        index_prices={
+            index: price
+            for index, price in (("SPY", observed.spy_price), ("QQQ", observed.qqq_price))
+            if price is not None
+        },
     )
     save_live_portfolio_snapshot(conn, snapshot, profile)
     return snapshot

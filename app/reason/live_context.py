@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, time, timedelta
 
 from app.policy.decision_policy import PortfolioContext
 from app.schemas.live_execution import LivePortfolioSnapshot
+from app.storage.crisis import crisis_reasons
 from app.storage.short_watchlist import short_watchlist_history
 from app.storage.watchlist import open_watchlist_entries
 from app.x.calendar import NEW_YORK
@@ -59,6 +60,7 @@ def live_portfolio_context(
         buy_add_trades_today=counts.get("BUY", 0),
         swap_buy_trades_today=swap_buys,
         funded_by_same_review_sale=funded_by_sale,
+        crisis_mode=bool(crisis_reasons(conn, snapshot, snapshot.captured_at)),
         sell_trim_trades_today=counts.get("SELL", 0),
         primary_theme_weights=theme_weights,
         short_watchlist_tickers=sorted(

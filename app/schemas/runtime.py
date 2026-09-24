@@ -108,6 +108,8 @@ class AuthoredThesisReview(RuntimeModel):
     range_basis: str | None = Field(default=None, max_length=1000)
     # The new fact behind raising the range or lowering the invalidation price.
     range_change_evidence: str | None = Field(default=None, max_length=2000)
+    # Whether a price move behind this review was the whole market's, the thesis's, or both.
+    move_attribution: Literal["market", "thesis", "both"] | None = None
 
 
 class CandidateConsidered(RuntimeModel):
@@ -153,12 +155,20 @@ class AuthoredXTriage(RuntimeModel):
     note: str = Field(min_length=1, max_length=300)
 
 
+class AuthoredExposureDecision(RuntimeModel):
+    """The review's answer to being above the regime's exposure band, or to the Friday check."""
+
+    action: Literal["reduce", "hold"]
+    reasoning: str = Field(min_length=1, max_length=2000)
+
+
 class AuthoredOutput(RuntimeModel):
     decisions: list[InvestmentDecisionRecord] = Field(default_factory=list, max_length=20)
     thesis_reviews: list[AuthoredThesisReview] = Field(default_factory=list, max_length=20)
     earnings_dates: list[AuthoredEarningsDate] = Field(default_factory=list, max_length=20)
     x_triage: list[AuthoredXTriage] = Field(default_factory=list, max_length=60)
     challenger_reviews: list[AuthoredChallenger] = Field(default_factory=list, max_length=12)
+    exposure_decision: AuthoredExposureDecision | None = None
     candidates_considered: list[CandidateConsidered] = Field(default_factory=list, max_length=12)
     public_summary: str = Field(min_length=1, max_length=4000)
 

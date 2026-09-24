@@ -6,7 +6,7 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("morning", "midday", "close", "weekly")]
+    [ValidateSet("morning", "midday", "afternoon", "close", "weekly")]
     [string]$Slot,
     # The 14:45 trigger exists for NYSE half-days only. The pipeline's calendar
     # check accepts the close slot at any time of day, so the wrapper must gate

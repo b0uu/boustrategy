@@ -29,6 +29,7 @@ def snapshot_at(
     at: datetime,
     holdings: dict[str, tuple[float, float, float]],
     equity: float = 100.0,
+    qqq: float | None = None,
 ) -> LivePortfolioSnapshot:
     """Collect a live snapshot whose holdings map ticker to (quantity, average_cost, price)."""
     invested = sum(round(quantity * price, 2) for quantity, _, price in holdings.values())
@@ -51,6 +52,7 @@ def snapshot_at(
                     }
                     for ticker, (quantity, cost, price) in holdings.items()
                 ],
+                "qqq_price": qqq,
             }
         )
 
@@ -132,7 +134,7 @@ def test_an_episode_opens_when_a_holding_first_appears_and_restarts_after_a_sale
     conn.close()
 
 
-def test_review_points_are_monday_morning_and_wednesday_and_friday_midday() -> None:
+def test_review_points_are_monday_wednesday_and_friday_at_noon() -> None:
     wednesday_midday = datetime(2026, 9, 23, 17, 0, tzinfo=UTC)
     wednesday_morning = datetime(2026, 9, 23, 14, 0, tzinfo=UTC)
     sunday = datetime(2026, 9, 27, 16, 0, tzinfo=UTC)
@@ -143,7 +145,7 @@ def test_review_points_are_monday_morning_and_wednesday_and_friday_midday() -> N
 
     assert [point.isoformat() for point in points] == [
         "2026-09-23T12:00:00-04:00",
-        "2026-09-21T09:00:00-04:00",
+        "2026-09-21T12:00:00-04:00",
         "2026-09-25T12:00:00-04:00",
     ]
 
@@ -272,7 +274,9 @@ def test_an_earnings_date_the_agent_read_outranks_a_nearby_feed_estimate(
     conn.close()
 
 
-def test_a_review_within_a_day_before_a_point_covers_it(tmp_path: Path) -> None:
+def test_a_review_that_morning_covers_the_point_but_one_the_day_before_does_not(
+    tmp_path: Path,
+) -> None:
     conn = connect(tmp_path / "boustrategy.db")
     snapshot = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 200)})
     episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
@@ -442,4 +446,30 @@ def test_the_latest_statement_of_a_holding_range_wins(tmp_path: Path) -> None:
         250,
         270,
     ]
+    conn.close()
+
+
+def close_bar(conn: sqlite3.Connection, ticker: str, day: str, close: float) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO daily_prices VALUES (?, ?, ?, ?, ?, ?, NULL, 0, 'test', ?)",
+        (ticker, day, close, close, close, close, day),
+    )
+
+
+def test_a_5_percent_move_since_the_last_close_counts_the_same_day(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot_at(conn, tmp_path, MONDAY_MORNING - timedelta(days=3), {"NVDA": (0.1, 200, 200)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["NVDA"]["episode_id"]
+    review(conn, episode, "NVDA", MONDAY_MORNING - timedelta(days=3, hours=-1))
+    close_bar(conn, "NVDA", "2026-09-18", 200.0)
+    quiet = snapshot_at(conn, tmp_path, MONDAY_MORNING, {"NVDA": (0.1, 200, 204)})
+    calm = holdings_due(conn, quiet, MONDAY_MORNING + timedelta(minutes=5))
+    moved = snapshot_at(
+        conn, tmp_path, MONDAY_MORNING + timedelta(hours=1), {"NVDA": (0.1, 200, 212)}
+    )
+
+    due = holdings_due(conn, moved, MONDAY_MORNING + timedelta(hours=1, minutes=5))
+
+    assert calm == []
+    assert [item["reasons"] for item in due] == [["price_move"]]
     conn.close()

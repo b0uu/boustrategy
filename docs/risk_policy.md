@@ -18,6 +18,7 @@ enforced through prompts, records, and evals.
 | BUY/ADD trades per day | 2 (a BUY funded by a SELL or TRIM in the same review, a swap, doesn't count toward them); a declared `extraordinary_opportunity` (with written justification) may exceed the quota, up to an absolute circuit breaker of 5/day that no declaration can exceed | BUY/ADD only |
 | TRIM/SELL circuit breaker | 10 per day | Malfunction brake only; de-risking is never quota-blocked by design |
 | RED regime / de-risking mode | BUY/ADD rejected unless `extraordinary_opportunity` is declared with written justification | Escalation gate, not a ban |
+| Crisis mode (SPY or QQQ down 3%, the account down 3%, or the raw regime off GREEN) | BUY/ADD rejected unless `extraordinary_opportunity` is declared with written justification | Escalation gate, not a ban |
 | Actionable decisions | Require refined thesis, invalidation criteria, source claims, strategy belief mapping | Schema + policy |
 
 ## Extraordinary opportunities

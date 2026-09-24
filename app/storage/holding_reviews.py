@@ -9,18 +9,20 @@ from typing import Any
 from app.schemas.live_execution import LivePortfolioSnapshot
 from app.x.calendar import NEW_YORK
 
-# Monday, Wednesday and Friday. Each point falls before that day's review slot is prepared
-# (morning 10:00, midday 13:00), so the Monday morning, Wednesday midday and Friday midday
-# reviews are the ones that must cover every holding, while they can still trade on it.
-REVIEW_POINTS = ((0, time(9)), (2, time(12)), (4, time(12)))
-# A review this close before a point covers it, so an early review on a review day isn't
-# repeated a few hours later.
-REVIEW_POINT_GRACE = timedelta(hours=24)
+# Monday, Wednesday and Friday at 12:00, so the 13:00 midday review re-underwrites every holding
+# on settled prices, with the morning's news and the midday digest in hand (maintainer decision
+# 2026-09-24). A review that morning covers the point; the previous afternoon's doesn't, so an
+# overnight shock can't slip past a point day.
+REVIEW_POINTS = ((0, time(12)), (2, time(12)), (4, time(12)))
+REVIEW_POINT_GRACE = timedelta(hours=12)
 SIGNIFICANT_WEIGHT = 0.02
 # risk_posture.md's minimum initial position. With less buying power than this, no new
 # position can be opened without a sale, so a strong candidate faces a holding instead.
 MIN_INITIAL_POSITION = 0.05
 MAX_HEADLINES_TO_TRIAGE = 10
+# In crisis mode holdings come first, so fewer headlines compete for the review's time.
+CRISIS_HEADLINES_TO_TRIAGE = 3
+PRICE_MOVE_PERCENT = 5.0
 TRIGGER_COOLDOWN = timedelta(days=3)
 DRAWDOWN_TRIGGER_PERCENT = -15.0
 MANDATORY_REVIEW_RETURN_PERCENT = -40.0
@@ -196,12 +198,16 @@ def latest_review_point(moment: datetime) -> datetime:
 
 
 def holdings_due(
-    conn: sqlite3.Connection, snapshot: LivePortfolioSnapshot, prepared_at: datetime
+    conn: sqlite3.Connection,
+    snapshot: LivePortfolioSnapshot,
+    prepared_at: datetime,
+    *,
+    crisis: bool = False,
 ) -> list[dict[str, Any]]:
     """Name every holding a review prepared at this instant must answer for, and why.
 
     A significant holding is due at each review point unless a review recorded after, or in the
-    24 hours before, that point covers its episode; a missed point carries to the next review
+    12 hours before, that point covers its episode; a missed point carries to the next review
     that runs. A price move,
     volume spike, reported earnings or a first close below 15% under cost since its last review
     also makes it due. X headlines bearing on it since then are listed for the review to triage
@@ -294,7 +300,7 @@ def holdings_due(
                 (since.isoformat(), prepared_at.isoformat(), ticker, account_id),
             )
             if ticker in json.loads(tickers) or mention.search(text) or mention.search(reason)
-        ][:MAX_HEADLINES_TO_TRIAGE]
+        ][: CRISIS_HEADLINES_TO_TRIAGE if crisis else MAX_HEADLINES_TO_TRIAGE]
         for threshold, reason in (
             (DRAWDOWN_TRIGGER_PERCENT, "down_15_percent_from_cost"),
             (MANDATORY_REVIEW_RETURN_PERCENT, "down_40_percent_from_cost"),
@@ -313,6 +319,24 @@ def holdings_due(
             prepared_at,
         )
         history = prices.get(ticker, [])
+        # A 5% move from the last close counts the same day, from snapshots, rather than only once
+        # the day's bar closes.
+        prior_close = conn.execute(
+            "SELECT close FROM daily_prices WHERE ticker=? AND bar_date<? "
+            "ORDER BY bar_date DESC LIMIT 1",
+            (ticker, session_day.isoformat()),
+        ).fetchone()
+        if prior_close and "price_move" not in reasons:
+            today = [
+                (at, (price / prior_close[0] - 1) * 100)
+                for at, price in history
+                if at >= session_open
+            ]
+            for limit, above in ((PRICE_MOVE_PERCENT, True), (-PRICE_MOVE_PERCENT, False)):
+                moved = _stretch_start(today, session_open, limit=limit, above=above)
+                if moved is not None and since < moved:
+                    reasons.append("price_move")
+                    break
         # Holdings bought before ranges existed have none until a review states one.
         if stated is None:
             reasons.append("range_missing")

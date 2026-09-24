@@ -99,6 +99,10 @@ def run_slots(d: date) -> list[tuple[str, time]]:
     return [
         ("morning", time(8, 45, tzinfo=NEW_YORK)),
         ("midday", time(12, 30, tzinfo=NEW_YORK)),
+        # Feeds the 15:00 pre-close review, which otherwise saw nothing newer than 12:30. It runs
+        # 30 minutes before that review's 14:45 preparation, which refuses to start while any of
+        # the day's digests is unfinished.
+        ("afternoon", time(14, 15, tzinfo=NEW_YORK)),
         ("close", time(17, 45, tzinfo=NEW_YORK)),
     ]
 

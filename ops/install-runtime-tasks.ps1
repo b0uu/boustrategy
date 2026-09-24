@@ -20,6 +20,7 @@ $RepoRoot = "C:\Users\Administrator\Documents\projects\boustrategy"
 $PrepareScript = Join-Path $RepoRoot "ops\run-live-prepare.ps1"
 $PollerScript = Join-Path $RepoRoot "ops\run-review-poller.ps1"
 $ExecuteScript = Join-Path $RepoRoot "ops\run-live-execution.ps1"
+$EventScript = Join-Path $RepoRoot "ops\run-event-review.ps1"
 $Weekdays = "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
 
 function Register-BouTask {
@@ -58,7 +59,11 @@ function New-PollingTrigger {
 $Retired = @(
     "boustrategy-review-prepare",
     "boustrategy-review-prepare-halfday",
-    "boustrategy-review-poller"
+    "boustrategy-review-poller",
+    # The after-hours review was dropped on 2026-09-24: the morning review handles overnight news
+    # on live prices, and an evening review would use up the next day's review point.
+    "boustrategy-review-prepare-close",
+    "boustrategy-review-poller-close"
 )
 foreach ($Name in $Retired) {
     if (Get-ScheduledTask -TaskName $Name -ErrorAction SilentlyContinue) {
@@ -90,38 +95,23 @@ Register-BouTask -Name "boustrategy-review-prepare-preclose" `
     -TimeLimitMinutes 20 `
     -Description "boustrategy live review: pre-close preparation and broker snapshot"
 
-Register-BouTask -Name "boustrategy-review-prepare-close" `
-    -Arguments "-File `"$PrepareScript`" -Slot close" `
-    -Triggers @(
-        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 18:10),
-        (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 15:10)
-    ) `
-    -TimeLimitMinutes 20 `
-    -Description "boustrategy live review: after-hours preparation and broker snapshot"
-
 Register-BouTask -Name "boustrategy-review-poller-morning" `
     -Arguments "-File `"$PollerScript`" -Schedule live-morning" `
     -Triggers @((New-PollingTrigger -At 10:00)) `
-    -TimeLimitMinutes 45 `
+    -TimeLimitMinutes 60 `
     -Description "boustrategy live review: morning scheduler tick"
 
 Register-BouTask -Name "boustrategy-review-poller-midday" `
     -Arguments "-File `"$PollerScript`" -Schedule live-midday" `
     -Triggers @((New-PollingTrigger -At 13:00)) `
-    -TimeLimitMinutes 45 `
+    -TimeLimitMinutes 60 `
     -Description "boustrategy live review: midday scheduler tick"
 
 Register-BouTask -Name "boustrategy-review-poller-preclose" `
     -Arguments "-File `"$PollerScript`" -Schedule live-preclose" `
     -Triggers @((New-PollingTrigger -At 15:00)) `
-    -TimeLimitMinutes 45 `
+    -TimeLimitMinutes 60 `
     -Description "boustrategy live review: pre-close scheduler tick"
-
-Register-BouTask -Name "boustrategy-review-poller-close" `
-    -Arguments "-File `"$PollerScript`" -Schedule live-close" `
-    -Triggers @((New-PollingTrigger -At 18:15), (New-PollingTrigger -At 15:15)) `
-    -TimeLimitMinutes 45 `
-    -Description "boustrategy live review: after-hours scheduler tick"
 
 # Execution ticks through regular hours. A tick with nothing pending starts no model
 # session, so the cadence costs a Python process and nothing else.
@@ -135,5 +125,18 @@ Register-BouTask -Name "boustrategy-live-execute" `
     -TimeLimitMinutes 30 `
     -Description "boustrategy live execution: place pending approved intents during regular hours"
 
-Write-Output "`nNine tasks registered. Verify with:"
+# Event reviews: three minutes after each valuation tick, a check starts an extra review when
+# crisis mode switches on or a holding gains a mandatory reason. A check that finds nothing
+# starts no model session.
+$EventTrigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:55
+$EventTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At 00:00 `
+    -RepetitionInterval (New-TimeSpan -Minutes 15) `
+    -RepetitionDuration (New-TimeSpan -Hours 5 -Minutes 50)).Repetition
+Register-BouTask -Name "boustrategy-event-review" `
+    -Arguments "-File `"$EventScript`"" `
+    -Triggers @($EventTrigger) `
+    -TimeLimitMinutes 60 `
+    -Description "boustrategy live review: event review on crisis mode or a mandatory condition"
+
+Write-Output "`nEight tasks registered. Verify with:"
 Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-review-*','boustrategy-live-*' | Select TaskName,State"

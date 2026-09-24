@@ -24,6 +24,8 @@ class ExecutionProfile(BaseModel):
     max_order_notional: float = Field(gt=0.0)
     max_quote_age_seconds: int = Field(ge=30, le=120)
     max_spread_bps: float = Field(gt=0.0)
+    # The wider cap a sell may cross in crisis mode, when spreads widen and exits matter most.
+    crisis_max_spread_bps: float = Field(default=150.0, gt=0.0)
     require_human_approval: bool = False
 
     @model_validator(mode="after")
@@ -84,6 +86,8 @@ class LivePortfolioSnapshot(BaseModel):
     reporting: ValuationObservation | None = None
     # The model that read the account; None on snapshots taken before this was recorded.
     collector_model: str | None = None
+    # SPY and QQQ as the collector read them, so reviews can tell a market move from a stock's.
+    index_prices: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def require_unique_positions(self) -> "LivePortfolioSnapshot":

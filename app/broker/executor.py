@@ -24,7 +24,7 @@ from app.broker.lifecycle import latest_execution_status
 from app.broker.session import BrokerSessionFailure, run_broker_session
 from app.schemas.broker_execution import BrokerExecutionStatus
 from app.schemas.live_execution import ExecutionProfile
-from app.schemas.order_intent import OrderIntent
+from app.schemas.order_intent import OrderIntent, OrderSide
 from app.storage.database import connect
 from app.x.calendar import (
     NEW_YORK,
@@ -240,7 +240,11 @@ def execute_pending(
         raise ValueError(f"execution profile {profile.execution_profile_id} is disabled")
     started = now or datetime.now(UTC)
     with closing(connect(db_path)) as conn:
-        intents = pending_live_intents(conn, profile, now=started)[:max_intents]
+        pending = pending_live_intents(conn, profile, now=started)
+    # Sales go first and are never held back by the per-tick cap; it only paces buys.
+    intents = [intent for intent in pending if intent.side == OrderSide.SELL] + [
+        intent for intent in pending if intent.side == OrderSide.BUY
+    ][:max_intents]
     results: list[dict[str, Any]] = []
     log_dir.mkdir(parents=True, exist_ok=True)
     ledger_path = log_dir / "executions.jsonl"

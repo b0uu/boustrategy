@@ -194,6 +194,7 @@ class ThesisReview(PublicAuthoringModel):
     invalidation_price: float | None = Field(default=None, gt=0.0)
     range_basis: Text | None = None
     range_change_evidence: Text | None = None
+    move_attribution: Literal["market", "thesis", "both"] | None = None
 
     @model_validator(mode="after")
     def ordered_prices(self) -> "ThesisReview":

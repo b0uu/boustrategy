@@ -35,6 +35,7 @@ def live_review(
     conn: sqlite3.Connection,
     folder: Path,
     holdings: dict[str, tuple[float, float, float]] | None = None,
+    slot: str = "midday",
 ) -> RuntimeRun:
     snapshot = snapshot_at(conn, folder, WEDNESDAY_MIDDAY, holdings or {"NVDA": (0.1, 200, 230)})
     path = folder / "live-intake.md"
@@ -45,7 +46,7 @@ def live_review(
         ReasoningRun(
             reasoning_run_id="legacy-live",
             session_date=WEDNESDAY_MIDDAY.date(),
-            slot="midday",
+            slot=slot,
             execution_profile_id="codex",
             model_label="review-model",
             shared_bundle_path=str(path),
@@ -65,7 +66,7 @@ def live_review(
         account_id=ACCOUNT,
         execution_profile_id="codex",
         session_date=WEDNESDAY_MIDDAY.date(),
-        slot="midday",
+        slot=slot,
         prepared_at=WEDNESDAY_MIDDAY,
         intake_path=str(path),
         intake_sha256=checksum,
@@ -96,6 +97,10 @@ def test_a_live_intake_shows_cost_basis_and_the_holdings_due_a_review(tmp_path: 
         "realization_price_high": None,
         "invalidation_price": None,
         "range_basis": None,
+        "move_since_last_close_percent": None,
+        "qqq_move_since_last_close_percent": None,
+        "beta_to_qqq": None,
+        "excess_move_percent": None,
         "upside_to_fully_priced_percent": None,
         "downside_to_invalidation_percent": None,
         "reward_to_risk": None,

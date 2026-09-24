@@ -64,9 +64,9 @@ broker snapshots, because live activity coverage isn't recorded. It lists the
 holdings due for a thesis review, with the reasons:
 
 - On schedule: at 2% of equity or more, a holding is due at each review point
-  (Monday 09:00, Wednesday 12:00 and Friday 12:00 ET, so the Monday morning,
-  Wednesday midday and Friday midday reviews) until a review recorded after that
-  point, or in the 24 hours before it, covers it. A missed point carries to the next review that runs.
+  (Monday, Wednesday and Friday at 12:00 ET, so the 13:00 midday review does them on
+  settled prices) until a review recorded after that point, or in the 12 hours before
+  it, covers it. A missed point carries to the next review that runs.
 - On a trigger since its last review: a daily price move of 5% or more, a volume
   spike, reported earnings, or its first close 15% under cost. Earnings dates come
   from the feed and from the review agent, which records every date it reads with
@@ -113,6 +113,38 @@ and their ratio, and the public positions panel shows the range and upside. A ho
 with no stated range, one bought before ranges existed, is due (`range_missing`) until
 a review states one. A challenger review that names a holding other than the one with
 the lowest reward to risk must say why in `ranking_departure`.
+
+Only the morning and midday live reviews must hunt for new candidates; the
+pre-close and event reviews may research but aren't required to.
+
+**Crisis mode** is on when SPY or QQQ fell 3% at the last close or since it, the
+account fell 3% since the last session, or the raw regime left GREEN while the
+published one hasn't. The intake says so with the reasons. In crisis mode the hunt
+isn't required, the challenger test is off, headline triage is capped at 3 per
+holding, BUY/ADD needs `extraordinary_opportunity` (policy), a sale may carry no
+`entry_price_min` floor, the review's budget is 45 minutes, and a review whose
+account refresh fails may still run on a snapshot up to 30 minutes old, submitting
+only its sales.
+
+**Exposure.** The intake compares invested exposure with the band of the published
+regime and of the raw score. Above either band, or in Friday's pre-close review, the
+output needs `exposure_decision`: `reduce` with SELL or TRIM records, or `hold` with
+the reason. A review answering a price reason (down 15%, down 40%, below the
+invalidation price) says in `move_attribution` whether the market or the thesis
+moved it. Blaming the market for a looser invalidation price is accepted only when
+the holding moved within 5 points of what its 60-day beta to QQQ explains. The
+intake shows each holding's move since the last close beside QQQ's.
+
+**Event reviews.** `ops/run-event-review.ps1` runs three minutes after each
+valuation tick. `app.reason.events` starts an in-session review (`origin="event"`)
+when crisis mode is on or a holding has a mandatory reason, unless a scheduled review
+is within 30 minutes, three event reviews already ran that day, or the same cause
+already started one. A price move of 5% or more since the last close also makes a
+holding due the same day, from snapshots.
+
+A SELL or TRIM is priced from the executor's fresh bid, not the review's price, so a
+falling market can't block an exit. Pending sales run before buys and aren't limited
+by the per-tick cap.
 
 Preparation tracks prices, earnings and triggers for live holdings whether or not
 the watchlist names them. The agent's verdict is binary: `intact` (it would still

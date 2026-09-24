@@ -70,8 +70,9 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   with `quote_at` as an ISO 8601 timestamp carrying a timezone offset.
 - **Packet.** `python -m app.broker.run packet --intent-id <intent> --preflight <file>` prints the
   packet with `execution_packet_id`, `notional`, `limit_price` and `expires_at`. The packet's
-  `limit_price` is the allowed price: 1% from the price the review recorded (`reference_price`),
-  never past the decision's entry bound. When the packet is refused, the command exits 2 and
+  `limit_price` is the allowed price: for a BUY, 1% above the price the review recorded
+  (`reference_price`); for a SELL or TRIM, 1% below the fresh bid, so a falling market can't block
+  an exit. Never past the decision's entry bound. In crisis mode a sale may cross a wider spread. When the packet is refused, the command exits 2 and
   prints `{"blocked": true, "reason_codes": [...], "ask", "bid", "allowed_price", ...}`. If the
   only code is `stale_quote`, refresh the preflight and rebuild, at most three times. Otherwise end
   the session with outcome `blocked` and `reason_code` set to the first code printed

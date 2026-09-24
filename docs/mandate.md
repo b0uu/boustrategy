@@ -65,6 +65,9 @@ forced. Every buy must clear the full evidence bar on its own merits.
   automatically invalidate, but hope is not a good thesis.)
 - A single position down 40% from entry triggers the same mandatory review
   even if its written criteria technically hold. Price holds information that may not be immediately visible, which should command further digging.
+- Tell a market-wide move from a broken thesis. When the whole market falls, answer it once, as a
+  question of total exposure, rather than as separate exits from each holding. A move beyond what
+  a holding's beta to the market explains is the thesis's own.
 
 ## Extraordinary opportunities
 

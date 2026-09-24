@@ -25,7 +25,7 @@ from app.reason.codex_runner import (
     research_activity,
     run_codex,
 )
-from app.reason.run import submit_decision
+from app.reason.run import LIVE_SNAPSHOT_MAX_AGE, STALE_SELL_MAX_AGE, submit_decision
 from app.reason.runtime_prepare import live_readiness
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
@@ -38,6 +38,7 @@ from app.schemas.runtime import (
     RuntimeAttempt,
     RuntimeRun,
 )
+from app.storage.crisis import crisis_reasons, exposure_check, market_relative_move
 from app.storage.holding_reviews import (
     MIN_INITIAL_POSITION,
     holdings_due,
@@ -65,8 +66,9 @@ _AUTHORING_CONTRACT = """Every review is a research session. Research by default
 tools before you conclude anything; the intake is where ideas start, not where they end. It
 carries curated X signal, regime, triggers, calendar and account state; it never carries
 security prices or independent corroboration, and those are yours to find.
-Always hunt. Identify the strongest candidates available now: current holdings, securities
-named or implied by the digests and triggers, and ideas your own research surfaces. Rank
+Hunt unless the prompt says this review is exempt (only the morning and midday reviews must, and
+none must in crisis mode). Identify the strongest candidates available now: current holdings,
+securities named or implied by the digests and triggers, and ideas your own research surfaces. Rank
 them and research at least the top three. For each one, open primary sources (company
 investor-relations releases and transcripts, SEC EDGAR filings, exchange or regulator pages)
 rather than relying on search snippets, and read its current price from an opened quote page,
@@ -181,6 +183,19 @@ as it stands. Re-recording a listed ticker with the same entry_price_max is reje
 # candidates, each with an opened source, and at least as many pages actually opened.
 # Token counts are recorded but not gated on: they measure length, not diligence.
 HUNT_MINIMUM = 3
+# Price reasons whose review must say whether the market or the thesis moved the price.
+MARKET_TESTED_REASONS = frozenset(
+    {"below_invalidation_price", "down_40_percent_from_cost", "down_15_percent_from_cost"}
+)
+# How far a holding may stray from its beta to QQQ and still call its move the market's.
+MARKET_EXCESS_TOLERANCE = 5.0
+# The live slots that must hunt for new ideas; the others act on holdings and the watchlist.
+HUNT_SLOTS = frozenset({"morning", "midday"})
+CRISIS_TIMEOUT_SECONDS = 2700
+# Exits a floor could block when they matter most.
+PROTECTIVE_REASONS = frozenset(
+    {"below_invalidation_price", "down_40_percent_from_cost", "invalidated_without_exit"}
+)
 _MIN_RETRY_SECONDS = 120
 _PRICED_ACTIONS = {"BUY", "ADD", "TRIM", "SELL"}
 # Short calls are scored from the prices they were declared and removed at, so both carry one.
@@ -406,7 +421,12 @@ def _review_gap(review: AuthoredThesisReview) -> str | None:
 
 
 def unreviewed_holdings(
-    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput, *, trading_open: bool = True
+    conn: sqlite3.Connection,
+    run: RuntimeRun,
+    result: AuthoredOutput,
+    *,
+    trading_open: bool = True,
+    crisis: bool = False,
 ) -> str | None:
     """Say which holdings this review left unanswered, if any.
 
@@ -433,7 +453,20 @@ def unreviewed_holdings(
         for review in result.thesis_reviews
         if review.episode_id not in open_episodes
     ]
-    for holding in holdings_due(conn, snapshot, run.prepared_at):
+    due = holdings_due(conn, snapshot, run.prepared_at, crisis=crisis)
+    protective = {
+        holding["ticker"] for holding in due if PROTECTIVE_REASONS & set(holding["reasons"])
+    } | {review.ticker for review in result.thesis_reviews if review.state == "invalidated"}
+    problems.extend(
+        f"{decision.decision} {decision.ticker} carries an entry_price_min floor, but a "
+        + ("crisis-mode sale" if crisis else "protective exit")
+        + " must be able to fill wherever the market is; remove the floor"
+        for decision in result.decisions
+        if decision.decision in {Decision.SELL, Decision.TRIM}
+        and decision.entry_price_min is not None
+        and (crisis or decision.ticker in protective)
+    )
+    for holding in due:
         review = reviews.get(holding["episode_id"])
         label = (
             f"holding {holding['ticker']} is due a thesis review "
@@ -492,11 +525,38 @@ def unreviewed_holdings(
             episode["episode_id"],
             run.prepared_at,
         )
+        price_reasons = {
+            reason
+            for holding in due
+            if holding["ticker"] == review.ticker
+            for reason in holding["reasons"]
+            if reason in MARKET_TESTED_REASONS
+        }
+        if price_reasons and review.move_attribution is None:
+            problems.append(
+                f"{review.ticker}'s review answers {', '.join(sorted(price_reasons))}; say in "
+                "move_attribution whether the move was the market's, the thesis's, or both"
+            )
         loosened = stated is not None and (
             low > stated["realization_price_low"]
             or high > stated["realization_price_high"]
             or (stated["invalidation_price"] is not None and floor < stated["invalidation_price"])
         )
+        # Only the numbers can make a move the market's: a looser invalidation price blamed on
+        # the market needs the holding to have moved roughly with it.
+        if loosened and review.move_attribution == "market":
+            relative = market_relative_move(conn, snapshot, review.ticker, run.prepared_at)
+            excess = relative["excess_move_percent"]
+            if excess is None or abs(excess) > MARKET_EXCESS_TOLERANCE:
+                problems.append(
+                    f"{review.ticker} moved "
+                    + (
+                        f"{excess:+.1f} points beyond what its beta to QQQ explains"
+                        if excess is not None
+                        else "without data to show the market explains it"
+                    )
+                    + ", so the move is the thesis's own; don't loosen its range on the market"
+                )
         if loosened and not (review.range_change_evidence or "").strip():
             problems.append(
                 f"{review.ticker}'s review raises its realization range or lowers its "
@@ -519,7 +579,12 @@ def unreviewed_holdings(
 
 
 def unanswered_challengers(
-    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput, *, trading_open: bool = True
+    conn: sqlite3.Connection,
+    run: RuntimeRun,
+    result: AuthoredOutput,
+    *,
+    trading_open: bool = True,
+    crisis: bool = False,
 ) -> str | None:
     """Say what the challenger reviews lack, when cash can't fund a candidate that clears the bar.
 
@@ -527,7 +592,8 @@ def unanswered_challengers(
     same output. A swap needs both legs, with the sale freeing enough for the buy. A candidate the
     review kept out can't also be bought. A closed market can't trade either leg, so nothing arms.
     """
-    if run.mode != "live" or not trading_open:
+    # No rotation during a panic: swapping one falling stock for another isn't de-risking.
+    if run.mode != "live" or not trading_open or crisis:
         return None
     snapshot = _starting_snapshot(conn, run)
     if snapshot.buying_power >= MIN_INITIAL_POSITION * snapshot.account_equity:
@@ -654,6 +720,42 @@ def unanswered_challengers(
     return "; ".join(problems) or None
 
 
+def unanswered_exposure(
+    conn: sqlite3.Connection,
+    run: RuntimeRun,
+    result: AuthoredOutput,
+    *,
+    trading_open: bool = True,
+    now: datetime,
+) -> str | None:
+    """Say so when the review owed an exposure decision and didn't give a real one.
+
+    It's owed above the regime's band, and by Friday's pre-close review before the weekend.
+    Reducing needs at least one SELL or TRIM; holding needs only the reason.
+    """
+    if run.mode != "live" or not trading_open:
+        return None
+    exposure = exposure_check(conn, _starting_snapshot(conn, run), run.prepared_at)
+    weekend = run.slot == "preclose" and now.astimezone(NEW_YORK).weekday() == 4
+    if not exposure["over_exposed"] and not weekend:
+        return None
+    decision = result.exposure_decision
+    why = (
+        f"exposure is {exposure['invested_percent']}% against the "
+        f"{exposure['published_regime']} band {exposure['published_band_percent']} and the raw "
+        f"{exposure['raw_regime']} band {exposure['raw_band_percent']}"
+        if exposure["over_exposed"]
+        else "it's the last review before the weekend"
+    )
+    if decision is None:
+        return f"{why}; answer with exposure_decision, reduce or hold, and the reason"
+    if decision.action == "reduce" and not any(
+        item.decision in {Decision.SELL, Decision.TRIM} for item in result.decisions
+    ):
+        return f"{why}; exposure_decision says reduce but records no SELL or TRIM"
+    return None
+
+
 def _record_research(
     log_dir: Path, passes: list[dict[str, Any]], result: AuthoredOutput | None
 ) -> None:
@@ -690,6 +792,7 @@ def _review_shortfall(
     required: int,
     trading_open: bool,
     clock: Callable[[], datetime],
+    crisis: bool = False,
 ) -> tuple[str | None, str | None]:
     """What the trusted worker demands of a review, as (required, holdings).
 
@@ -707,8 +810,9 @@ def _review_shortfall(
     ]
     holdings = [
         review_sources_gap(result, activity, required),
-        unreviewed_holdings(conn, run, result, trading_open=trading_open),
-        unanswered_challengers(conn, run, result, trading_open=trading_open),
+        unreviewed_holdings(conn, run, result, trading_open=trading_open, crisis=crisis),
+        unanswered_challengers(conn, run, result, trading_open=trading_open, crisis=crisis),
+        unanswered_exposure(conn, run, result, trading_open=trading_open, now=clock()),
     ]
     return (
         "; ".join(part for part in parts if part) or None,
@@ -738,9 +842,34 @@ def execute_attempt(
     attempt = claim(conn, run_id, model, clock(), retry=retry)
     run = get_run(conn, run_id)
     try:
+        crisis = run.mode == "live" and bool(
+            crisis_reasons(conn, _starting_snapshot(conn, run), clock())
+        )
+        if run.mode == "live" and (crisis or run.slot not in HUNT_SLOTS):
+            required = 0
+        if crisis:
+            timeout_seconds = max(timeout_seconds, CRISIS_TIMEOUT_SECONDS)
+        # In crisis mode a failed account refresh doesn't stop the review from selling: it runs
+        # on a snapshot up to 30 minutes old, and only its sales are submitted.
+        stale_fallback = False
         if run.mode == "live" and snapshot_collector is not None:
-            _refresh_snapshot(snapshot_collector)
-        starting_facts = live_readiness(conn, run, profile, clock()) if run.mode == "live" else None
+            try:
+                _refresh_snapshot(snapshot_collector)
+            except RunnerFailure:
+                if not crisis:
+                    raise
+                stale_fallback = True
+        starting_facts = (
+            live_readiness(
+                conn,
+                run,
+                profile,
+                clock(),
+                STALE_SELL_MAX_AGE if stale_fallback else None,
+            )
+            if run.mode == "live"
+            else None
+        )
         path = Path(run.intake_path)
         if not path.is_file():
             raise RunnerFailure("intake_missing")
@@ -763,6 +892,21 @@ def execute_attempt(
             "read now. Review holdings, hunt as usual, and record candidates that clear the bar "
             "as WATCHLIST with their entry bounds for the next in-session review."
         )
+        if run.mode == "live" and required == 0:
+            market += (
+                "\nThis review isn't required to hunt: spend it on holdings and the watchlist, "
+                "and research new ideas only as time allows."
+            )
+        if crisis:
+            market += (
+                "\nCrisis mode is on; the intake says why. Holdings first, no required hunt, no "
+                "challenger swaps, and a BUY or ADD needs extraordinary_opportunity."
+            )
+        if stale_fallback:
+            market += (
+                "\nThe account refresh failed, so account facts may be up to 30 minutes old. Only "
+                "SELL and TRIM records will be submitted from this review."
+            )
         prompt = (
             _AUTHORING_CONTRACT
             + "\nDecision namespace: "
@@ -800,7 +944,7 @@ def execute_attempt(
         result = author(prompt, attempt_log, timeout_seconds)
         activity = research_activity(attempt_log)
         shortfall, review_gap = _review_shortfall(
-            conn, run, result, activity, required, trading_open, clock
+            conn, run, result, activity, required, trading_open, clock, crisis
         )
         passes: list[dict[str, Any]] = [
             {"activity": activity, "shortfall": shortfall, "review_gap": review_gap}
@@ -821,7 +965,7 @@ def execute_attempt(
             )
             activity = research_activity(second_log)
             shortfall, review_gap = _review_shortfall(
-                conn, run, result, activity, required, trading_open, clock
+                conn, run, result, activity, required, trading_open, clock, crisis
             )
             passes.append({"activity": activity, "shortfall": shortfall, "review_gap": review_gap})
         _record_research(attempt_log, passes, result)
@@ -839,7 +983,7 @@ def execute_attempt(
                     conn, run.account_id, snapshot.captured_at
                 ).values()
             }
-            due = holdings_due(conn, snapshot, run.prepared_at)
+            due = holdings_due(conn, snapshot, run.prepared_at, crisis=crisis)
             listed = {
                 (headline["post_id"], holding["ticker"])
                 for holding in due
@@ -907,7 +1051,22 @@ def execute_attempt(
             raise RunnerFailure("submission_blocked")
         heartbeat(conn, attempt.attempt_id, attempt.fence, clock(), stage="submitting")
         if run.mode == "live" and result.decisions and snapshot_collector is not None:
-            _refresh_snapshot(snapshot_collector)
+            try:
+                _refresh_snapshot(snapshot_collector)
+            except RunnerFailure:
+                if not crisis:
+                    raise
+                stale_fallback = True
+        if stale_fallback:
+            result = result.model_copy(
+                update={
+                    "decisions": [
+                        decision
+                        for decision in result.decisions
+                        if decision.decision in {Decision.SELL, Decision.TRIM}
+                    ]
+                }
+            )
         swaps = {
             challenger.candidate: challenger.incumbent
             for challenger in result.challenger_reviews
@@ -952,6 +1111,7 @@ def execute_attempt(
                 runtime_attempt_id=attempt.attempt_id,
                 fence=attempt.fence,
                 funded_by_sale=funding_sale is not None,
+                max_snapshot_age=STALE_SELL_MAX_AGE if stale_fallback else LIVE_SNAPSHOT_MAX_AGE,
             )
             intent = conn.execute(
                 "SELECT 1 FROM order_intents WHERE decision_id=?", (record.decision_id,)

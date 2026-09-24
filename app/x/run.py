@@ -288,7 +288,7 @@ def main() -> None:
 
     cycle_parser = subparsers.add_parser("cycle")
     cycle_parser.add_argument(
-        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+        "--slot", choices=("morning", "midday", "afternoon", "close", "weekly"), required=True
     )
     cycle_parser.add_argument("--date", dest="run_date")
     cycle_parser.add_argument("--out")
@@ -303,7 +303,7 @@ def main() -> None:
     note_parser = subparsers.add_parser("note")
     note_parser.add_argument("--date", dest="note_date", required=True)
     note_parser.add_argument(
-        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+        "--slot", choices=("morning", "midday", "afternoon", "close", "weekly"), required=True
     )
     note_parser.add_argument("--author", required=True)
     note_parser.add_argument("--in", dest="in_path", required=True)
@@ -322,7 +322,7 @@ def main() -> None:
 
     provenance_parser = subparsers.add_parser("note-provenance")
     provenance_parser.add_argument(
-        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+        "--slot", choices=("morning", "midday", "afternoon", "close", "weekly"), required=True
     )
     provenance_parser.add_argument("--date", dest="note_date")
     provenance_parser.add_argument("--model", required=True)
@@ -330,7 +330,7 @@ def main() -> None:
 
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument(
-        "--slot", choices=("morning", "midday", "close", "weekly"), required=True
+        "--slot", choices=("morning", "midday", "afternoon", "close", "weekly"), required=True
     )
     verify_parser.add_argument("--date", dest="run_date")
 

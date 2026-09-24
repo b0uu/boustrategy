@@ -45,6 +45,9 @@ _CONSIDERED_STATUSES = {
     DecisionStatus.ORDER_INTENT_CREATED,
 }
 LIVE_SNAPSHOT_MAX_AGE = timedelta(minutes=5)
+# In crisis mode a review whose account refresh failed may still sell on a snapshot this old;
+# the executor reads a fresh quote per order, so nothing trades on the stale prices.
+STALE_SELL_MAX_AGE = timedelta(minutes=30)
 
 
 class PreparationResult(BaseModel):
@@ -239,6 +242,7 @@ def _submit_decision(
     submitted_at: datetime | None = None,
     runtime_bound: bool = False,
     funded_by_sale: bool = False,
+    max_snapshot_age: timedelta = LIVE_SNAPSHOT_MAX_AGE,
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
     ticker = raw_ticker if isinstance(raw_ticker, str) else None
@@ -277,7 +281,7 @@ def _submit_decision(
             )
         ):
             raise ValueError("prepared_session_stale")
-        if snapshot.captured_at > now or now - snapshot.captured_at > LIVE_SNAPSHOT_MAX_AGE:
+        if snapshot.captured_at > now or now - snapshot.captured_at > max_snapshot_age:
             raise ValueError("portfolio snapshot is stale")
         raw_decision_id = record_data.get("decision_id")
         if not isinstance(raw_decision_id, str) or not raw_decision_id.startswith(
@@ -405,6 +409,7 @@ def submit_decision(
     runtime_attempt_id: str | None = None,
     fence: int | None = None,
     funded_by_sale: bool = False,
+    max_snapshot_age: timedelta = LIVE_SNAPSHOT_MAX_AGE,
 ) -> ProcessOutcome:
     processing_time = submitted_at or datetime.now(UTC)
     if (runtime_attempt_id is None) != (fence is None):
@@ -441,6 +446,7 @@ def submit_decision(
             submitted_at=processing_time,
             runtime_bound=runtime_attempt_id is not None,
             funded_by_sale=funded_by_sale,
+            max_snapshot_age=max_snapshot_age,
         )
         if runtime_attempt_id and outcome.decision_id:
             existing = conn.execute(

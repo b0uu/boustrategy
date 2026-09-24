@@ -4,7 +4,7 @@ import hashlib
 import json
 import sqlite3
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -12,6 +12,7 @@ from uuid import uuid4
 from app.paper.broker import cash_balance
 from app.schemas.live_execution import ExecutionProfile
 from app.schemas.runtime import RuntimeRun
+from app.storage.crisis import crisis_reasons, exposure_check, market_relative_move
 from app.storage.holding_reviews import (
     MIN_INITIAL_POSITION,
     holdings_due,
@@ -98,6 +99,7 @@ def assemble_intake(
             positions.append(
                 {
                     **position.model_dump(mode="json"),
+                    **market_relative_move(conn, snapshot, position.ticker, run.prepared_at),
                     "weight_percent": round(
                         position.market_value / snapshot.account_equity * 100, 2
                     ),
@@ -133,7 +135,9 @@ def assemble_intake(
             "buying_power": snapshot.buying_power,
             "positions": positions,
         }
-        due = holdings_due(conn, snapshot, run.prepared_at)
+        crisis = crisis_reasons(conn, snapshot, run.prepared_at)
+        exposure = exposure_check(conn, snapshot, run.prepared_at)
+        due = holdings_due(conn, snapshot, run.prepared_at, crisis=bool(crisis))
         minimum = MIN_INITIAL_POSITION * snapshot.account_equity
         cash_shortfall = (
             f"Buying power ${snapshot.buying_power:.2f} is below the {MIN_INITIAL_POSITION:.0%} "
@@ -155,6 +159,30 @@ def assemble_intake(
             ],
         }
     sections.extend(["# Starting portfolio facts", json.dumps(facts, sort_keys=True)])
+    if run.mode == "live":
+        sections.extend(
+            [
+                "# Exposure",
+                json.dumps(exposure, sort_keys=True),
+                "Invested exposure against the band of the published regime and of the raw "
+                "score, which leads it by up to two days. When over_exposed is true, answer with "
+                "exposure_decision: reduce, with the SELL or TRIM records that move toward the "
+                "band, or hold, with the reason. Friday's pre-close review answers it before the "
+                "weekend either way. A market-wide move belongs here, not in six separate exits.",
+            ]
+        )
+    if run.mode == "live" and crisis:
+        sections.extend(
+            [
+                "# Crisis mode",
+                json.dumps(crisis),
+                "The market is under stress. Work holdings first: answer the exposure question, "
+                "then due holdings, then headline triage. No hunt is required and no challenger "
+                "swap is made. A BUY or ADD needs extraordinary_opportunity with its "
+                "justification. A sale may carry no entry_price_min floor. Judge whether each "
+                "move is the market's or the thesis's before acting on it.",
+            ]
+        )
     from app.public.explanations import eligible_sources
 
     registered = {
@@ -383,7 +411,11 @@ def assemble_intake(
 
 
 def live_readiness(
-    conn: sqlite3.Connection, run: RuntimeRun, profile: ExecutionProfile | None, now: datetime
+    conn: sqlite3.Connection,
+    run: RuntimeRun,
+    profile: ExecutionProfile | None,
+    now: datetime,
+    max_age: timedelta | None = None,
 ) -> dict[str, object]:
     from app.reason.run import LIVE_SNAPSHOT_MAX_AGE
     from app.x.calendar import completed_session, session_close
@@ -405,7 +437,7 @@ def live_readiness(
     if (
         snapshot is None
         or snapshot.broker_account_fingerprint != run.account_id
-        or now - snapshot.captured_at > LIVE_SNAPSHOT_MAX_AGE
+        or now - snapshot.captured_at > (max_age or LIVE_SNAPSHOT_MAX_AGE)
     ):
         raise ValueError("snapshot_stale")
     session = completed_session(now)

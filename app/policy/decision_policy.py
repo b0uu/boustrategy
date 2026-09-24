@@ -225,6 +225,12 @@ def evaluate_decision_policy(
         passed=not duplicate,
         missing=watchlist is None,
     )
+    check(
+        "buy_or_add_in_crisis_requires_extraordinary_opportunity",
+        applicable=increasing and bool(portfolio and portfolio.crisis_mode),
+        observed=record.extraordinary_opportunity,
+        passed=record.extraordinary_opportunity,
+    )
     fully_priced = record.realization_price_low
     has_upside = (
         fully_priced is not None

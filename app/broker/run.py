@@ -2,6 +2,7 @@ import argparse
 import getpass
 import json
 from contextlib import closing
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.broker.config import account_fingerprint, get_live_profile, load_live_profiles
@@ -9,9 +10,11 @@ from app.broker.lifecycle import append_execution_event
 from app.broker.packet import allowed_price, build_execution_packet
 from app.schemas.broker_execution import BrokerExecutionEvent, BrokerExecutionRecord
 from app.schemas.live_execution import BrokerPreflight, LivePortfolioSnapshot
+from app.storage.crisis import crisis_reasons
 from app.storage.database import connect
 from app.storage.records import (
     get_decision_record,
+    get_live_portfolio_snapshot,
     get_order_intent,
     save_broker_execution_record,
     save_execution_packet,
@@ -92,8 +95,15 @@ def main() -> None:
             preflight = BrokerPreflight.model_validate_json(
                 Path(args.preflight).read_text(encoding="utf-8")
             )
+            latest = conn.execute(
+                "SELECT portfolio_snapshot_id FROM live_portfolio_snapshots "
+                "WHERE execution_profile_id=? ORDER BY julianday(captured_at) DESC LIMIT 1",
+                (profile.execution_profile_id,),
+            ).fetchone()
+            current = get_live_portfolio_snapshot(conn, latest[0]) if latest else None
+            crisis = bool(current and crisis_reasons(conn, current, datetime.now(UTC)))
             try:
-                packet = build_execution_packet(intent, decision, profile, preflight)
+                packet = build_execution_packet(intent, decision, profile, preflight, crisis=crisis)
             except ValueError as error:
                 # A rejected packet is an expected, named outcome: print the labels the
                 # executor must report and exit 2, rather than a traceback to interpret.

@@ -16,7 +16,7 @@ LINK_ONLY_MAX_CHARS = 40
 _URL_PATTERN = re.compile(r"https?://\S+")
 _RANKS = ("headline", "notable", "context")
 _TICKER = re.compile(r"^[A-Z][A-Z0-9.-]{0,11}$")
-_SLOT_ORDER = {"morning": 0, "midday": 1, "close": 2, "weekly": 3}
+_SLOT_ORDER = {"morning": 0, "midday": 1, "afternoon": 2, "close": 3, "weekly": 4}
 
 
 def _now() -> datetime:

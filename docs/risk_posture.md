@@ -44,6 +44,9 @@ or resized.
 - RED: 0-20%. Exposure increases only via the extraordinary-opportunity
   escalation.
 
+These targets are answered, not enforced: above the band of the published or the raw regime,
+a review must say whether it reduces exposure or holds, and why.
+
 ### Extraordinary opportunities
 
 Full normal sizing caps apply to extraordinary trades in all regimes: if

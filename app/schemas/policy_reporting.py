@@ -16,6 +16,8 @@ class PortfolioInputs(PolicyModel):
     swap_buy_trades_today: int = Field(default=0, ge=0)
     # The decision being evaluated is such a swap buy.
     funded_by_same_review_sale: bool = False
+    # Market stress: buys need the extraordinary-opportunity escalation, as in RED.
+    crisis_mode: bool = False
     sell_trim_trades_today: int = Field(ge=0)
     primary_theme_weights: dict[str, float] = Field(default_factory=dict)
     # None means the caller supplied no short-watchlist facts, not an empty list.
