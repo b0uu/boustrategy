@@ -617,7 +617,7 @@ def test_daily_pnl_derives_calendar_baseline_without_redundant_previous_date() -
     assert result["baseline_at"] == start.occurred_at.isoformat()
 
 
-def test_an_intraday_benchmark_ends_at_the_index_price_read_with_the_valuation(
+def test_the_comparison_runs_from_the_first_trade_to_the_latest_index_prices(
     tmp_path: Path,
 ) -> None:
     conn = connect(tmp_path / "source.db")
@@ -652,13 +652,8 @@ def test_an_intraday_benchmark_ends_at_the_index_price_read_with_the_valuation(
         "'FILLED', '2026-06-10T19:59:00+00:00', '', '{}')"
     )
 
-    reporting, ranges = materialize(conn, [start, end, coverage()])
+    reporting, _ = materialize(conn, [start, end, coverage()])
 
-    benchmarks = {item["ticker"]: item for item in ranges["All"]["benchmarks"]}
-    assert benchmarks["QQQ"]["return_percent"] == "4.000000"
-    assert benchmarks["SPY"]["return_percent"] == "0.500000"
-    assert benchmarks["SPY"]["convention"] == "adjusted_close_to_live_price"
-    assert benchmarks["SMH"]["reason"] == "matching_session_closes_required"
     comparison = reporting["benchmark_comparison"]
     assert comparison["start_session_date"] == "2026-06-10"
     assert comparison["return_percent"] == "10.000000"

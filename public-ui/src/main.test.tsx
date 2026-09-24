@@ -320,9 +320,10 @@ it('compares the return with the S&P 500 and QQQ since the first trade', async (
   data['live/overview'] = { ...(data['live/overview'] as object), benchmark_comparison: { status: 'available', reason: null, start_at: '2026-09-11T19:58:56Z', start_session_date: '2026-09-11', end_at: '2026-09-24T19:53:04Z', return_percent: '5.040000', benchmarks: [index('SPY', '0.727208'), index('QQQ', '3.849987')] } }
   await dashboard()
   fireEvent.click(screen.getByLabelText('Compare the return with the S&P 500 and QQQ'))
-  const rows = [...document.querySelectorAll('.benchmark-panel tbody tr')].map(row => row.textContent)
-  expect(rows).toEqual(['BouStrategy+5.04%', 'S&P 500+0.73%+4.31 pts', 'QQQ+3.85%+1.19 pts'])
+  const returns = [...document.querySelectorAll('.benchmark-panel dl > div')].map(item => [item.querySelector('dt')?.textContent, item.querySelector('dd')?.textContent])
+  expect(returns).toEqual([['BouStrategy', '+5.04%'], ['S&P 500', '+0.73%'], ['QQQ', '+3.85%']])
   expect(document.querySelector('.benchmark-panel')).toHaveTextContent('Since the first trade, Sep 11, 2026')
+  expect(document.querySelector('.benchmark-panel')).toHaveTextContent('As of Sep 24, 2026, 3:53 PM ET')
 })
 it('offers no comparison before the first trade', async () => {
   data['live/overview'] = { ...(data['live/overview'] as object), benchmark_comparison: { status: 'unavailable', reason: 'no_recorded_trade', start_at: null, start_session_date: null, end_at: '2026-09-24T19:53:04Z', return_percent: null, benchmarks: [] } }

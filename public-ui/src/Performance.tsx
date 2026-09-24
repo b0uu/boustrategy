@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { CaretDown } from '@phosphor-icons/react'
 import { Empty, ResourceNotice, SectionBoundary } from './common'
 import type { Resource } from './api'
 import { amount, label, money, numeric, percent, sessionDay, tone, weight, when } from './format'
@@ -157,20 +156,13 @@ export function Performance({ overview, performance, range, scope, search, open 
     <div className="metrics">
       <div><strong title={money(data?.equity)}>{money(data?.equity, true)}</strong><span>Portfolio value</span></div>
       {/* A missing return is shown as missing: a zero would claim the account broke even. */}
-      <div className="return-metric"><strong className={tone(shown)} title={shown == null && result?.reason ? label(result.reason) : undefined}>{shown == null ? '—' : unit === 'percent' ? percent(shown) : `${(numeric(shown) ?? 0) >= .005 ? '+' : ''}${money(shown)}`}</strong><span className="metric-label">Return{single ? ' · since first record' : ''}<span className="unit-toggle" role="group" aria-label="Show return as"><button type="button" aria-label="Percent" aria-pressed={unit === 'percent'} onClick={() => setUnit('percent')}>%</button><button type="button" aria-label="Dollars" aria-pressed={unit === 'dollars'} onClick={() => setUnit('dollars')}>$</button></span>{comparison && agentReturn !== null && compared.length > 0 && <details className="benchmark-compare" ref={compare}><summary aria-label="Compare the return with the S&P 500 and QQQ">vs index<CaretDown size={9} weight="bold" aria-hidden="true" /></summary><div className="benchmark-panel">
+      <div className="return-metric"><strong className={tone(shown)} title={shown == null && result?.reason ? label(result.reason) : undefined}>{shown == null ? '—' : unit === 'percent' ? percent(shown) : `${(numeric(shown) ?? 0) >= .005 ? '+' : ''}${money(shown)}`}</strong><span className="metric-label">Return{single ? ' · since first record' : ''}<span className="unit-toggle" role="group" aria-label="Show return as"><button type="button" aria-label="Percent" aria-pressed={unit === 'percent'} onClick={() => setUnit('percent')}>%</button><button type="button" aria-label="Dollars" aria-pressed={unit === 'dollars'} onClick={() => setUnit('dollars')}>$</button></span>{comparison && agentReturn !== null && compared.length > 0 && <details className="benchmark-compare" ref={compare}><summary aria-label="Compare the return with the S&P 500 and QQQ">Compare</summary><div className="benchmark-panel">
         <p>Since the first trade, {sessionDay(comparison.start_session_date)}</p>
-        <table>
-          <thead><tr><th scope="col"><span className="sr-only">Portfolio or index</span></th><th scope="col">Return</th><th scope="col">Agent vs.</th></tr></thead>
-          <tbody>
-            <tr className="is-agent"><th scope="row">BouStrategy</th><td className={`mono ${tone(agentReturn)}`}>{percent(agentReturn)}</td><td /></tr>
-            {compared.map(item => {
-              const lead = agentReturn - (numeric(item.return_percent) ?? 0)
-              const rounded = Math.abs(lead) < .005 ? 0 : lead
-              return <tr key={item.ticker}><th scope="row">{BENCHMARK_NAMES[item.ticker] ?? item.ticker}</th><td className="mono">{percent(item.return_percent)}</td><td className={`mono ${tone(rounded)}`}>{rounded > 0 ? '+' : ''}{rounded.toFixed(2)} pts</td></tr>
-            })}
-          </tbody>
-        </table>
-        <p className="quiet">Total returns with dividends, from the close on the day of the first trade to {when(comparison.end_at)}.</p>
+        <dl>
+          <div className="is-agent"><dt>BouStrategy</dt><dd className={`mono ${tone(agentReturn)}`}>{percent(agentReturn)}</dd></div>
+          {compared.map(item => <div key={item.ticker}><dt>{BENCHMARK_NAMES[item.ticker] ?? item.ticker}</dt><dd className={`mono ${tone(item.return_percent)}`}>{percent(item.return_percent)}</dd></div>)}
+        </dl>
+        <p>As of {when(comparison.end_at)}</p>
       </div></details>}</span></div>
       <div><strong>{data ? data.decisions_today.toLocaleString() : 'Unavailable'}</strong><span>{data?.decisions_today === 1 ? 'Decision today' : 'Decisions today'}</span></div>
     </div>

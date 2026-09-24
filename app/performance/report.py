@@ -308,19 +308,6 @@ def materialize(
             fills, key=lambda fill: (fill.occurred_at, fill.observation_id), reverse=True
         )[:100]
     ]
-    # The collector reads SPY and QQQ with every valuation, so a benchmark period can end at
-    # the portfolio's own latest valuation, intraday included, instead of waiting for a close.
-    snapshot_row = (
-        conn.execute(
-            "SELECT json_extract(snapshot_json, '$.index_prices') "
-            "FROM live_portfolio_snapshots "
-            "WHERE json_extract(snapshot_json, '$.reporting.observation_id') = ?",
-            (latest.observation_id,),
-        ).fetchone()
-        if table_exists(conn, "live_portfolio_snapshots")
-        else None
-    )
-    live_prices = json.loads(snapshot_row[0]) if snapshot_row and snapshot_row[0] else {}
     ranges: dict[str, dict[str, Any]] = {}
     local_end = latest.occurred_at.astimezone(ZoneInfo("America/New_York"))
     for name in ("1M", "3M", "YTD", "All"):
@@ -408,34 +395,26 @@ def materialize(
                 "return_percent": None,
                 "convention": "adjusted_close",
             }
-            live_price = live_prices.get(ticker) if latest is not start else None
-            closes_match = (
-                latest.phase == "session_close"
-                and latest.session_date is not None
-                and start.session_date != latest.session_date
-                and session_timestamp_reason(latest) is None
-            )
             if (
-                start.phase == "session_close"
+                start.phase == latest.phase == "session_close"
                 and start.session_date
+                and latest.session_date
+                and start.session_date != latest.session_date
                 and session_timestamp_reason(start) is None
-                and (live_price is not None or closes_match)
+                and session_timestamp_reason(latest) is None
                 and table_exists(conn, "daily_prices")
             ):
-                end_date = latest.session_date or start.session_date
                 prices = dict(
                     conn.execute(
                         "SELECT bar_date, adj_close FROM daily_prices WHERE ticker=? AND "
                         "bar_date IN (?, ?)",
-                        (ticker, start.session_date.isoformat(), end_date.isoformat()),
+                        (ticker, start.session_date.isoformat(), latest.session_date.isoformat()),
                     )
                 )
-                first = prices.get(start.session_date.isoformat())
-                # An adjusted start against the price traded now is a total return, dividends
-                # included, the same basis as the account's own return.
-                last = live_price if live_price is not None else prices.get(end_date.isoformat())
-                if live_price is not None:
-                    benchmark["convention"] = "adjusted_close_to_live_price"
+                first, last = (
+                    prices.get(start.session_date.isoformat()),
+                    prices.get(latest.session_date.isoformat()),
+                )
                 if first is not None and last is not None and first > 0 and last > 0:
                     benchmark.update(
                         status="available",
@@ -527,6 +506,19 @@ def materialize(
             if table_exists(conn, "daily_prices")
             else {}
         )
+        # The collector reads SPY and QQQ with every valuation, so the comparison ends at the
+        # account's own latest valuation, intraday included, instead of waiting for a close.
+        snapshot_row = (
+            conn.execute(
+                "SELECT json_extract(snapshot_json, '$.index_prices') "
+                "FROM live_portfolio_snapshots "
+                "WHERE json_extract(snapshot_json, '$.reporting.observation_id') = ?",
+                (latest.observation_id,),
+            ).fetchone()
+            if table_exists(conn, "live_portfolio_snapshots")
+            else None
+        )
+        live_prices = json.loads(snapshot_row[0]) if snapshot_row and snapshot_row[0] else {}
         for ticker in ("SPY", "QQQ"):
             start_close = closes.get((ticker, start_day.isoformat()))
             end_price = live_prices.get(ticker)
