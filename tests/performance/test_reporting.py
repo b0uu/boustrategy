@@ -638,13 +638,44 @@ def test_an_intraday_benchmark_ends_at_the_index_price_read_with_the_valuation(
         ),
     )
 
-    _, ranges = materialize(conn, [start, end, coverage()])
+    conn.execute(
+        "INSERT INTO broker_execution_records (broker_execution_record_id, order_intent_id, "
+        "execution_packet_id, execution_profile_id, account_alias, submitted_at, ticker, side, "
+        "status, broker_order_id, record_json) VALUES ('ber_first', 'oi_first', 'ep_first', "
+        "'codex', 'codex-agentic', '2026-06-10T19:58:00+00:00', 'NVDA', 'BUY', 'SUBMITTED', "
+        "'rh-1', '{}')"
+    )
+    conn.execute(
+        "INSERT INTO broker_execution_events (broker_event_id, broker_execution_record_id, "
+        "order_intent_id, execution_packet_id, execution_profile_id, status, occurred_at, "
+        "detail, event_json) VALUES ('bev_first', 'ber_first', 'oi_first', 'ep_first', 'codex', "
+        "'FILLED', '2026-06-10T19:59:00+00:00', '', '{}')"
+    )
+
+    reporting, ranges = materialize(conn, [start, end, coverage()])
 
     benchmarks = {item["ticker"]: item for item in ranges["All"]["benchmarks"]}
     assert benchmarks["QQQ"]["return_percent"] == "4.000000"
     assert benchmarks["SPY"]["return_percent"] == "0.500000"
     assert benchmarks["SPY"]["convention"] == "adjusted_close_to_live_price"
     assert benchmarks["SMH"]["reason"] == "matching_session_closes_required"
+    comparison = reporting["benchmark_comparison"]
+    assert comparison["start_session_date"] == "2026-06-10"
+    assert comparison["return_percent"] == "10.000000"
+    assert [(item["ticker"], item["return_percent"]) for item in comparison["benchmarks"]] == [
+        ("SPY", "0.500000"),
+        ("QQQ", "4.000000"),
+    ]
+    conn.close()
+
+
+def test_the_comparison_waits_for_a_first_trade(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+
+    reporting, _ = materialize(conn, [valuation("start", 10, "100"), coverage()])
+
+    assert reporting["benchmark_comparison"]["status"] == "unavailable"
+    assert reporting["benchmark_comparison"]["reason"] == "no_recorded_trade"
     conn.close()
 
 

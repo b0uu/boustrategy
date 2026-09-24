@@ -39,6 +39,8 @@ export interface Overview extends Metadata {
   daily_pnl?: { status: string; reason: string | null; amount: DecimalValue; net_external_flows?: DecimalValue; baseline_at?: string }
   last_complete_valuation?: { at: string; equity: DecimalValue } | null
   holding_episodes?: { status: string; reason?: string; items: Episode[]; total?: number; truncated?: boolean }
+  // The account against SPY and QQQ since its first trade, whatever the chart's range.
+  benchmark_comparison?: { status: string; reason: string | null; start_at: string | null; start_session_date: string | null; end_at: string; return_percent: DecimalValue; benchmarks: Array<{ ticker: string; status: string; reason: string | null; return_percent: DecimalValue }> }
 }
 export interface Positions extends Metadata { portfolio_id: Scope; mode?: Scope; status: string; valuation_status: string; reason: string | null; data_as_of: string | null; items: Position[] }
 // A short the account would take if it could. Long-only execution never acts on one.

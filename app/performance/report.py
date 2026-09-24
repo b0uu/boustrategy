@@ -4,6 +4,7 @@ import calendar
 import hashlib
 import json
 import sqlite3
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -307,6 +308,19 @@ def materialize(
             fills, key=lambda fill: (fill.occurred_at, fill.observation_id), reverse=True
         )[:100]
     ]
+    # The collector reads SPY and QQQ with every valuation, so a benchmark period can end at
+    # the portfolio's own latest valuation, intraday included, instead of waiting for a close.
+    snapshot_row = (
+        conn.execute(
+            "SELECT json_extract(snapshot_json, '$.index_prices') "
+            "FROM live_portfolio_snapshots "
+            "WHERE json_extract(snapshot_json, '$.reporting.observation_id') = ?",
+            (latest.observation_id,),
+        ).fetchone()
+        if table_exists(conn, "live_portfolio_snapshots")
+        else None
+    )
+    live_prices = json.loads(snapshot_row[0]) if snapshot_row and snapshot_row[0] else {}
     ranges: dict[str, dict[str, Any]] = {}
     local_end = latest.occurred_at.astimezone(ZoneInfo("America/New_York"))
     for name in ("1M", "3M", "YTD", "All"):
@@ -385,19 +399,6 @@ def materialize(
                     selected.add(round(index * (total_points - 1) / 399))
                 history = [history[index] for index in sorted(selected)]
         benchmarks: list[dict[str, Any]] = []
-        # The collector reads SPY and QQQ with every valuation, so a benchmark period can end at
-        # the portfolio's own latest valuation, intraday included, instead of waiting for a close.
-        snapshot_row = (
-            conn.execute(
-                "SELECT json_extract(snapshot_json, '$.index_prices') "
-                "FROM live_portfolio_snapshots "
-                "WHERE json_extract(snapshot_json, '$.reporting.observation_id') = ?",
-                (latest.observation_id,),
-            ).fetchone()
-            if table_exists(conn, "live_portfolio_snapshots")
-            else None
-        )
-        live_prices = json.loads(snapshot_row[0]) if snapshot_row and snapshot_row[0] else {}
         for ticker in ("QQQ", "SPY", "SMH"):
             benchmark: dict[str, Any] = {
                 "ticker": ticker,
@@ -480,6 +481,73 @@ def materialize(
         }
         ranges[name].pop("growth_factor", None)
     result["return_percent"] = ranges["All"]["return_percent"]
+    # The comparison starts at the account's first trade. Until then the capital sat in cash, so
+    # the account's return since that trade is its return since funding. Only daily closes are
+    # kept for the indexes that far back, so they start from the close of the first trade's
+    # session; the first trade was placed a minute before that close.
+    first_fill = (
+        conn.execute(
+            "SELECT MIN(occurred_at) FROM broker_execution_events "
+            "WHERE status IN ('FILLED', 'PARTIALLY_FILLED')"
+        ).fetchone()[0]
+        if latest.mode == "live" and table_exists(conn, "broker_execution_events")
+        else None
+    )
+    comparison: dict[str, Any] = {
+        "status": "unavailable",
+        "reason": "no_recorded_trade" if first_fill is None else ranges["All"]["reason"],
+        "start_at": first_fill,
+        "start_session_date": None,
+        "end_at": latest.occurred_at.isoformat(),
+        "return_percent": None,
+        "benchmarks": [],
+    }
+    if first_fill is not None and ranges["All"]["status"] == "available":
+        start_day = (
+            datetime.fromisoformat(first_fill).astimezone(ZoneInfo("America/New_York")).date()
+        )
+        comparison.update(
+            status="available",
+            reason=None,
+            start_session_date=start_day.isoformat(),
+            return_percent=ranges["All"]["return_percent"],
+        )
+        closes: dict[tuple[str, str], float] = (
+            {
+                (ticker, day): close
+                for ticker, day, close in conn.execute(
+                    "SELECT ticker, bar_date, adj_close FROM daily_prices "
+                    "WHERE ticker IN ('SPY', 'QQQ') AND bar_date IN (?, ?)",
+                    (
+                        start_day.isoformat(),
+                        (latest.session_date or start_day).isoformat(),
+                    ),
+                )
+            }
+            if table_exists(conn, "daily_prices")
+            else {}
+        )
+        for ticker in ("SPY", "QQQ"):
+            start_close = closes.get((ticker, start_day.isoformat()))
+            end_price = live_prices.get(ticker)
+            if end_price is None and latest.phase == "session_close" and latest.session_date:
+                end_price = closes.get((ticker, latest.session_date.isoformat()))
+            available = bool(start_close and end_price)
+            comparison["benchmarks"].append(
+                {
+                    "ticker": ticker,
+                    "status": "available" if available else "unavailable",
+                    "reason": None if available else "matching_index_prices_missing",
+                    "return_percent": str(
+                        ((Decimal(str(end_price)) / Decimal(str(start_close)) - 1) * 100).quantize(
+                            Decimal("0.000001")
+                        )
+                    )
+                    if available
+                    else None,
+                }
+            )
+    result["benchmark_comparison"] = comparison
     result["capabilities"]["returns"] = ranges["All"]["status"] == "available"
     result["history"] = []
     return result, ranges

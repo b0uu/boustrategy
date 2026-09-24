@@ -315,15 +315,19 @@ it('switches the return between percent and dollars and remembers the choice', a
   expect(screen.getByRole('button', { name: 'Dollars' })).toHaveAttribute('aria-pressed', 'true')
   expect(localStorage.getItem('boustrategy-return-unit')).toBe('dollars')
 })
-it('compares the return with the S&P 500 and QQQ over the same period', async () => {
-  const benchmark = (ticker: string, value: string | null) => ({ ticker, primary: ticker === 'QQQ', status: value ? 'available' : 'unavailable', reason: value ? null : 'matching_adjusted_prices_missing', return_percent: value, convention: 'adjusted_close_to_live_price' })
-  data['live/performance'] = { ...(data['live/performance'] as object), benchmarks: [benchmark('QQQ', '4.760000'), benchmark('SPY', '1.590000'), benchmark('SMH', null)] }
+it('compares the return with the S&P 500 and QQQ since the first trade', async () => {
+  const index = (ticker: string, value: string | null) => ({ ticker, status: value ? 'available' : 'unavailable', reason: value ? null : 'matching_index_prices_missing', return_percent: value })
+  data['live/overview'] = { ...(data['live/overview'] as object), benchmark_comparison: { status: 'available', reason: null, start_at: '2026-09-11T19:58:56Z', start_session_date: '2026-09-11', end_at: '2026-09-24T19:53:04Z', return_percent: '5.040000', benchmarks: [index('SPY', '0.727208'), index('QQQ', '3.849987')] } }
   await dashboard()
-  expect(document.querySelector('.benchmark-line')).toHaveTextContent('Same periodS&P 500 +1.59%QQQ +4.76%')
+  fireEvent.click(screen.getByLabelText('Compare the return with the S&P 500 and QQQ'))
+  const rows = [...document.querySelectorAll('.benchmark-panel tbody tr')].map(row => row.textContent)
+  expect(rows).toEqual(['BouStrategy+5.04%', 'S&P 500+0.73%+4.31 pts', 'QQQ+3.85%+1.19 pts'])
+  expect(document.querySelector('.benchmark-panel')).toHaveTextContent('Since the first trade, Sep 11, 2026')
 })
-it('leaves out the comparison when no benchmark is available', async () => {
+it('offers no comparison before the first trade', async () => {
+  data['live/overview'] = { ...(data['live/overview'] as object), benchmark_comparison: { status: 'unavailable', reason: 'no_recorded_trade', start_at: null, start_session_date: null, end_at: '2026-09-24T19:53:04Z', return_percent: null, benchmarks: [] } }
   await dashboard()
-  expect(document.querySelector('.benchmark-line')).toBeNull()
+  expect(document.querySelector('.benchmark-compare')).toBeNull()
 })
 it.each([
   ['unfunded', 'The recorded account balance is zero, with no open positions.'],
