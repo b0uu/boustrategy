@@ -218,7 +218,13 @@ def build_intake(
                 else ""
             )
         )
-    if not watchlist:
+    # A held-back buy whose WATCHLIST record didn't go through is still owed a decision.
+    lines.extend(
+        f"- {ticker}: not listed. HELD BACK: an earlier review's BUY, set aside because {cause}"
+        for ticker, cause in sorted(held_back.items())
+        if ticker not in watchlist
+    )
+    if not watchlist and not held_back:
         lines.append("None.")
     lines.append(
         "These are already on the watchlist. Restate one only to change its entry bound; "

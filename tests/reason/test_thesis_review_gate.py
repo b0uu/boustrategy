@@ -591,6 +591,22 @@ def test_a_later_review_that_weighs_a_held_back_buy_marks_it_decided(tmp_path: P
     conn.close()
 
 
+def test_a_held_back_buy_without_a_watchlist_record_is_still_listed(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    conn.execute(
+        "INSERT INTO held_back_buys VALUES ('dec_akam', 'AKAM', ?, 'a gap', ?, NULL)",
+        (ACCOUNT, WEDNESDAY_MIDDAY.isoformat()),
+    )
+    conn.commit()
+
+    intake = build_intake(conn, WEDNESDAY_MIDDAY.date(), tmp_path / "intake", live=True)
+
+    assert "- AKAM: not listed. HELD BACK: an earlier review's BUY, set aside because a gap" in (
+        intake.read_text(encoding="utf-8")
+    )
+    conn.close()
+
+
 def test_a_holdings_gap_with_no_time_left_to_retry_is_still_accepted(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
