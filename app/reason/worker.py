@@ -67,11 +67,13 @@ tools before you conclude anything; the intake is where ideas start, not where t
 carries curated X signal, regime, triggers, calendar and account state; it never carries
 security prices or independent corroboration, and those are yours to find.
 Hunt unless the prompt says this review is exempt (only the morning and midday reviews must, and
-none must in crisis mode). Identify the strongest candidates available now: current holdings,
-securities named or implied by the digests and triggers, and ideas your own research surfaces. Rank
-them and research at least the top three. For each one, open primary sources (company
-investor-relations releases and transcripts, SEC EDGAR filings, exchange or regulator pages)
-rather than relying on search snippets, and read its current price from an opened quote page,
+none must in crisis mode). Identify the strongest candidates you don't already hold: securities
+named or implied by the digests and triggers, watchlist entries, and ideas your own research
+surfaces. Rank them and research at least the top three. Holdings don't count toward the three;
+they're judged in their own thesis reviews, though one may still earn an ADD. For each
+candidate, open primary sources (company investor-relations releases and transcripts, SEC EDGAR
+filings, exchange or regulator pages) rather than relying on search snippets, and read its
+current price from an opened quote page,
 noting that page and the time it displays. Then run the thesis chain against our metrics. A
 candidate that clears the bar becomes a BUY or ADD record. One that falls short is put away as
 WATCHLIST or PASS with the specific reason: the evidence that was missing or the objection
@@ -175,7 +177,10 @@ a ticker on the short watchlist can be removed.
 
 The intake lists the open watchlist entries. A ticker already listed is already on record: restate
 it with WATCHLIST only to change its entry bound, and otherwise act on it, PASS on it, or leave it
-as it stands. Re-recording a listed ticker with the same entry_price_max is rejected.
+as it stands. Re-recording a listed ticker with the same entry_price_max is rejected. An entry
+marked HELD BACK was a buy the trusted worker set aside over a gap in an earlier review, not a
+judgment on the idea: research it again and record it in candidates_considered as BUY (as a swap
+if cash can't fund it), WATCHLIST or PASS, with the reason.
 """
 
 
@@ -388,6 +393,32 @@ def review_sources_gap(
         f"{activity.get('opens', 0)} pages were opened, but each thesis review needs a source "
         f"opened in this session on top of the hunt's; open at least {needed} and list only "
         "those in sources_opened"
+    )
+
+
+def undecided_held_back_buys(
+    conn: sqlite3.Connection, run: RuntimeRun, result: AuthoredOutput
+) -> str | None:
+    """Name the buys an earlier review had held back that this review didn't decide."""
+    considered = {candidate.ticker for candidate in result.candidates_considered}
+    undecided = sorted(
+        {
+            ticker
+            for (ticker,) in conn.execute(
+                "SELECT ticker FROM held_back_buys WHERE account_id=? AND decided_at IS NULL "
+                "AND julianday(held_at) < julianday(?)",
+                (run.account_id, run.prepared_at.isoformat()),
+            )
+        }
+        - considered
+    )
+    if not undecided:
+        return None
+    return (
+        ", ".join(undecided)
+        + " was held back by the trusted worker in an earlier review, not rejected on its "
+        "merits; research it again and record it in candidates_considered as BUY, WATCHLIST or "
+        "PASS"
     )
 
 
@@ -810,6 +841,7 @@ def _review_shortfall(
         "it left the portfolio's exposure unanswered": unanswered_exposure(
             conn, run, result, trading_open=trading_open, now=clock()
         ),
+        "it left a held-back buy undecided": undecided_held_back_buys(conn, run, result),
     }
     return (
         "; ".join(part for part in parts if part) or None,
@@ -1050,11 +1082,13 @@ def execute_attempt(
             for decision in result.decisions
             if decision.decision in {Decision.BUY, Decision.ADD}
         ]
+        held_back: set[str] = set()
         if gaps and buys:
             # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
             # but no new money goes in while they're outstanding. They stay due. A sale that only
-            # funded a held-back buy goes with it; one of a holding judged invalidated stays. The
-            # public summary was written before any of this, so it says so.
+            # funded a held-back buy goes with it; one of a holding judged invalidated stays. A
+            # new position is kept as WATCHLIST, so the next review decides it rather than losing
+            # it. The public summary was written before any of this, so it says so.
             must_exit = {
                 review.ticker for review in result.thesis_reviews if review.state == "invalidated"
             } | {
@@ -1068,20 +1102,34 @@ def execute_attempt(
                 if challenger.verdict == "swap"
                 and challenger.candidate in {decision.ticker for decision in buys}
             } - must_exit
+            held_back = {decision.ticker for decision in buys if decision.decision == Decision.BUY}
             result = result.model_copy(
                 update={
                     "decisions": [
-                        decision
+                        decision.model_copy(update={"decision": Decision.WATCHLIST})
+                        if decision.ticker in held_back and decision.decision == Decision.BUY
+                        else decision
                         for decision in result.decisions
-                        if decision not in buys
+                        if (decision not in buys or decision.ticker in held_back)
                         and not (
                             decision.ticker in funding_sales
                             and decision.decision in {Decision.SELL, Decision.TRIM}
                         )
                     ],
+                    "candidates_considered": [
+                        candidate.model_copy(update={"outcome": "WATCHLIST"})
+                        if candidate.ticker in held_back and candidate.outcome == "BUY"
+                        else candidate
+                        for candidate in result.candidates_considered
+                    ],
                     "public_summary": result.public_summary
                     + " The trusted worker held back this review's new buys, and any sale that "
-                    f"only funded one, because {' and '.join(gaps)}.",
+                    f"only funded one, because {' and '.join(gaps)}."
+                    + (
+                        " New positions stay on the watchlist for the next review to decide."
+                        if held_back
+                        else ""
+                    ),
                 }
             )
         authored_at = clock()
@@ -1161,6 +1209,19 @@ def execute_attempt(
             ).fetchone()
             if intent and record.decision in {Decision.SELL, Decision.TRIM}:
                 accepted_sales[record.ticker] = record.decision_id
+            if record.ticker in held_back and record.decision == Decision.WATCHLIST:
+                with immediate(conn):
+                    validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+                    conn.execute(
+                        "INSERT INTO held_back_buys VALUES (?, ?, ?, ?, ?, NULL)",
+                        (
+                            record.decision_id,
+                            record.ticker,
+                            run.account_id,
+                            " and ".join(gaps),
+                            now.isoformat(),
+                        ),
+                    )
             if intent and funding_sale:
                 # The executor holds this buy until its sale fills.
                 with immediate(conn):
@@ -1171,6 +1232,19 @@ def execute_attempt(
                     )
         with immediate(conn):
             validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+            conn.executemany(
+                "UPDATE held_back_buys SET decided_at=? WHERE account_id=? AND ticker=? "
+                "AND decided_at IS NULL AND julianday(held_at) < julianday(?)",
+                [
+                    (
+                        clock().isoformat(),
+                        run.account_id,
+                        candidate.ticker,
+                        run.prepared_at.isoformat(),
+                    )
+                    for candidate in result.candidates_considered
+                ],
+            )
             for verdict in triaged:
                 conn.execute(
                     "INSERT OR REPLACE INTO x_triage VALUES (?, ?, ?, ?, ?, ?, ?)",

@@ -274,6 +274,16 @@ CREATE TABLE IF NOT EXISTS execution_sessions (
     model TEXT NOT NULL,
     PRIMARY KEY (order_intent_id, attempted_at)
 );
+-- A new buy the worker set aside over a process gap, kept as a WATCHLIST record until a later
+-- review decides it on its merits.
+CREATE TABLE IF NOT EXISTS held_back_buys (
+    decision_id TEXT PRIMARY KEY,
+    ticker TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    cause TEXT NOT NULL,
+    held_at TEXT NOT NULL,
+    decided_at TEXT
+);
 CREATE TABLE IF NOT EXISTS swap_pairs (
     buy_decision_id TEXT PRIMARY KEY,
     sell_decision_id TEXT NOT NULL,

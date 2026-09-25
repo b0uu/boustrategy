@@ -155,7 +155,10 @@ URL. Holdings don't count toward the hunt's three researched candidates, and the
 session must open at least three pages plus one per thesis review it returns. The retry
 amends the first answer, so pages opened in either pass count toward it. If the retry
 still leaves a gap, the output is accepted without its BUY and ADD records, the holding
-stays due, and the public summary names the gap that held the buys back. Each saved review records why it was
+stays due, and the public summary names the gap that held the buys back. A held-back
+BUY isn't lost: it's recorded as WATCHLIST with its size, entry bound and range, and the
+next intake marks it HELD BACK. A later review must decide it in candidates_considered
+(BUY, WATCHLIST or PASS) or be sent back. Each saved review records why it was
 due, and the public positions panel shows the latest approved review.
 
 For a paper intake you've already prepared:

@@ -199,6 +199,9 @@ def build_intake(
     if not calendar:
         lines.append("None.")
     watchlist = open_watchlist_entries(conn, "LIVE" if live else "PAPER")
+    held_back = dict(
+        conn.execute("SELECT ticker, cause FROM held_back_buys WHERE decided_at IS NULL").fetchall()
+    )
     lines.extend(["", "## Watchlist", ""])
     for ticker, entry in sorted(watchlist.items()):
         bounds = (
@@ -209,6 +212,11 @@ def build_intake(
             f"- {ticker}: listed {entry.listed_at.date().isoformat()}, last stated "
             f"{entry.restated_at.date().isoformat()} (`{entry.decision_id}`), stated "
             f"{entry.statements}x, entry band {bounds}"
+            + (
+                f". HELD BACK: an earlier review's BUY, set aside because {held_back[ticker]}"
+                if ticker in held_back
+                else ""
+            )
         )
     if not watchlist:
         lines.append("None.")

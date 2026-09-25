@@ -6,8 +6,14 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from app.reason.intake import build_intake
 from app.reason.runtime_prepare import assemble_intake
-from app.reason.worker import execute_attempt, unanswered_challengers, unreviewed_holdings
+from app.reason.worker import (
+    execute_attempt,
+    unanswered_challengers,
+    undecided_held_back_buys,
+    unreviewed_holdings,
+)
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.reasoning_run import ReasoningRun
 from app.schemas.runtime import (
@@ -484,7 +490,7 @@ def test_a_review_that_skips_a_due_holding_is_retried_and_its_review_recorded(
     conn.close()
 
 
-def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buys(
+def test_a_review_that_still_skips_a_due_holding_keeps_its_new_buy_on_the_watchlist(
     tmp_path: Path,
 ) -> None:
     conn = connect(tmp_path / "boustrategy.db")
@@ -494,7 +500,7 @@ def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buy
     def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
         namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
         buy = InvestmentDecisionRecord.model_validate(
-            {**valid_decision_record_data(), "decision_id": namespace + "buy"}
+            {**valid_decision_record_data(), "decision_id": namespace + "buy", "ticker": "AKAM"}
         )
         return AuthoredOutput(decisions=[buy], public_summary="A new idea, holdings skipped.")
 
@@ -509,12 +515,79 @@ def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buy
     )
 
     research = json.loads((tmp_path / "logs" / attempt.attempt_id / "research.json").read_text())
-    assert attempt.status == "no_action"
-    assert conn.execute("SELECT COUNT(*) FROM decision_records").fetchone()[0] == 0
+    later = run.model_copy(update={"prepared_at": WEDNESDAY_MIDDAY + timedelta(hours=2)})
+    decided = AuthoredOutput(
+        candidates_considered=[
+            CandidateConsidered.model_validate(
+                {
+                    "ticker": "AKAM",
+                    "idea_source": "held back at midday",
+                    "sources_opened": ["https://investor.nvidia.com/q2"],
+                    "outcome": "PASS",
+                    "reason": "The entry bound no longer leaves room to fully priced.",
+                }
+            )
+        ],
+        public_summary="Decided the held-back buy.",
+    )
+    assert conn.execute("SELECT decision FROM decision_records").fetchall() == [("WATCHLIST",)]
+    assert conn.execute("SELECT ticker, cause, decided_at FROM held_back_buys").fetchall() == [
+        ("AKAM", "it left a holding's review unanswered", None)
+    ]
     assert "NVDA is due a thesis review" in research["passes"][1]["review_gap"]
     assert attempt.public_summary and attempt.public_summary.endswith(
-        "only funded one, because it left a holding's review unanswered."
+        "only funded one, because it left a holding's review unanswered. New positions stay on "
+        "the watchlist for the next review to decide."
     )
+    assert "AKAM was held back" in (
+        undecided_held_back_buys(conn, later, AuthoredOutput(public_summary="No action.")) or ""
+    )
+    assert undecided_held_back_buys(conn, later, decided) is None
+    assert undecided_held_back_buys(conn, run, AuthoredOutput(public_summary="x")) is None
+    intake = build_intake(conn, WEDNESDAY_MIDDAY.date(), tmp_path / "intake", live=True)
+    assert "HELD BACK: an earlier review's BUY, set aside because it left a holding's review" in (
+        intake.read_text(encoding="utf-8")
+    )
+    conn.close()
+
+
+def test_a_later_review_that_weighs_a_held_back_buy_marks_it_decided(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    save_run(conn, run)
+    conn.execute(
+        "INSERT INTO held_back_buys VALUES ('dec_akam', 'AKAM', ?, 'a gap', ?, NULL)",
+        (ACCOUNT, (WEDNESDAY_MIDDAY - timedelta(hours=3)).isoformat()),
+    )
+    conn.commit()
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        return AuthoredOutput(
+            candidates_considered=[
+                CandidateConsidered.model_validate(
+                    {
+                        "ticker": "AKAM",
+                        "idea_source": "held back earlier today",
+                        "sources_opened": ["https://www.ir.akamai.com/q2"],
+                        "outcome": "PASS",
+                        "reason": "The quote has run past the entry bound.",
+                    }
+                )
+            ],
+            public_summary="Passed on the held-back Akamai buy.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    assert conn.execute("SELECT decided_at FROM held_back_buys").fetchone()[0] is not None
     conn.close()
 
 
