@@ -226,6 +226,36 @@ def test_a_skipped_hunt_is_retried_once_with_the_reason(tmp_path: Path) -> None:
     conn.close()
 
 
+def test_a_retry_counts_the_pages_both_passes_opened(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+    run = paper_run(conn, tmp_path)
+    prompts: list[str] = []
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        prompts.append(prompt)
+        events(kwargs["log_dir"], searches=2, opens=2, reasoning=900)
+        return HUNTED
+
+    attempt = execute_attempt(
+        conn,
+        run.run_id,
+        "m",
+        log_root=tmp_path / "logs",
+        runner=author,
+        clock=lambda: NOW,
+        hunt_minimum=3,
+    )
+
+    research = json.loads(
+        (tmp_path / "logs" / attempt.attempt_id / "research.json").read_text(encoding="utf-8")
+    )
+    assert "2 pages were opened" in prompts[1]
+    assert [item["activity"]["opens"] for item in research["passes"]] == [2, 2]
+    assert research["passes"][1]["shortfall"] is None
+    assert attempt.status == "no_action"
+    conn.close()
+
+
 def test_a_review_that_never_hunts_fails_loudly_and_submits_nothing(tmp_path: Path) -> None:
     conn = connect(tmp_path / "source.db")
     run = paper_run(conn, tmp_path)

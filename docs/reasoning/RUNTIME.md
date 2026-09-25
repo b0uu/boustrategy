@@ -152,8 +152,10 @@ own the holding at today's price) or `invalidated`. An invalidated holding needs
 SELL or TRIM in the first review that can trade. The worker sends back an output
 that leaves a due holding without a review carrying a summary and an opened source
 URL. Holdings don't count toward the hunt's three researched candidates, and the
-session must open at least three pages plus one per thesis review it returns. If the retry still leaves one unanswered, the output is accepted without its
-BUY and ADD records, and the holding stays due. Each saved review records why it was
+session must open at least three pages plus one per thesis review it returns. The retry
+amends the first answer, so pages opened in either pass count toward it. If the retry
+still leaves a gap, the output is accepted without its BUY and ADD records, the holding
+stays due, and the public summary names the gap that held the buys back. Each saved review records why it was
 due, and the public positions panel shows the latest approved review.
 
 For a paper intake you've already prepared:

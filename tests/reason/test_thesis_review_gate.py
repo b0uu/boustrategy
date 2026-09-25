@@ -512,7 +512,9 @@ def test_a_review_that_still_skips_a_due_holding_is_accepted_without_its_new_buy
     assert attempt.status == "no_action"
     assert conn.execute("SELECT COUNT(*) FROM decision_records").fetchone()[0] == 0
     assert "NVDA is due a thesis review" in research["passes"][1]["review_gap"]
-    assert attempt.public_summary and "held back this review's new buys" in attempt.public_summary
+    assert attempt.public_summary and attempt.public_summary.endswith(
+        "only funded one, because it left a holding's review unanswered."
+    )
     conn.close()
 
 

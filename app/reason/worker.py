@@ -781,11 +781,12 @@ def _review_shortfall(
     trading_open: bool,
     clock: Callable[[], datetime],
     crisis: bool = False,
-) -> tuple[str | None, str | None]:
-    """What the trusted worker demands of a review, as (required, holdings).
+) -> tuple[str | None, dict[str, str]]:
+    """What the trusted worker demands of a review, as (required, holdings gaps).
 
-    The hunt and due short calls are required outright. Unanswered holdings come back apart: a
-    review with that gap is still accepted, without its new buys.
+    The hunt and due short calls are required outright. Holdings gaps come back apart, each
+    under the public cause the dashboard gives for it: a review with one is still accepted,
+    without its new buys.
     """
     held = frozenset(
         [position.ticker for position in _starting_snapshot(conn, run).positions]
@@ -796,15 +797,23 @@ def _review_shortfall(
         hunt_shortfall(result, activity, required, trading_open=trading_open, held=held),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
     ]
-    holdings = [
-        review_sources_gap(result, activity, required),
-        unreviewed_holdings(conn, run, result, trading_open=trading_open, crisis=crisis),
-        unanswered_challengers(conn, run, result, trading_open=trading_open, crisis=crisis),
-        unanswered_exposure(conn, run, result, trading_open=trading_open, now=clock()),
-    ]
+    holdings = {
+        "its holding reviews cited more sources than it opened": review_sources_gap(
+            result, activity, required
+        ),
+        "it left a holding's review unanswered": unreviewed_holdings(
+            conn, run, result, trading_open=trading_open, crisis=crisis
+        ),
+        "it left a challenger to a holding unanswered": unanswered_challengers(
+            conn, run, result, trading_open=trading_open, crisis=crisis
+        ),
+        "it left the portfolio's exposure unanswered": unanswered_exposure(
+            conn, run, result, trading_open=trading_open, now=clock()
+        ),
+    }
     return (
         "; ".join(part for part in parts if part) or None,
-        "; ".join(part for part in holdings if part) or None,
+        {cause: gap for cause, gap in holdings.items() if gap},
     )
 
 
@@ -931,22 +940,22 @@ def execute_attempt(
 
         result = author(prompt, attempt_log, timeout_seconds)
         activity = research_activity(attempt_log)
-        shortfall, review_gap = _review_shortfall(
+        shortfall, gaps = _review_shortfall(
             conn, run, result, activity, required, trading_open, clock, crisis
         )
         passes: list[dict[str, Any]] = [
-            {"activity": activity, "shortfall": shortfall, "review_gap": review_gap}
+            {"activity": activity, "shortfall": shortfall, "review_gap": "; ".join(gaps.values())}
         ]
         # One second pass, inside the same time budget, told exactly what was missing. Without
         # the time for one, a missing hunt still fails and a holdings gap is accepted below.
         remaining = timeout_seconds - (time.monotonic() - started)
-        if (shortfall or review_gap) and remaining >= _MIN_RETRY_SECONDS:
+        if (shortfall or gaps) and remaining >= _MIN_RETRY_SECONDS:
             second_log = attempt_log / "second-pass"
             # The retry amends the first answer rather than starting over: redone from scratch,
             # a review re-decides and can reverse itself or drop what it had already done well.
             correction = (
                 "\nYOUR PREVIOUS ANSWER WAS REJECTED BY THE TRUSTED WORKER: "
-                + "; ".join(part for part in (shortfall, review_gap) if part)
+                + "; ".join(part for part in (shortfall, *gaps.values()) if part)
                 + ".\nCorrect only these problems and return the complete JSON. Keep every other "
                 "decision, review, candidate and verdict from your previous answer as it was, "
                 "unless fixing a problem requires changing it; don't reopen settled judgments. "
@@ -956,17 +965,25 @@ def execute_attempt(
             previous = "\nYOUR PREVIOUS ANSWER:\n" + result.model_dump_json()
             if len((prompt + correction + previous).encode()) > MAX_PROMPT_BYTES:
                 previous = ""
-            first_result, first_shortfall, first_review_gap = result, shortfall, review_gap
+            first_result, first_shortfall, first_gaps = result, shortfall, gaps
             result = author(prompt + correction + previous, second_log, remaining)
-            activity = research_activity(second_log)
-            shortfall, review_gap = _review_shortfall(
+            retry_activity = research_activity(second_log)
+            # The retry amends the first answer, so pages either session opened count toward it.
+            activity = {key: activity[key] + retry_activity[key] for key in activity}
+            shortfall, gaps = _review_shortfall(
                 conn, run, result, activity, required, trading_open, clock, crisis
             )
-            passes.append({"activity": activity, "shortfall": shortfall, "review_gap": review_gap})
+            passes.append(
+                {
+                    "activity": retry_activity,
+                    "shortfall": shortfall,
+                    "review_gap": "; ".join(gaps.values()),
+                }
+            )
             if shortfall and not first_shortfall:
                 # The retry made things worse: the first answer met every required check, so it
                 # stands, with only its holdings gap, which partial acceptance handles below.
-                result, shortfall, review_gap = first_result, None, first_review_gap
+                result, shortfall, gaps = first_result, None, first_gaps
                 passes.append({"kept_first_pass": True})
         _record_research(attempt_log, passes, result)
         if shortfall:
@@ -1033,7 +1050,7 @@ def execute_attempt(
             for decision in result.decisions
             if decision.decision in {Decision.BUY, Decision.ADD}
         ]
-        if review_gap and buys:
+        if gaps and buys:
             # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
             # but no new money goes in while they're outstanding. They stay due. A sale that only
             # funded a held-back buy goes with it; one of a holding judged invalidated stays. The
@@ -1064,7 +1081,7 @@ def execute_attempt(
                     ],
                     "public_summary": result.public_summary
                     + " The trusted worker held back this review's new buys, and any sale that "
-                    "only funded one, because it left a holding's review unanswered.",
+                    f"only funded one, because {' and '.join(gaps)}.",
                 }
             )
         authored_at = clock()
