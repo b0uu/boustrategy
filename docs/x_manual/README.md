@@ -42,7 +42,7 @@ adding accounts below beyond what you skim — tag the ones you're actually
 skimming this week with `(wk1)`.
 
 - @jukan05 - [semis, news] - translated Korean semis supply-chain intelligence: HBM/HBF, Samsung/SK Hynix/Micron dynamics, memory pricing; frequently early on memory-cycle news
-- @zephyr_z9 - [semis, ai-infra] - anonymous China semis/compute analyst: domestic fab and equipment progress, China DC buildout, supply-chain names; useful counter-consensus window into China capability
+* @zephyr_z9 - [semis, ai-infra] - anonymous China semis/compute analyst: domestic fab and equipment progress, China DC buildout, supply-chain names; useful counter-consensus window into China capability. Parked 2026-09-28 to reevaluate later: 342 posts in 30 days, 21 headlines, no live decisions
 - @tphuang - [ai-infra, high-signal] - long-form China tech ecosystem analysis (AI, semis, telecom); primary-source-driven takes on China competitiveness
 - @mingchikuo - [semis, company:apple, news] - Ming-Chi Kuo, TF International Securities supply-chain analyst; Apple/consumer hardware demand, component order checks; long market-moving track record
 * @bubbleboi - [semis, high-signal] - in between the shitposting he has some meaningful insights on industry and seems to have domain knowledge
@@ -50,6 +50,7 @@ skimming this week with `(wk1)`.
 * @0xBADB01E - [semis, ai-infra] - need to screen this guy more, but people seem to view his recent tweets as technically insightful and novel
 - @synthwavedd - [company:openai, high-signal] - potential openAI insider, very in touch with frontier model progress and competition
 - @ArfurGrok - [news, company:frontier-labs] - insider for frontier lab & company employment notifications
+- @lyraxana - [news, company:frontier-labs] - possible frontier-lab insider, accurate on recent Anthropic release information; low volume, occasionally off topic
 * @aaronp613 - [company:apple, news] - early news and rumors insider for apple, looks behind the scenes for early news and credible rumors in other notable companies as well
 * @evrgn11112231 - [investor, high-signal] - provides personal insights on large cap stocks, tech, semis, and AI
 - @CharlesRollet1 - [news] - tech reporter at Business Insider, provides some good inside scoops
@@ -63,10 +64,10 @@ skimming this week with `(wk1)`.
 * @ch402 - [company:anthropic, high-signal] - Chris Olah, Anthropic co-founder; mechanistic interpretability research; a window into frontier-lab research direction and capability trajectory rather than markets
 * @zekramu - [high-signal] - very rambled thoughts from a software engineer, can be abrasive and/or off topic but i feel has some good thoughts
 * @user_bin_roygbiv - [high-signal] - lots of thoughts on AI ecosystem, anon but seems in touch with the atmosphere
-* @SemiAnalysis_ - [semis, dc-power, ai-infra] - good semiconductor analysis
+- @SemiAnalysis_ - [semis, dc-power, ai-infra] - good semiconductor analysis; often links to its paid article platform, and link-only posts go to the article queue rather than the digest
 * @__tinygrad__ - [ai-infra, company:tinygrad] - cool company that actually makes commentary on stuff
 * @haydonryan - [high-signal] - dev that has random bits of commentary
-* @dylan522p - [semis, dc-power, ai-infra] - Dylan Patel, SemiAnalysis; probably the most influential public analyst on AI datacenter/semis supply chains; caveat: so widely read that his takes price in fast. treat as a substance benchmark, not early signal
+- @dylan522p - [semis, dc-power, ai-infra] - Dylan Patel, SemiAnalysis; probably the most influential public analyst on AI datacenter/semis supply chains; caveat: so widely read that his takes price in fast. treat as a substance benchmark, not early signal
 
 ### Suggested additions (Claude, 2026-07-13 — pending your review)
 
