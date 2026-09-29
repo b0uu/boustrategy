@@ -13,9 +13,9 @@
     DigestModel = "gpt-5.6-luna"
     DigestReasoningEffort = "low"
 
-    # One-off investment reviews. The runtime passes only the model; its
-    # reasoning effort comes from the Codex default because user config is
-    # ignored during authoring.
+    # One-off investment reviews. The runtime sets their reasoning effort
+    # itself (REASONING_EFFORT in app/reason/codex_runner.py), because user
+    # config is ignored during authoring.
     ReviewModel = "gpt-5.6-sol"
 
     # Broker sessions: cheap account/quote reads, careful execution.

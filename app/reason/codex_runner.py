@@ -20,7 +20,7 @@ from app.schemas.runtime import AuthoredOutput
 MAX_PROMPT_BYTES = 512_000
 MAX_STREAM_BYTES = 8_000_000
 MAX_RESULT_BYTES = 1_000_000
-REASONING_EFFORT = "high"
+REASONING_EFFORT = "xhigh"
 
 
 class RunnerFailure(ValueError):

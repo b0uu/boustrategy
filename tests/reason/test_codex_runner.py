@@ -68,7 +68,7 @@ def test_real_local_fake_process_exits_and_releases_inherited_pipes(
     assert "--ignore-user-config" in captured["argv"]  # type: ignore[operator]
     assert "--sandbox" in captured["argv"]  # type: ignore[operator]
     argv: list[str] = captured["argv"]  # type: ignore[assignment]
-    assert argv[argv.index("model_reasoning_effort=high") - 1] == "-c"
+    assert argv[argv.index("model_reasoning_effort=xhigh") - 1] == "-c"
     assert not any("robinhood" in part or "mcp_servers" in part for part in argv)
 
 
