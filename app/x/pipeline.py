@@ -401,13 +401,16 @@ def render_weekly(conn: sqlite3.Connection, end_date: date, out_path: str | Path
            AND substr(p.fetched_at, 1, 10) BETWEEN ? AND ?) AS fetched,
           SUM(CASE WHEN r.rank = 'headline' THEN 1 ELSE 0 END),
           SUM(CASE WHEN r.rank = 'notable' THEN 1 ELSE 0 END),
-          SUM(CASE WHEN r.rank = 'context' THEN 1 ELSE 0 END)
+          SUM(CASE WHEN r.rank = 'context' THEN 1 ELSE 0 END),
+          (SELECT COUNT(DISTINCT c.post_id) FROM x_citations c
+           JOIN x_posts p3 ON p3.post_id = c.post_id WHERE p3.handle = a.handle
+           AND substr(c.cited_at, 1, 10) BETWEEN ? AND ?) AS cited
         FROM x_accounts a LEFT JOIN x_posts p2 ON p2.handle = a.handle
         LEFT JOIN x_route_decisions r ON r.post_id = p2.post_id
           AND substr(r.run_id, 1, 10) BETWEEN ? AND ?
         GROUP BY a.handle ORDER BY a.handle
         """,
-        (start, end, start, end),
+        (start, end, start, end, start, end),
     ).fetchall()
     articles = conn.execute(
         """
@@ -432,10 +435,10 @@ def render_weekly(conn: sqlite3.Connection, end_date: date, out_path: str | Path
     ).fetchone()[0]
     lines = [f"# X weekly digest: {end}", "", "## Headlines", "", *_post_lines(headlines, 280)]
     lines += ["", "## Per-account counts", ""]
-    for handle, fetched, headline, notable, context in accounts:
+    for handle, fetched, headline, notable, context, cited in accounts:
         lines.append(
             f"- @{handle}: fetched={fetched} headline={headline} "
-            f"notable={notable} context={context}"
+            f"notable={notable} context={context} cited_by_reviews={cited}"
         )
     lines += ["", "## Article queue", ""]
     lines += [f"- {url} | {status} | {resolution}" for url, status, resolution in articles]

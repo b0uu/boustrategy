@@ -30,7 +30,7 @@ from app.reason.runtime_prepare import live_readiness
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
 from app.schemas.live_execution import ExecutionProfile, LivePortfolioSnapshot
 from app.schemas.order_intent import ExecutionMode
-from app.schemas.public_authoring import ThesisReview
+from app.schemas.public_authoring import ThesisReview, canonical_x_post
 from app.schemas.runtime import (
     AuthoredOutput,
     AuthoredThesisReview,
@@ -93,6 +93,12 @@ approved_for_publication to true; keep private reasoning in private_notes. A hol
 due may still be reviewed; otherwise thesis_reviews may be empty. A review that leaves a due
 holding unanswered is sent back, and if it's still unanswered, its BUY and ADD records are
 discarded.
+The intake carries the latest digest whole: headline, notable and context posts and the
+digester's synthesis. Every rank is evidence you may build on or argue against. Reason for
+yourself about which companies a post bears on, including ones it never names. Whenever a post
+shapes a candidate or a thesis review, for or against, list it in that entry's x_posts with its
+https://x.com/<handle>/status/<id> URL from the intake and its role: idea_source, supporting,
+counter_evidence or context. Cite only posts the intake lists.
 Triage every X headline the intake lists for a holding in x_triage: would it change the
 thesis on that holding? A post that would requires the holding's thesis review in this review.
 When buying power is below the minimum initial position, cash can't fund a new holding. Mark
@@ -393,6 +399,43 @@ def review_sources_gap(
         f"{activity.get('opens', 0)} pages were opened, but each thesis review needs a source "
         f"opened in this session on top of the hunt's; open at least {needed} and list only "
         "those in sources_opened"
+    )
+
+
+def _cited_posts(result: AuthoredOutput) -> list[tuple[str, str, str, str]]:
+    """Every X post the output cites, as (status id, subject, ticker, role)."""
+    cited: list[tuple[str, str, str, str]] = [
+        (post.url.rsplit("/", 1)[1], "candidate", candidate.ticker, str(post.role))
+        for candidate in result.candidates_considered
+        for post in candidate.x_posts
+    ] + [
+        (post.url.rsplit("/", 1)[1], "thesis_review", review.ticker, str(post.role))
+        for review in result.thesis_reviews
+        for post in review.x_posts
+    ]
+    for decision in result.decisions:
+        for post in decision.public_narrative.x_posts if decision.public_narrative else []:
+            parsed = canonical_x_post(post.url)
+            if parsed:
+                cited.append((parsed[1], "decision", decision.ticker, post.role))
+    return cited
+
+
+def uncollected_x_citations(conn: sqlite3.Connection, result: AuthoredOutput) -> str | None:
+    """Name cited X posts the pipeline never fetched, which the intake can't have listed."""
+    missing = sorted(
+        {
+            post_id
+            for post_id, _, _, _ in _cited_posts(result)
+            if conn.execute("SELECT 1 FROM x_posts WHERE post_id=?", (post_id,)).fetchone() is None
+        }
+    )
+    if not missing:
+        return None
+    return (
+        "these cited X posts were never collected, so they can't come from the intake: "
+        + ", ".join(missing)
+        + "; cite only posts the intake lists"
     )
 
 
@@ -827,6 +870,7 @@ def _review_shortfall(
     parts = [
         hunt_shortfall(result, activity, required, trading_open=trading_open, held=held),
         unanswered_short_calls(conn, run, clock().astimezone(NEW_YORK).date(), result),
+        uncollected_x_citations(conn, result),
     ]
     holdings = {
         "its holding reviews cited more sources than it opened": review_sources_gap(
@@ -1245,6 +1289,13 @@ def execute_attempt(
                     for candidate in result.candidates_considered
                 ],
             )
+            conn.executemany(
+                "INSERT OR IGNORE INTO x_citations VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (post_id, attempt.attempt_id, subject, ticker, role, authored_at.isoformat())
+                    for post_id, subject, ticker, role in _cited_posts(result)
+                ],
+            )
             for verdict in triaged:
                 conn.execute(
                     "INSERT OR REPLACE INTO x_triage VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -1276,7 +1327,7 @@ def execute_attempt(
             ):
                 continue
             review = ThesisReview(
-                **draft_review.model_dump(exclude={"sources_opened"}),
+                **draft_review.model_dump(exclude={"sources_opened", "x_posts"}),
                 review_reasons=due_reasons.get(draft_review.episode_id, []),
                 review_id="review_" + uuid4().hex,
                 mode=run.mode,

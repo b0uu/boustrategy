@@ -58,6 +58,13 @@ instead of silently dropping evidence. A missing episode history prevents
 invented episode-bound thesis reviews. Conflicting latest review times are
 reported without selecting a verdict.
 
+Every intake carries the latest daily digest whole (headline, notable and context
+posts and the digester's synthesis) and the two days before it as headlines only.
+Candidates and thesis reviews list the X posts that shaped them, for or against, with
+a role; decisions already do in their public narrative. The worker sends back a review
+that cites a post the pipeline never collected, and records every citation in
+`x_citations`, which the weekly digest counts per account as `cited_by_reviews`.
+
 A live intake also shows each holding's weight, quantity, average cost, price and
 unrealized return from the starting snapshot, and derives holding episodes from
 broker snapshots, because live activity coverage isn't recorded. It lists the

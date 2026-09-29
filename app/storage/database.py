@@ -284,6 +284,17 @@ CREATE TABLE IF NOT EXISTS held_back_buys (
     held_at TEXT NOT NULL,
     decided_at TEXT
 );
+-- Every X post a review cited for or against a decision, candidate or thesis review, so an
+-- account is credited for context that shaped a judgment, not only for headlines that traded.
+CREATE TABLE IF NOT EXISTS x_citations (
+    post_id TEXT NOT NULL,
+    runtime_attempt_id TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    ticker TEXT NOT NULL,
+    role TEXT NOT NULL,
+    cited_at TEXT NOT NULL,
+    PRIMARY KEY (post_id, runtime_attempt_id, subject, ticker)
+);
 CREATE TABLE IF NOT EXISTS swap_pairs (
     buy_decision_id TEXT PRIMARY KEY,
     sell_decision_id TEXT NOT NULL,

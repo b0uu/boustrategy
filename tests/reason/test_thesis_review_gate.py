@@ -11,6 +11,7 @@ from app.reason.runtime_prepare import assemble_intake
 from app.reason.worker import (
     execute_attempt,
     unanswered_challengers,
+    uncollected_x_citations,
     undecided_held_back_buys,
     unreviewed_holdings,
 )
@@ -745,4 +746,55 @@ def test_testing_a_candidate_against_other_than_the_lowest_ranked_holding_needs_
 
     assert unexplained and "MU has the lowest reward to risk" in unexplained
     assert explained is None
+    conn.close()
+
+
+def test_a_review_records_the_x_posts_it_cited_and_may_not_cite_uncollected_ones(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path)
+    save_run(conn, run)
+    conn.execute(
+        "INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at) VALUES "
+        "('111', 'synthwavedd', ?, 'A new frontier model shipped', "
+        "'https://x.com/synthwavedd/status/111', ?)",
+        (WEDNESDAY_MIDDAY.isoformat(), WEDNESDAY_MIDDAY.isoformat()),
+    )
+    conn.commit()
+
+    def passed(url: str) -> AuthoredOutput:
+        return AuthoredOutput(
+            candidates_considered=[
+                CandidateConsidered.model_validate(
+                    {
+                        "ticker": "AMD",
+                        "idea_source": "notable post on a model launch",
+                        "sources_opened": ["https://ir.amd.com/q2"],
+                        "x_posts": [{"url": url, "role": "counter_evidence"}],
+                        "outcome": "PASS",
+                        "reason": "The launch runs on a competitor's accelerators.",
+                    }
+                )
+            ],
+            public_summary="Passed on AMD.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=lambda prompt, **kwargs: passed("https://twitter.com/synthwavedd/status/111"),
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    assert conn.execute("SELECT post_id, subject, ticker, role FROM x_citations").fetchall() == [
+        ("111", "candidate", "AMD", "counter_evidence")
+    ]
+    assert uncollected_x_citations(conn, passed("https://x.com/synthwavedd/status/111")) is None
+    assert "222" in (
+        uncollected_x_citations(conn, passed("https://x.com/someone/status/222")) or ""
+    )
     conn.close()

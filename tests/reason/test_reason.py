@@ -110,6 +110,38 @@ def test_intake_renders_every_section_and_does_not_mutate_database(tmp_path: Pat
     assert json.loads((tmp_path / "out" / "triggers.json").read_text())[0]["subject"] == "NVDA"
 
 
+def test_the_latest_digest_reaches_the_review_whole_and_earlier_days_as_headlines(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "test.db")
+    digest_dir = tmp_path / "digests"
+    digest_dir.mkdir()
+    for day in ("2026-06-09", "2026-06-10"):
+        (digest_dir / f"{day}.md").write_text(
+            "\n\n".join(
+                [
+                    f"# {day}",
+                    f"## Actionable\n\n- Headline {day}",
+                    f"## Notable\n\n- Notable {day}",
+                    f"## Context\n\n- Context {day}",
+                    f"## Synthesis\n\nSynthesis {day}",
+                    f"## Ops\n\n- ops {day}",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    bundle = build_intake(conn, date(2026, 6, 10), tmp_path / "out", digest_dir).read_text(
+        encoding="utf-8"
+    )
+
+    for text in ("Headline 2026-06-10", "Notable 2026-06-10", "Context 2026-06-10"):
+        assert text in bundle
+    assert "Synthesis 2026-06-10" in bundle and "Headline 2026-06-09" in bundle
+    for text in ("Notable 2026-06-09", "Context 2026-06-09", "ops 2026-06-10"):
+        assert text not in bundle
+
+
 def test_intake_shows_regime_banner_before_signoff(tmp_path: Path) -> None:
     conn = connect(tmp_path / "test.db")
 

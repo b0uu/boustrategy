@@ -16,19 +16,21 @@ _DAILY_DIGEST = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
 _RULES_BANNER = "RULES NOT YET SIGNED OFF"
 
 
-def _digest_headlines(path: Path) -> list[str]:
-    lines = path.read_text(encoding="utf-8").splitlines()
-    actionable = False
-    headlines: list[str] = []
-    for line in lines:
-        if line.strip().casefold().startswith("## actionable"):
-            actionable = True
+def _digest_sections(path: Path, sections: tuple[str, ...]) -> list[str]:
+    """The named sections of a daily digest, each under its own heading."""
+    lines: list[str] = []
+    current: str | None = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            current = next(
+                (name for name in sections if line[3:].strip().casefold() == name.casefold()), None
+            )
+            if current:
+                lines.extend(["", f"#### {current}"])
             continue
-        if actionable and line.startswith("## "):
-            break
-        if actionable and line.strip().startswith(("- ", "* ")):
-            headlines.append(line.strip())
-    return headlines
+        if current and line.strip():
+            lines.append(line.rstrip())
+    return lines
 
 
 def build_intake(
@@ -163,10 +165,20 @@ def build_intake(
     if not triggers:
         lines.append("None.")
     lines.extend(["", "## Recent daily digests", ""])
-    for path in digest_paths:
+    # The latest day comes whole, notable and context posts and the digester's synthesis
+    # included, since a review can build or reject a thesis on any of them. Earlier days keep
+    # only their headlines.
+    for index, path in enumerate(digest_paths):
         lines.append(f"### `{path.as_posix()}`")
-        headlines = _digest_headlines(path)
-        lines.extend(headlines or ["- No ACTIONABLE headline items."])
+        sections = _digest_sections(
+            path,
+            ("Actionable", "Notable", "Context", "Synthesis") if index == 0 else ("Actionable",),
+        )
+        lines.extend(
+            sections
+            if any(line.startswith(("- ", "* ")) for line in sections)
+            else ["- No ACTIONABLE headline items."]
+        )
         lines.append("")
     if not digest_paths:
         lines.append("None.")

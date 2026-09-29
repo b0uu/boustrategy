@@ -3,10 +3,10 @@
 from datetime import date, time
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.decision_record import Decision, InvestmentDecisionRecord
-from app.schemas.public_authoring import PublicNarrative
+from app.schemas.public_authoring import PublicNarrative, canonical_x_post
 
 
 class RuntimeModel(BaseModel):
@@ -92,6 +92,21 @@ class SchedulerObservation(RuntimeModel):
     next_run_at: AwareDatetime | None = None
 
 
+class CitedXPost(RuntimeModel):
+    """An X post that shaped a judgment, for it or against it, whatever its digest rank."""
+
+    url: str = Field(min_length=1, max_length=200)
+    role: Literal["idea_source", "supporting", "counter_evidence", "context"]
+
+    @field_validator("url")
+    @classmethod
+    def status_url(cls, value: str) -> str:
+        parsed = canonical_x_post(value)
+        if parsed is None:
+            raise ValueError("X post must be a https://x.com/<handle>/status/<id> URL")
+        return f"https://x.com/{parsed[0]}/status/{parsed[1]}"
+
+
 class AuthoredThesisReview(RuntimeModel):
     episode_id: str = Field(min_length=1, max_length=200)
     ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
@@ -102,6 +117,7 @@ class AuthoredThesisReview(RuntimeModel):
     approved_for_publication: bool = False
     private_notes: str | None = Field(default=None, max_length=4000)
     sources_opened: list[str] = Field(default_factory=list, max_length=12)
+    x_posts: list[CitedXPost] = Field(default_factory=list, max_length=10)
     realization_price_low: float | None = Field(default=None, gt=0.0)
     realization_price_high: float | None = Field(default=None, gt=0.0)
     invalidation_price: float | None = Field(default=None, gt=0.0)
@@ -118,6 +134,7 @@ class CandidateConsidered(RuntimeModel):
     ticker: str = Field(pattern=r"^[A-Z][A-Z0-9.-]{0,11}$")
     idea_source: str = Field(min_length=1, max_length=300)
     sources_opened: list[str] = Field(default_factory=list, max_length=12)
+    x_posts: list[CitedXPost] = Field(default_factory=list, max_length=10)
     outcome: Decision
     reason: str = Field(min_length=1, max_length=2000)
     # True when the idea deserves a position on its merits, whether or not cash can fund it.
