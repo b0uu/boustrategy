@@ -129,6 +129,25 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
         "INSERT INTO execution_sessions SELECT order_intent_id, '2026-06-10T21:50:00+00:00', "
         "'gpt-5.6-sol' FROM order_intents ORDER BY order_intent_id LIMIT 1"
     )
+    # The X the review read and leaned on: one digest post, cited and triaged.
+    conn.execute(
+        "INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at) VALUES "
+        "('77', 'jukan05', '2026-06-10T20:00:00+00:00', 'PRIVATE_POST_TEXT', "
+        "'https://x.com/jukan05/status/77', '2026-06-10T20:01:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO x_route_decisions (post_id, run_id, route, rank, reason, predictor, "
+        "decided_at) VALUES ('77', '2026-06-10-close', 'digest', 'notable', 'supply', 'judge', "
+        "'2026-06-10T21:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO x_citations VALUES ('77', ?, 'candidate', 'AMD', 'idea_source', ?)",
+        (attempt.attempt_id, NOW.isoformat()),
+    )
+    conn.execute(
+        "INSERT INTO x_triage VALUES ('77', 'NVDA', 'acct', 0, 'Context only.', ?, ?)",
+        (attempt.attempt_id, NOW.isoformat()),
+    )
     conn.commit()
     publish(source, public)
     client = TestClient(create_public_app(public))
@@ -144,6 +163,10 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
     assert weighed["candidates"][0]["sources"] == ["https://ir.amd.com/q2"]
     assert detail.json()["attempts"][1]["weighed"] is None
     assert "weighed" not in runs["items"][0]["latest_attempt"]
+    assert weighed["x_digest"] == {"date": "2026-06-10", "notable": 1}
+    assert weighed["x_cited"][0]["url"] == "https://x.com/jukan05/status/77"
+    assert weighed["x_triage"][0]["changes_thesis"] is False
+    assert "PRIVATE_POST_TEXT" not in detail.text
     assert client.get(f"/api/public/v2/portfolios/live/activity/{public_id}").status_code == 404
     params = {"portfolio_id": "paper", "run_id": public_id, "limit": 1}
     page = client.get("/api/public/v2/decisions", params=params).json()

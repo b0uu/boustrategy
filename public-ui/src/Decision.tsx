@@ -98,7 +98,7 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         </div></details>)}
         {/* An approved narrative usually links no claims (reviews can't register sources), so the
             record's published claims still show rather than an empty section. */}
-        {!narrative?.claims.length && data.claims.map((claim, index) => <details className="claim" key={index}><summary><Chevron /><span className="source-type">{label(claim.source_type)}</span><span>{claim.claim}</span></summary><div className="claim-detail">Source timestamp {when(claim.source_timestamp)}. No approved source link was recorded.</div></details>)}
+        {!narrative?.claims.length && data.claims.map((claim, index) => <details className="claim" key={index}><summary><Chevron /><span className="source-type">{label(claim.source_type)}</span><span>{claim.claim}</span></summary><div className="claim-detail">{claim.links?.length ? <p className="claim-links">{claim.links.map(link => { const href = publicUrl(link); return href ? <a key={link} className="external-link" href={href} target="_blank" rel="noopener noreferrer">{new URL(href).hostname.replace(/^www\./, '')}<ArrowUpRight size={10} weight="bold" aria-hidden="true" /></a> : null })}</p> : null}<p>Source timestamp {when(claim.source_timestamp)}.{claim.links?.length ? '' : ' No source link was recorded.'}</p></div></details>)}
         {!narrative?.claims.length && !data.claims.length && <Empty>No public claims were recorded.</Empty>}
       </section>
       {narrative?.sources.length ? <section><div className="section-heading"><h2>Source pack</h2><span>{narrative.sources.length} published source{narrative.sources.length === 1 ? '' : 's'}</span></div>

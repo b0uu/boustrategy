@@ -65,11 +65,17 @@ export interface PolicyRule { rule_id: string; name: string; category?: string; 
 export interface PolicyCatalog extends Metadata { status?: string; version?: string; decision_rules?: PolicyRule[]; posture?: PolicyRule[]; execution_controls?: PolicyRule[]; history?: Array<{ version: string; change: string; effective_from: string | null }>; current_exposure?: Array<{ ticker: string; weight: number | null; as_of: string | null; interpretation: string }>; current_theme_exposure?: Array<{ theme: string; weight: number }> }
 export interface PolicyCheck extends PolicyRule { result: string; observed?: string | number | boolean | null; headroom?: number | null; applicability?: string; explanation?: string | null; exception_applied?: boolean }
 export interface PolicyEvaluation { status: string; reason?: string; policy_version: string | null; validator_version: string | null; authored_schema_version?: string | null; validator_schema_sha256?: string; evaluated_at?: string; checks: PolicyCheck[]; regime_evidence?: { raw_state: string; published_state: string; score: number; as_of: string; components: Array<{ name: string; value: number; points: number; unit: string }> } | null; input_provenance?: Record<string, string | null> }
-// What a review weighed: the candidates it researched, the holdings it reviewed and the challengers it tested.
+// What a review weighed: the candidates it researched, the holdings it reviewed, the challengers it
+// tested, and the X posts it read and cited. Posts are links only.
 export interface Weighed {
   candidates?: Array<{ ticker: string; outcome: string; clears_entry_bar: boolean; idea_source: string; reason: string; sources: string[]; x_posts: Array<{ url: string; role: string }> }>
-  holdings?: Array<{ ticker: string; state: string; summary: string | null }>
+  holdings?: Array<{ ticker: string; state: string; summary: string | null; review_reasons?: string[]; realization_price_low?: number | null; realization_price_high?: number | null; invalidation_price?: number | null }>
   challengers?: Array<{ candidate: string; incumbent: string; verdict: string; why_weakest: string; reasoning: string }>
+  exposure?: { action: string; reasoning: string } | null
+  earnings?: Array<{ ticker: string; event_date: string; confirmed: boolean; source_url: string }>
+  x_digest?: { date: string; headline?: number; notable?: number; context?: number }
+  x_cited?: Array<{ url: string; handle: string; subject: string; ticker: string; role: string }>
+  x_triage?: Array<{ url: string; handle: string; ticker: string; changes_thesis: boolean; note: string }>
 }
 export interface Attempt { public_id: string; attempt_number: number; status: string; stage: string; requested_model: string; observed_model: string | null; started_at: string; heartbeat_at: string; finished_at: string | null; reason: string | null; summary: string | null; weighed?: Weighed | null }
 export interface ActivityItem { public_id: string; origin: string; session_date: string; slot?: string; prepared_at?: string; status: string; reason?: string; summary?: string | null; due_at?: string; completed_at?: string; latest_attempt?: Attempt | null; attempt_count: number; attempts_truncated: boolean; attempts?: Attempt[]; lease_expires_at?: string }
@@ -80,7 +86,7 @@ export interface Runtime extends Metadata { status?: string; reason?: string; as
 export interface Decision extends Omit<DecisionItem, 'summary_truncated'>, Metadata {
   narrative: Narrative | null; narrative_status: string; proposed_target_weight: number | null
   final_target_weight: number | null; current_weight: number | null; policy_evaluation: PolicyEvaluation
-  claims: Array<{ claim: string; source_type: string; source_timestamp: string }>
+  claims: Array<{ claim: string; source_type: string; source_timestamp: string; links?: string[] }>
   x_usage: { used: boolean; usage_type: string; summary: string; confirmed_outside_x: boolean }
   x_posts?: XPost[]
   model_provenance: { status: string; model_label?: string | null; requested_model?: string; observed_model?: string | null; digest_models?: string[]; collector_model?: string | null; execution_model?: string | null }

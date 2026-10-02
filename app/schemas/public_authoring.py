@@ -9,6 +9,33 @@ from urllib.parse import parse_qsl, urlsplit
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Text = Annotated[str, Field(min_length=1, max_length=4000)]
+
+
+def public_url_problem(value: str) -> str | None:
+    """Why a URL can't be shown publicly, or None for an unauthenticated public HTTP(S) link."""
+    parsed = urlsplit(value)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme not in {"http", "https"} or parsed.username or parsed.password:
+        return "public source URL must be unauthenticated HTTP(S)"
+    if not host or "." not in host or host.endswith((".local", ".localhost", ".internal")):
+        return "public source URL requires a public host"
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address is not None and not address.is_global:
+        return "public source URL cannot use a private address"
+    if any(
+        token in key.lower()
+        for key, _ in parse_qsl(parsed.query)
+        for token in ("token", "secret", "password", "credential", "signature", "api_key")
+    ):
+        return "public source URL cannot contain credentials"
+    if any(ord(char) < 32 for char in value):
+        return "public source URL cannot contain controls"
+    return None
+
+
 Reference = Annotated[str, Field(min_length=1, max_length=200)]
 
 
@@ -136,26 +163,9 @@ class PublicSourceRecord(PublicAuthoringModel):
     def safe_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        parsed = urlsplit(value)
-        host = (parsed.hostname or "").lower().rstrip(".")
-        if parsed.scheme not in {"http", "https"} or parsed.username or parsed.password:
-            raise ValueError("public source URL must be unauthenticated HTTP(S)")
-        if not host or "." not in host or host.endswith((".local", ".localhost", ".internal")):
-            raise ValueError("public source URL requires a public host")
-        try:
-            address = ipaddress.ip_address(host)
-        except ValueError:
-            address = None
-        if address is not None and not address.is_global:
-            raise ValueError("public source URL cannot use a private address")
-        if any(
-            token in key.lower()
-            for key, _ in parse_qsl(parsed.query)
-            for token in ("token", "secret", "password", "credential", "signature", "api_key")
-        ):
-            raise ValueError("public source URL cannot contain credentials")
-        if any(ord(char) < 32 for char in value):
-            raise ValueError("public source URL cannot contain controls")
+        problem = public_url_problem(value)
+        if problem:
+            raise ValueError(problem)
         return value
 
     @model_validator(mode="after")

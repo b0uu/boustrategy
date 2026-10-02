@@ -27,7 +27,7 @@ from app.schemas.broker_execution import BrokerExecutionRecord, BrokerExecutionS
 from app.schemas.decision_record import InvestmentDecisionRecord
 from app.schemas.live_execution import LiveExecutionPacket
 from app.schemas.policy_reporting import PolicyEvaluationRecord
-from app.schemas.public_authoring import ThesisReview, canonical_x_post
+from app.schemas.public_authoring import ThesisReview, canonical_x_post, public_url_problem
 from app.schemas.reporting import (
     CoverageObservation,
     FillObservation,
@@ -745,6 +745,13 @@ def publish(
                             "claim": c["claim"],
                             "source_type": c["source_type"],
                             "source_timestamp": c["source_timestamp"],
+                            # The review records the pages it read. A link carries none of
+                            # their content, so a public-safe claim shows where it came from.
+                            "links": [
+                                ref
+                                for ref in c.get("source_ids", [])
+                                if public_url_problem(ref) is None
+                            ],
                         }
                         for c in raw.get("source_claims", [])
                         if c.get("public_safe")

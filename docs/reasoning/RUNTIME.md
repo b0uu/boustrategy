@@ -65,9 +65,12 @@ a role; decisions already do in their public narrative. The worker sends back a 
 that cites a post the pipeline never collected, and records every citation in
 `x_citations`, which the weekly digest counts per account as `cited_by_reviews`.
 Every accepted review, including one with no action, saves what it weighed in
-`review_ledgers`: each candidate's outcome, idea, reason, sources and cited posts, and
-each challenger verdict. The public review card shows it beside the holdings the review
-judged, so the agent writes those fields as public prose; `private_notes` stay private.
+`review_ledgers`: each candidate's outcome, idea, reason, sources and cited posts, each
+challenger verdict, the exposure decision and the earnings dates it read. Each review has
+a public reasoning page at `/reviews/<public id>` that shows these beside the holdings it
+judged, the digest it read, the posts it cited by account, and its X headline triage, so
+the agent writes those fields as public prose. X posts appear as links, never their
+text, and `private_notes` stay private.
 
 A live intake also shows each holding's weight, quantity, average cost, price and
 unrealized return from the starting snapshot, and derives holding episodes from

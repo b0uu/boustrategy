@@ -82,7 +82,7 @@ opened. Empty decisions are valid only after that hunt is recorded; a review tha
 action without it is rejected. Each candidate's idea_source and reason, and each challenger's
 why_weakest and reasoning, are published on the dashboard as what this review weighed: write
 them as plain public prose in your own words, without long quotes from paid sources or X posts.
-Keep scratch work in private_notes.
+So are x_triage notes and the exposure_decision reasoning. Keep scratch work in private_notes.
 Research is read-only. You have no authority to call broker tools, submit orders, modify
 files, or start other agents, and a search result never licenses skipping a reasoning step.
 Return the required structured JSON. Every holding the intake marks REVIEW DUE needs a
@@ -1313,6 +1313,13 @@ def execute_attempt(
                                     "x_posts": [post.model_dump() for post in candidate.x_posts],
                                 }
                                 for candidate in result.candidates_considered
+                            ],
+                            "exposure": result.exposure_decision.model_dump()
+                            if result.exposure_decision
+                            else None,
+                            "earnings": [
+                                earnings.model_dump(mode="json")
+                                for earnings in result.earnings_dates
                             ],
                             "challengers": [
                                 challenger.model_dump(

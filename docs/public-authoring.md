@@ -33,6 +33,11 @@ Private/authenticated sources aren't eligible. An excerpt has a separate
 `excerpt_approved` flag. The registry doesn't fetch URLs or validate their public
 access over the network. The trusted author must check eligibility.
 
+Autonomous reviews can't register sources, so a decision's own public-safe source
+claims also publish the pages they cite as plain links, when each one passes the same
+URL check: HTTP(S), a named public host, no credentials and no private address. A link
+carries none of the page's content; excerpts still need the registry.
+
 Corrections and retractions are new revisions with `supersedes` set to the current
 revision ID. They retain the source's opaque public ID. Revisions can't change
 source identity, fork the revision chain, or overwrite an earlier record. A later

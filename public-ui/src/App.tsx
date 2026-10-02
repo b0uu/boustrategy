@@ -15,6 +15,7 @@ import { Positions } from './Positions'
 import { Policies } from './Policies'
 import { AgentStatus } from './Activity'
 import { DecisionPage } from './Decision'
+import { ReviewPage } from './Review'
 import { Link, dashboardUrl, navigate, useLocation } from './navigation'
 import { ThemeToggle } from './theme'
 import type { Overview, Performance as PerformanceData, Scope, Range } from './types'
@@ -77,6 +78,7 @@ function route(href: string) {
   try {
     if (parts.length === 0) return { kind: 'dashboard' as const, search: url.search }
     if (parts[0] === 'decisions' && parts.length === 2) return { kind: 'decision' as const, publicId: decodeURIComponent(parts[1]) }
+    if (parts[0] === 'reviews' && parts.length === 2) return { kind: 'review' as const, publicId: decodeURIComponent(parts[1]) }
     if (parts[0] === 'decisions' && parts.length === 3) return { kind: 'decision' as const, legacy: [decodeURIComponent(parts[1]), decodeURIComponent(parts[2])] as [string, string] }
   } catch { /* Malformed percent encoding is an invalid browser URL. */ }
   return { kind: 'unknown' as const }
@@ -105,6 +107,7 @@ export default function App() {
   return <><a className="skip-link" href="#main">Skip to content</a><nav className="page-nav" aria-label="Main navigation"><Link href={dashboard.current} aria-current={current.kind === 'dashboard' ? 'page' : undefined}>Agent dashboard</Link></nav><ThemeToggle /><main id="main" tabIndex={-1}>
     {(visited || current.kind === 'dashboard') && <div hidden={current.kind !== 'dashboard' || invalid}><DashboardPage search={new URL(dashboard.current, location.origin).search} /></div>}
     {current.kind === 'decision' && !invalid && <div><Section key={href} name="decision trace"><DecisionPage publicId={current.publicId} legacy={current.legacy} scope={SCOPE} back={dashboard.current} /></Section></div>}
+    {current.kind === 'review' && !invalid && <div><Section key={href} name="review reasoning"><ReviewPage publicId={current.publicId} scope={SCOPE} back={dashboard.current} /></Section></div>}
     {(current.kind === 'unknown' || invalid) && <div className="request-state" role="alert"><h1 tabIndex={-1}>{invalid ? 'This dashboard link is invalid' : 'Page not found'}</h1><p>{invalid ? 'The section or performance range is not recognized.' : "This page isn't part of the public dashboard."}</p><Link href="/">Open agent dashboard</Link></div>}
   </main></>
 }

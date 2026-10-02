@@ -4,7 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { readPublic, usePublic } from './api'
 import { ResourceNotice } from './common'
-import { AgentStatus, WhatWasWeighed } from './Activity'
+import { AgentStatus } from './Activity'
+import { ReviewPage } from './Review'
 import { PortfolioChart } from './Performance'
 import { amount, label, money, percent, publicUrl, tone } from './format'
 import { navigate } from './navigation'
@@ -571,21 +572,37 @@ it('says why a holding was reviewed', async () => {
 
   expect(await screen.findByText('Why it was reviewed: Scheduled review, Large daily price move.')).toBeInTheDocument()
 })
-it('shows what a no-action review weighed', () => {
-  render(<WhatWasWeighed weighed={{
-    candidates: [{ ticker: 'TSM', outcome: 'PASS', clears_entry_bar: false, idea_source: 'A curated capacity post.', reason: 'Strong results, but the quote sits above the entry ceiling.', sources: ['https://investor.tsmc.com/q2'], x_posts: [{ url: 'https://x.com/jukan05/status/1', role: 'idea_source' }] }],
-    holdings: [{ ticker: 'AVGO', state: 'intact', summary: 'Financing exposure is contained.' }],
-    challengers: [{ candidate: 'VRT', incumbent: 'XOM', verdict: 'keep_incumbent', why_weakest: 'Lowest reward to risk.', reasoning: 'The swap would not improve the portfolio at these prices.' }],
-  }} />)
-  expect(screen.getByText('Candidates researched')).toBeInTheDocument()
+const reviewRecord = {
+  api_version: 2, revision: 1, published_at: '2026-10-01T19:05:00Z', server_now: '2026-10-01T19:06:00Z',
+  public_id: 'run_abc', origin: 'scheduled', session_date: '2026-10-01', slot: 'midday', status: 'no_action', attempt_count: 1, attempts_truncated: false,
+  attempts: [{
+    public_id: 'att_1', attempt_number: 1, status: 'no_action', stage: 'finished', requested_model: 'gpt-5.6-sol', observed_model: null,
+    started_at: '2026-10-01T17:00:00Z', heartbeat_at: '2026-10-01T17:05:00Z', finished_at: '2026-10-01T17:05:00Z', reason: null, summary: 'No trade today.',
+    weighed: {
+      candidates: [{ ticker: 'TSM', outcome: 'PASS', clears_entry_bar: false, idea_source: 'A curated capacity post.', reason: 'Strong results, but the quote sits above the entry ceiling.', sources: ['https://www.sec.gov/a', 'https://www.sec.gov/b'], x_posts: [{ url: 'https://x.com/jukan05/status/1', role: 'idea_source' }] }],
+      holdings: [{ ticker: 'AVGO', state: 'intact', summary: 'Financing exposure is contained.', review_reasons: ['scheduled_review'], realization_price_low: 400, realization_price_high: 460, invalidation_price: 280 }],
+      x_digest: { date: '2026-10-01', headline: 2, notable: 10, context: 8 },
+      x_cited: [{ url: 'https://x.com/jukan05/status/1', handle: 'jukan05', subject: 'candidate', ticker: 'TSM', role: 'idea_source' }],
+      x_triage: [{ url: 'https://x.com/kobeissiletter/status/2', handle: 'kobeissiletter', ticker: 'AVGO', changes_thesis: false, note: 'Market-wide, not about Broadcom.' }],
+    },
+  }],
+}
+it('shows a review\u2019s reasoning on its own page, X signals included', async () => {
+  vi.mocked(fetch).mockImplementation(() => Promise.resolve(json(reviewRecord)))
+  render(<ReviewPage publicId="run_abc" scope="live" back="/" />)
+  expect(await screen.findByRole('heading', { name: 'Midday review' })).toBeInTheDocument()
   expect(screen.getByText('Strong results, but the quote sits above the entry ceiling.')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /investor\.tsmc\.com/ })).toHaveAttribute('href', 'https://investor.tsmc.com/q2')
-  expect(screen.getByRole('link', { name: /@jukan05 · Idea source/ })).toBeInTheDocument()
-  expect(screen.getByText('Intact')).toBeInTheDocument()
-  expect(screen.getByText('VRT vs XOM')).toBeInTheDocument()
-  expect(screen.getByText('Keep incumbent')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /sec\.gov 2/ })).toHaveAttribute('href', 'https://www.sec.gov/b')
+  expect(screen.getByText('Fully priced').nextElementSibling).toHaveTextContent('$400.00–$460.00')
+  expect(screen.getByText('Why reviewed: Scheduled review')).toBeInTheDocument()
+  expect(screen.getAllByRole('link', { name: /@jukan05 · Idea source/ })).toHaveLength(2)
+  expect(screen.getByText(/read the Oct 1, 2026 digest: 20 ranked posts/)).toBeInTheDocument()
+  expect(screen.getByText('Cited by account')).toBeInTheDocument()
+  expect(screen.getByText("AVGO · Doesn't change the thesis")).toBeInTheDocument()
+  expect(screen.queryByText(/researched no new candidates/)).not.toBeInTheDocument()
 })
-it('shows nothing when a review recorded nothing it weighed', () => {
-  const { container } = render(<WhatWasWeighed weighed={{}} />)
-  expect(container).toBeEmptyDOMElement()
+it('names a review that cannot be found', async () => {
+  vi.mocked(fetch).mockImplementation(() => Promise.resolve(json({ detail: 'activity_not_found' }, 404)))
+  render(<ReviewPage publicId="run_missing" scope="live" back="/" />)
+  expect(await screen.findByRole('heading', { name: 'Review not found' })).toBeInTheDocument()
 })

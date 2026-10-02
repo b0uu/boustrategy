@@ -394,7 +394,7 @@ def create_public_app(
             if (
                 path_name
                 and path_name != "agent-dashboard"
-                and not path_name.startswith("decisions/")
+                and not path_name.startswith(("decisions/", "reviews/"))
             ):
                 raise HTTPException(404, "page_not_found")
             return FileResponse(assets / "index.html")

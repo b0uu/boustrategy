@@ -90,6 +90,7 @@ def test_built_public_surface_has_no_mutation_routes_and_reads_write_nothing(
 
     assert client.get("/").text == "<html>public shell</html>"
     assert client.get(f"/decisions/{item['public_id']}").status_code == 200
+    assert client.get("/reviews/run_example").text == "<html>public shell</html>"
     assert client.get("/assets/app.js").status_code == 200
     for url in (
         "/api/public/v2/unknown/private-sentinel",

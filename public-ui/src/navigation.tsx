@@ -50,3 +50,4 @@ export function dashboardUrl(changes: Record<string, string | null>, base = loca
 }
 
 export const decisionUrl = (publicId: string, scope: Scope) => `/decisions/${encodeURIComponent(publicId)}?scope=${scope}`
+export const reviewUrl = (publicId: string, scope: Scope) => `/reviews/${encodeURIComponent(publicId)}?scope=${scope}`

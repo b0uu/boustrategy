@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.dashboard.queries import table_exists
+from app.schemas.public_authoring import public_url_problem
 from app.schemas.reasoning_run import ReasoningRun
 from app.schemas.runtime import RuntimeRun, ScheduleRevision
 from app.storage.schedules import preview
@@ -96,13 +97,71 @@ def publish_activity(
                 review = json.loads(raw_review)
                 if review.get("approved_for_publication") and review.get("runtime_attempt_id"):
                     holdings.setdefault(review["runtime_attempt_id"], []).append(
-                        {key: review.get(key) for key in ("ticker", "state", "summary")}
+                        {
+                            key: review.get(key)
+                            for key in (
+                                "ticker",
+                                "state",
+                                "summary",
+                                "review_reasons",
+                                "realization_price_low",
+                                "realization_price_high",
+                                "invalidation_price",
+                            )
+                        }
                     )
+        # X posts are published as links, never their text.
+        cited: dict[str, list[dict[str, Any]]] = {}
+        if table_exists(source, "x_citations"):
+            for attempt_id, post_id, subject, ticker, role, handle in source.execute(
+                "SELECT c.runtime_attempt_id, c.post_id, c.subject, c.ticker, c.role, p.handle "
+                "FROM x_citations c JOIN x_posts p ON p.post_id = c.post_id "
+                "ORDER BY c.post_id"
+            ):
+                cited.setdefault(attempt_id, []).append(
+                    {
+                        "url": f"https://x.com/{handle}/status/{post_id}",
+                        "handle": handle,
+                        "subject": subject,
+                        "ticker": ticker,
+                        "role": role,
+                    }
+                )
+        triage: dict[str, list[dict[str, Any]]] = {}
+        if table_exists(source, "x_triage"):
+            for attempt_id, post_id, ticker, changes, note, handle in source.execute(
+                "SELECT t.runtime_attempt_id, t.post_id, t.ticker, t.changes_thesis, t.note, "
+                "p.handle FROM x_triage t JOIN x_posts p ON p.post_id = t.post_id "
+                "ORDER BY t.changes_thesis DESC, t.ticker"
+            ):
+                triage.setdefault(attempt_id, []).append(
+                    {
+                        "url": f"https://x.com/{handle}/status/{post_id}",
+                        "handle": handle,
+                        "ticker": ticker,
+                        "changes_thesis": bool(changes),
+                        "note": note,
+                    }
+                )
         for row in source.execute(query):
             counts[row[0]] = row[-1]
             weighed = json.loads(ledgers[row[1]]) if row[1] in ledgers else {}
+            for candidate in weighed.get("candidates", []):
+                candidate["sources"] = [
+                    url for url in candidate["sources"] if public_url_problem(url) is None
+                ]
+            weighed["earnings"] = [
+                item
+                for item in weighed.get("earnings", [])
+                if public_url_problem(item["source_url"]) is None
+            ]
             if row[1] in holdings:
                 weighed["holdings"] = holdings[row[1]]
+            if row[1] in cited:
+                weighed["x_cited"] = cited[row[1]]
+            if row[1] in triage:
+                weighed["x_triage"] = triage[row[1]]
+            weighed = {key: value for key, value in weighed.items() if value}
             attempts_by_run.setdefault(row[0], []).append(
                 {"weighed": weighed or None}
                 | dict(
@@ -152,6 +211,28 @@ def publish_activity(
                 )
             attempts = attempts_by_run.get(run.run_id, [])
             count = counts.get(run.run_id, 0)
+            # The latest digest day the intake carried whole, as ranked when it was prepared.
+            digest = (
+                source.execute(
+                    "SELECT substr(run_id, 1, 10) FROM x_route_decisions "
+                    "WHERE julianday(decided_at) <= julianday(?) ORDER BY run_id DESC LIMIT 1",
+                    (run.prepared_at.isoformat(),),
+                ).fetchone()
+                if table_exists(source, "x_route_decisions")
+                else None
+            )
+            if digest:
+                ranks = dict(
+                    source.execute(
+                        "SELECT rank, COUNT(*) FROM x_route_decisions "
+                        "WHERE substr(run_id, 1, 10) = ? AND julianday(decided_at) <= julianday(?) "
+                        "AND rank IN ('headline', 'notable', 'context') GROUP BY rank",
+                        (digest[0], run.prepared_at.isoformat()),
+                    )
+                )
+                for attempt in attempts:
+                    if attempt["weighed"] is not None:
+                        attempt["weighed"]["x_digest"] = {"date": digest[0], **ranks}
             item = {
                 "public_id": public_id,
                 "origin": run.origin,

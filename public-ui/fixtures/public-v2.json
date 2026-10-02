@@ -2,8 +2,8 @@
   "live/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.825599+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.628667+00:00",
     "allocation": [
       {
         "asset_class": "cash",
@@ -106,8 +106,8 @@
   "live/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.832139+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.633577+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "status": "available",
@@ -120,7 +120,7 @@
         "average_cost": "145",
         "holding_episode_id": "holding_52952b9c4fd8fb825c6d8e21",
         "invalidation_price": null,
-        "latest_decision_id": "dec_ac3ee09dd0c64ecba6dd212445b6b445",
+        "latest_decision_id": "dec_cbdd1cc29ea04a18b6527a906fd0b3f5",
         "latest_price": "158",
         "latest_public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "market_value": "3179.75",
@@ -148,8 +148,8 @@
   "live/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.837528+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.637517+00:00",
     "portfolio_id": "live",
     "mode": "live",
     "benchmarks": [
@@ -243,8 +243,8 @@
   "live/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.846126+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.641802+00:00",
     "portfolio_id": "live",
     "status": "available",
     "current_asset_exposure": [
@@ -321,7 +321,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_d84c812926054a36979ca60cd1b88a3d",
+          "public_id": "dec_e6e3fe6a12da41d487b595f0ecf781ad",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -569,11 +569,11 @@
   "live/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.850007+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.647683+00:00",
     "portfolio_id": "live",
     "active_run": null,
-    "as_of": "2026-10-02T05:30:43.742116+00:00",
+    "as_of": "2026-10-02T06:06:42.531571+00:00",
     "latest_run": {
       "attempt_count": 1,
       "attempts_truncated": false,
@@ -582,7 +582,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_0b6275dee2da410bb996925dbf4a8ef5",
+        "public_id": "attempt_6af4da162e554b9ea4921441be7cb572",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -592,7 +592,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_e22bdbb205c145019d893dcde98b43f6",
+      "public_id": "run_c3ed943593994bd4bf763a0ea5cd8fa7",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -604,8 +604,8 @@
   "live/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.853824+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.652254+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -616,7 +616,7 @@
           "finished_at": "2026-06-10T21:45:25+00:00",
           "heartbeat_at": "2026-06-10T21:45:00Z",
           "observed_model": null,
-          "public_id": "attempt_0b6275dee2da410bb996925dbf4a8ef5",
+          "public_id": "attempt_6af4da162e554b9ea4921441be7cb572",
           "reason": null,
           "requested_model": "fixture-model-a",
           "stage": "finished",
@@ -626,7 +626,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_e22bdbb205c145019d893dcde98b43f6",
+        "public_id": "run_c3ed943593994bd4bf763a0ea5cd8fa7",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -640,8 +640,8 @@
   "live/shorts": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.857339+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.656579+00:00",
     "portfolio_id": "live",
     "status": "available",
     "reason": null,
@@ -650,8 +650,8 @@
   "live/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.861340+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.661795+00:00",
     "portfolio_id": "live",
     "items": [
       {
@@ -662,7 +662,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_ac3ee09dd0c64ecba6dd212445b6b445",
+        "public_id": "dec_cbdd1cc29ea04a18b6527a906fd0b3f5",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -680,7 +680,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_3cebef065475471f846a250a4df20f4e",
+        "public_id": "dec_d9e2febfa3f1425cab19a64edc980e51",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -698,7 +698,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_d84c812926054a36979ca60cd1b88a3d",
+        "public_id": "dec_e6e3fe6a12da41d487b595f0ecf781ad",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -716,7 +716,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f5168c87490b471e9f27a2bc0ddda83b",
+        "public_id": "dec_93775c14106d4d04872351cac8f0b90b",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -734,7 +734,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_4747fb76cd27494daadd971ba6708e83",
+        "public_id": "dec_898984873b3846ec931cdc0e0841b35f",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -752,7 +752,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_13610d31f4594aaab7a259447e4b5829",
+        "public_id": "dec_85965ad2748e4a9181f8509299f77e37",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -770,7 +770,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_7efdead8b96b4db583ad7c248e1c6eba",
+        "public_id": "dec_6b29cc9e67dc423ea3d23a1e6fded9ae",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -788,7 +788,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_701aa452e11f4ceaa6301d089ec7940a",
+        "public_id": "dec_8ccc485a2e0d4452adfbf75d612553db",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -806,7 +806,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_13e6bc23101140dbae71ff4ec9f283c9",
+        "public_id": "dec_9147157879d74847aa5afccd509f7829",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -824,7 +824,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_7f52e4dfd41f438392e9ea17b1ac405c",
+        "public_id": "dec_94e4edbb65584328ab73b6d1d67126cd",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -842,7 +842,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_9101cf00a1e24657a7bebf4ffdaaccc2",
+        "public_id": "dec_dc415dc4da1e4d258afffe725e064ef6",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -860,7 +860,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_1412eae1f17e4cca99851477f32d825b",
+        "public_id": "dec_07473b329a974978bd48afe47ffa0056",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -878,7 +878,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_964d9f717ca34a2a93d62e1044a563c6",
+        "public_id": "dec_3ccf46429a5444f3b2980ff6aa9f1ff8",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -896,7 +896,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_7079910462ad46d895b1676fcab45bc3",
+        "public_id": "dec_a3f780c0682b414dae2066d20b8e0f3d",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -914,7 +914,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_708461f4aec44716bfd3e372389ee3f6",
+        "public_id": "dec_fceff0ed4a2b41579d2f279d37c5ca1c",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -932,7 +932,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d8593f982b364fb8b7f608aa415e8610",
+        "public_id": "dec_25ec6d0e675b43488835a38b3be705fc",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -950,7 +950,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_804a1c63cef245efb8d84ceef26f2b7d",
+        "public_id": "dec_050f8d24c76e47d796e01de1aaaed3ac",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -968,7 +968,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_d3e1f6c387ae46bf98f0a0836e8dc304",
+        "public_id": "dec_7269362bdf13497a87316d21a0e00b0e",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -986,7 +986,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_286b823a840b4da2be138d04b0d0124a",
+        "public_id": "dec_0918a28de31746de85b82d4ba901c859",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1004,7 +1004,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_e20e38d394f64c8d9eeba56aabab343a",
+        "public_id": "dec_cf38bc7873e0414d817f4bbf4d4bb64b",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1022,7 +1022,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_5fe89674acf64f669864318458e7d484",
+        "public_id": "dec_508d746752454780b400476f4461bc68",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1040,7 +1040,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_7c5f68b7bc2944d7821c79fc66fab215",
+        "public_id": "dec_c3410681457548cfbc70e87230a6ad96",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1058,7 +1058,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_c83baa922c0f4c70a4adb7966808997c",
+        "public_id": "dec_78b66b71fd2341afae6d3156cf727678",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1076,7 +1076,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_bed6a95ba3714863a7fb780a6fa762b9",
+        "public_id": "dec_0767b500d84b42d4859678edbeb1e0fa",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1094,7 +1094,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_4dd02b14adb24c06a45bf6b7d1bc7f1a",
+        "public_id": "dec_6082789a38dc4c1da1e9901beb379765",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1112,7 +1112,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_c4d4ac444fb644fab242d12db7263bf0",
+        "public_id": "dec_5d135ece6c714ea8b3eb447cf2d664eb",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1130,7 +1130,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_82ce919bcf6f4534bb6dbbdc63b4cebb",
+        "public_id": "dec_1af84637c37649a28b958c2b205ceea2",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1148,7 +1148,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_62b8046c3b264601bb9040f5b25dfbe4",
+        "public_id": "dec_e0dc6e7d5b17475587891bf2c6ab9237",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1166,7 +1166,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f536aa459db449e3bcd70b3507eafd89",
+        "public_id": "dec_937a4c4802854f49b11a282a4e5896c2",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1184,7 +1184,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_24d9d136bdc24e929dd6807a9439d565",
+        "public_id": "dec_9bfe745e860f428b9e2a3b848f3c300f",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1202,7 +1202,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_cf6e732677594e8b95ad83f6c6766b77",
+        "public_id": "dec_f2a0ab3eef204417bc1ef0e049a9e2ed",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1220,7 +1220,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_71a8164610234f22819df41d07adb2a7",
+        "public_id": "dec_8153ef367433497eae5e6a9c7dc1c5ae",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1238,7 +1238,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_a9cae5a7a21d48b79a799921bc5f5a00",
+        "public_id": "dec_b174cb9830ef480b91f5fb28abe84508",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1256,7 +1256,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_db1c480a233744529bc517520816a794",
+        "public_id": "dec_302dfd5fcbd04fd6bf889d53ef55514f",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1274,7 +1274,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_fd84a84139954ac28b30bfb234993611",
+        "public_id": "dec_9ca66fa91d6a461aa8f292c3de76101e",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1292,7 +1292,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_63d5e1bab9244af0b8ff1f57b7615023",
+        "public_id": "dec_f350a97b6e334bbdb38f6119c1726e47",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1310,7 +1310,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_1bb0d0e6cc864acda245b84f55184f5e",
+        "public_id": "dec_c07c9a35c9444ff991d96d55c9483b86",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1328,7 +1328,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_af0c7e6f00154d5983204fd5ace906a2",
+        "public_id": "dec_732ec6fa8201459f9b63f5ef5f12a3b8",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1346,7 +1346,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_d3b592f3f8a44744be96605ad79e55f1",
+        "public_id": "dec_3be1c02aaeb441a0be1bc1f4f5010464",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1364,7 +1364,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_36d5dda51f41474090193d62365591cf",
+        "public_id": "dec_800f4cfa2f21426b9fe54730fd098e9c",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1382,7 +1382,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_9c9f30db5c7b41b9a48cccd3c0df5e1e",
+        "public_id": "dec_8bdc6ad5d81f4241afaceefe448cebe0",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1400,7 +1400,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_b5994d2bcec34974a3b22a55d61bc8b1",
+        "public_id": "dec_67a4618f35164575b8409e1aa9c41c4d",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1418,7 +1418,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_d6942f939cba4908a51e2020744c98e9",
+        "public_id": "dec_90aa341e18a04fb0bce4e61455947c9e",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1436,7 +1436,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_c0829a0336614cd7b020ea73504c4153",
+        "public_id": "dec_55825069f4234e15a10411a9cd0db9e7",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1454,7 +1454,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_ff021bcd52f944eda77dabcf9b51c3e0",
+        "public_id": "dec_cdc6852ef67440e7baa237f294eb8daf",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1472,7 +1472,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_b7cb33dc19114ba78414c732eceac600",
+        "public_id": "dec_30b71cb4af1243dbaef1661b00188948",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1490,7 +1490,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_bda94a3dc8e946498e7d21b59225cb8c",
+        "public_id": "dec_f953b95b5c894018847a5b3a11082d82",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1508,7 +1508,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_b583ba7570d949aca3bfc903756a2c71",
+        "public_id": "dec_9abbe4901afc45599a0f3e902a1d15ed",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1526,7 +1526,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_273d34c9b9354ee2b07141672eea412f",
+        "public_id": "dec_3a60956d1e3c478fb8511e65e736b2da",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1544,7 +1544,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_f276721039a846ec8c66a283dad019c9",
+        "public_id": "dec_b45109fae40640b98beeca61ebb76648",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1562,7 +1562,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_4066406214e34d1091f75df6645daf5c",
+        "public_id": "dec_b4fecf16ade9430791b2ced252ba7954",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -1580,7 +1580,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_3131f2eb50124d5e87c99630b2844c4d",
+        "public_id": "dec_2f236a0e255d4e59a1ab7867e70fd603",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -1598,7 +1598,7 @@
         "mode": "live",
         "policy_outcome": "rejected",
         "portfolio_id": "live",
-        "public_id": "dec_7e5b4b690e794ef59cf555b9dfff6146",
+        "public_id": "dec_317b11c51dec4b8d970170ce79678387",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -1616,7 +1616,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_1f2046e13ca442c189f79fd860becf49",
+        "public_id": "dec_7bfbc7f340c74fc4a18cc4658cbb234f",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -1634,7 +1634,7 @@
         "mode": "live",
         "policy_outcome": "approved",
         "portfolio_id": "live",
-        "public_id": "dec_1864dfb449844c398c9cf2e0410bb2f9",
+        "public_id": "dec_ac3661bb4e174ef59b749663117fdf97",
         "public_run_id": null,
         "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
         "regime": "GREEN",
@@ -1652,14 +1652,15 @@
       "high_water": 59
     }
   },
-  "dec_ac3ee09dd0c64ecba6dd212445b6b445": {
+  "dec_cbdd1cc29ea04a18b6527a906fd0b3f5": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.868076+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.667315+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -1723,9 +1724,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_909c55bbb14241575a66795e",
+          "public_id": "claim_b49c42760a9f12cd12b05d3a",
           "source_ids": [
-            "src_cd7932531b5244a19bcf1311dc816a26"
+            "src_7995aef997b949dc8c7e8272c3fb320f"
           ]
         }
       ],
@@ -1749,7 +1750,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_cd7932531b5244a19bcf1311dc816a26",
+          "public_id": "src_7995aef997b949dc8c7e8272c3fb320f",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -1760,7 +1761,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_909c55bbb14241575a66795e"
+            "claim_b49c42760a9f12cd12b05d3a"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -1769,7 +1770,7 @@
         },
         {
           "claim_ids": [
-            "claim_909c55bbb14241575a66795e"
+            "claim_b49c42760a9f12cd12b05d3a"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -1778,7 +1779,7 @@
         },
         {
           "claim_ids": [
-            "claim_909c55bbb14241575a66795e"
+            "claim_b49c42760a9f12cd12b05d3a"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -1787,7 +1788,7 @@
         },
         {
           "claim_ids": [
-            "claim_909c55bbb14241575a66795e"
+            "claim_b49c42760a9f12cd12b05d3a"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -1796,7 +1797,7 @@
         },
         {
           "claim_ids": [
-            "claim_909c55bbb14241575a66795e"
+            "claim_b49c42760a9f12cd12b05d3a"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -1807,7 +1808,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_909c55bbb14241575a66795e"
+          "claim_b49c42760a9f12cd12b05d3a"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -2136,7 +2137,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_ac3ee09dd0c64ecba6dd212445b6b445",
+    "public_id": "dec_cbdd1cc29ea04a18b6527a906fd0b3f5",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -2167,14 +2168,15 @@
       "used": false
     }
   },
-  "dec_3cebef065475471f846a250a4df20f4e": {
+  "dec_d9e2febfa3f1425cab19a64edc980e51": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.872479+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.675366+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -2534,7 +2536,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_3cebef065475471f846a250a4df20f4e",
+    "public_id": "dec_d9e2febfa3f1425cab19a64edc980e51",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -2552,14 +2554,15 @@
       "used": false
     }
   },
-  "dec_d84c812926054a36979ca60cd1b88a3d": {
+  "dec_e6e3fe6a12da41d487b595f0ecf781ad": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.877129+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.682577+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -2919,7 +2922,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_d84c812926054a36979ca60cd1b88a3d",
+    "public_id": "dec_e6e3fe6a12da41d487b595f0ecf781ad",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -2937,14 +2940,15 @@
       "used": false
     }
   },
-  "dec_f5168c87490b471e9f27a2bc0ddda83b": {
+  "dec_93775c14106d4d04872351cac8f0b90b": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.881125+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.686655+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -3304,7 +3308,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f5168c87490b471e9f27a2bc0ddda83b",
+    "public_id": "dec_93775c14106d4d04872351cac8f0b90b",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -3322,14 +3326,15 @@
       "used": false
     }
   },
-  "dec_4747fb76cd27494daadd971ba6708e83": {
+  "dec_898984873b3846ec931cdc0e0841b35f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.884852+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.693866+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -3689,7 +3694,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_4747fb76cd27494daadd971ba6708e83",
+    "public_id": "dec_898984873b3846ec931cdc0e0841b35f",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -3707,14 +3712,15 @@
       "used": false
     }
   },
-  "dec_13610d31f4594aaab7a259447e4b5829": {
+  "dec_85965ad2748e4a9181f8509299f77e37": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.888353+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.708434+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -4079,7 +4085,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_13610d31f4594aaab7a259447e4b5829",
+    "public_id": "dec_85965ad2748e4a9181f8509299f77e37",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -4097,14 +4103,15 @@
       "used": false
     }
   },
-  "dec_7efdead8b96b4db583ad7c248e1c6eba": {
+  "dec_6b29cc9e67dc423ea3d23a1e6fded9ae": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.892591+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.713931+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -4464,7 +4471,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_7efdead8b96b4db583ad7c248e1c6eba",
+    "public_id": "dec_6b29cc9e67dc423ea3d23a1e6fded9ae",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -4482,14 +4489,15 @@
       "used": false
     }
   },
-  "dec_701aa452e11f4ceaa6301d089ec7940a": {
+  "dec_8ccc485a2e0d4452adfbf75d612553db": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.896680+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.718891+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -4849,7 +4857,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_701aa452e11f4ceaa6301d089ec7940a",
+    "public_id": "dec_8ccc485a2e0d4452adfbf75d612553db",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -4867,14 +4875,15 @@
       "used": false
     }
   },
-  "dec_13e6bc23101140dbae71ff4ec9f283c9": {
+  "dec_9147157879d74847aa5afccd509f7829": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.900845+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.723925+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -5234,7 +5243,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_13e6bc23101140dbae71ff4ec9f283c9",
+    "public_id": "dec_9147157879d74847aa5afccd509f7829",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -5252,14 +5261,15 @@
       "used": false
     }
   },
-  "dec_7f52e4dfd41f438392e9ea17b1ac405c": {
+  "dec_94e4edbb65584328ab73b6d1d67126cd": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.905055+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.728510+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -5619,7 +5629,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_7f52e4dfd41f438392e9ea17b1ac405c",
+    "public_id": "dec_94e4edbb65584328ab73b6d1d67126cd",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -5637,14 +5647,15 @@
       "used": false
     }
   },
-  "dec_9101cf00a1e24657a7bebf4ffdaaccc2": {
+  "dec_dc415dc4da1e4d258afffe725e064ef6": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.908687+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.732590+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -6009,7 +6020,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_9101cf00a1e24657a7bebf4ffdaaccc2",
+    "public_id": "dec_dc415dc4da1e4d258afffe725e064ef6",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -6027,14 +6038,15 @@
       "used": false
     }
   },
-  "dec_1412eae1f17e4cca99851477f32d825b": {
+  "dec_07473b329a974978bd48afe47ffa0056": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.912074+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.737166+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -6394,7 +6406,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_1412eae1f17e4cca99851477f32d825b",
+    "public_id": "dec_07473b329a974978bd48afe47ffa0056",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -6412,14 +6424,15 @@
       "used": false
     }
   },
-  "dec_964d9f717ca34a2a93d62e1044a563c6": {
+  "dec_3ccf46429a5444f3b2980ff6aa9f1ff8": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.915602+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.742049+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -6779,7 +6792,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_964d9f717ca34a2a93d62e1044a563c6",
+    "public_id": "dec_3ccf46429a5444f3b2980ff6aa9f1ff8",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -6797,14 +6810,15 @@
       "used": false
     }
   },
-  "dec_7079910462ad46d895b1676fcab45bc3": {
+  "dec_a3f780c0682b414dae2066d20b8e0f3d": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.919303+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.746976+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -7164,7 +7178,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_7079910462ad46d895b1676fcab45bc3",
+    "public_id": "dec_a3f780c0682b414dae2066d20b8e0f3d",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -7182,14 +7196,15 @@
       "used": false
     }
   },
-  "dec_708461f4aec44716bfd3e372389ee3f6": {
+  "dec_fceff0ed4a2b41579d2f279d37c5ca1c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.924583+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.751741+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -7549,7 +7564,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_708461f4aec44716bfd3e372389ee3f6",
+    "public_id": "dec_fceff0ed4a2b41579d2f279d37c5ca1c",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -7567,14 +7582,15 @@
       "used": false
     }
   },
-  "dec_d8593f982b364fb8b7f608aa415e8610": {
+  "dec_25ec6d0e675b43488835a38b3be705fc": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.929088+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.756324+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -7939,7 +7955,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d8593f982b364fb8b7f608aa415e8610",
+    "public_id": "dec_25ec6d0e675b43488835a38b3be705fc",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -7957,14 +7973,15 @@
       "used": false
     }
   },
-  "dec_804a1c63cef245efb8d84ceef26f2b7d": {
+  "dec_050f8d24c76e47d796e01de1aaaed3ac": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.933236+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.761723+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -8324,7 +8341,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_804a1c63cef245efb8d84ceef26f2b7d",
+    "public_id": "dec_050f8d24c76e47d796e01de1aaaed3ac",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -8342,14 +8359,15 @@
       "used": false
     }
   },
-  "dec_d3e1f6c387ae46bf98f0a0836e8dc304": {
+  "dec_7269362bdf13497a87316d21a0e00b0e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.936940+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.766004+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -8709,7 +8727,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_d3e1f6c387ae46bf98f0a0836e8dc304",
+    "public_id": "dec_7269362bdf13497a87316d21a0e00b0e",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -8727,14 +8745,15 @@
       "used": false
     }
   },
-  "dec_286b823a840b4da2be138d04b0d0124a": {
+  "dec_0918a28de31746de85b82d4ba901c859": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.940312+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.770704+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -9094,7 +9113,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_286b823a840b4da2be138d04b0d0124a",
+    "public_id": "dec_0918a28de31746de85b82d4ba901c859",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -9112,14 +9131,15 @@
       "used": false
     }
   },
-  "dec_e20e38d394f64c8d9eeba56aabab343a": {
+  "dec_cf38bc7873e0414d817f4bbf4d4bb64b": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.944317+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.776033+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -9479,7 +9499,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_e20e38d394f64c8d9eeba56aabab343a",
+    "public_id": "dec_cf38bc7873e0414d817f4bbf4d4bb64b",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -9497,14 +9517,15 @@
       "used": false
     }
   },
-  "dec_5fe89674acf64f669864318458e7d484": {
+  "dec_508d746752454780b400476f4461bc68": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.947786+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.780524+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -9869,7 +9890,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_5fe89674acf64f669864318458e7d484",
+    "public_id": "dec_508d746752454780b400476f4461bc68",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -9887,14 +9908,15 @@
       "used": false
     }
   },
-  "dec_7c5f68b7bc2944d7821c79fc66fab215": {
+  "dec_c3410681457548cfbc70e87230a6ad96": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.951377+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.784983+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -10254,7 +10276,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_7c5f68b7bc2944d7821c79fc66fab215",
+    "public_id": "dec_c3410681457548cfbc70e87230a6ad96",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -10272,14 +10294,15 @@
       "used": false
     }
   },
-  "dec_c83baa922c0f4c70a4adb7966808997c": {
+  "dec_78b66b71fd2341afae6d3156cf727678": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.955026+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.788651+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -10639,7 +10662,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_c83baa922c0f4c70a4adb7966808997c",
+    "public_id": "dec_78b66b71fd2341afae6d3156cf727678",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -10657,14 +10680,15 @@
       "used": false
     }
   },
-  "dec_bed6a95ba3714863a7fb780a6fa762b9": {
+  "dec_0767b500d84b42d4859678edbeb1e0fa": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.959041+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.792243+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -11024,7 +11048,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_bed6a95ba3714863a7fb780a6fa762b9",
+    "public_id": "dec_0767b500d84b42d4859678edbeb1e0fa",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -11042,14 +11066,15 @@
       "used": false
     }
   },
-  "dec_4dd02b14adb24c06a45bf6b7d1bc7f1a": {
+  "dec_6082789a38dc4c1da1e9901beb379765": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.963263+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.796065+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -11409,7 +11434,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_4dd02b14adb24c06a45bf6b7d1bc7f1a",
+    "public_id": "dec_6082789a38dc4c1da1e9901beb379765",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -11427,14 +11452,15 @@
       "used": false
     }
   },
-  "dec_c4d4ac444fb644fab242d12db7263bf0": {
+  "dec_5d135ece6c714ea8b3eb447cf2d664eb": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.967128+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.800727+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -11799,7 +11825,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_c4d4ac444fb644fab242d12db7263bf0",
+    "public_id": "dec_5d135ece6c714ea8b3eb447cf2d664eb",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -11817,14 +11843,15 @@
       "used": false
     }
   },
-  "dec_82ce919bcf6f4534bb6dbbdc63b4cebb": {
+  "dec_1af84637c37649a28b958c2b205ceea2": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.970568+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.805176+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -12184,7 +12211,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_82ce919bcf6f4534bb6dbbdc63b4cebb",
+    "public_id": "dec_1af84637c37649a28b958c2b205ceea2",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -12202,14 +12229,15 @@
       "used": false
     }
   },
-  "dec_62b8046c3b264601bb9040f5b25dfbe4": {
+  "dec_e0dc6e7d5b17475587891bf2c6ab9237": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.973967+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.810132+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -12569,7 +12597,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_62b8046c3b264601bb9040f5b25dfbe4",
+    "public_id": "dec_e0dc6e7d5b17475587891bf2c6ab9237",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -12587,14 +12615,15 @@
       "used": false
     }
   },
-  "dec_f536aa459db449e3bcd70b3507eafd89": {
+  "dec_937a4c4802854f49b11a282a4e5896c2": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.978487+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.816081+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -12954,7 +12983,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f536aa459db449e3bcd70b3507eafd89",
+    "public_id": "dec_937a4c4802854f49b11a282a4e5896c2",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -12972,14 +13001,15 @@
       "used": false
     }
   },
-  "dec_24d9d136bdc24e929dd6807a9439d565": {
+  "dec_9bfe745e860f428b9e2a3b848f3c300f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.983567+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.822130+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -13339,7 +13369,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_24d9d136bdc24e929dd6807a9439d565",
+    "public_id": "dec_9bfe745e860f428b9e2a3b848f3c300f",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -13357,14 +13387,15 @@
       "used": false
     }
   },
-  "dec_cf6e732677594e8b95ad83f6c6766b77": {
+  "dec_f2a0ab3eef204417bc1ef0e049a9e2ed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.988559+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.826034+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -13729,7 +13760,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_cf6e732677594e8b95ad83f6c6766b77",
+    "public_id": "dec_f2a0ab3eef204417bc1ef0e049a9e2ed",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -13747,14 +13778,15 @@
       "used": false
     }
   },
-  "dec_71a8164610234f22819df41d07adb2a7": {
+  "dec_8153ef367433497eae5e6a9c7dc1c5ae": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:43.995396+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.830415+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -14114,7 +14146,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_71a8164610234f22819df41d07adb2a7",
+    "public_id": "dec_8153ef367433497eae5e6a9c7dc1c5ae",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -14132,14 +14164,15 @@
       "used": false
     }
   },
-  "dec_a9cae5a7a21d48b79a799921bc5f5a00": {
+  "dec_b174cb9830ef480b91f5fb28abe84508": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.000347+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.835047+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -14499,7 +14532,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_a9cae5a7a21d48b79a799921bc5f5a00",
+    "public_id": "dec_b174cb9830ef480b91f5fb28abe84508",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -14517,14 +14550,15 @@
       "used": false
     }
   },
-  "dec_db1c480a233744529bc517520816a794": {
+  "dec_302dfd5fcbd04fd6bf889d53ef55514f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.005434+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.839173+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -14884,7 +14918,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_db1c480a233744529bc517520816a794",
+    "public_id": "dec_302dfd5fcbd04fd6bf889d53ef55514f",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -14902,14 +14936,15 @@
       "used": false
     }
   },
-  "dec_fd84a84139954ac28b30bfb234993611": {
+  "dec_9ca66fa91d6a461aa8f292c3de76101e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.009450+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.844688+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -15269,7 +15304,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_fd84a84139954ac28b30bfb234993611",
+    "public_id": "dec_9ca66fa91d6a461aa8f292c3de76101e",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -15287,14 +15322,15 @@
       "used": false
     }
   },
-  "dec_63d5e1bab9244af0b8ff1f57b7615023": {
+  "dec_f350a97b6e334bbdb38f6119c1726e47": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.013496+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.849457+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -15659,7 +15695,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_63d5e1bab9244af0b8ff1f57b7615023",
+    "public_id": "dec_f350a97b6e334bbdb38f6119c1726e47",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -15677,14 +15713,15 @@
       "used": false
     }
   },
-  "dec_1bb0d0e6cc864acda245b84f55184f5e": {
+  "dec_c07c9a35c9444ff991d96d55c9483b86": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.018151+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.853775+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -16044,7 +16081,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_1bb0d0e6cc864acda245b84f55184f5e",
+    "public_id": "dec_c07c9a35c9444ff991d96d55c9483b86",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -16062,14 +16099,15 @@
       "used": false
     }
   },
-  "dec_af0c7e6f00154d5983204fd5ace906a2": {
+  "dec_732ec6fa8201459f9b63f5ef5f12a3b8": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.023949+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.857867+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -16429,7 +16467,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_af0c7e6f00154d5983204fd5ace906a2",
+    "public_id": "dec_732ec6fa8201459f9b63f5ef5f12a3b8",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -16447,14 +16485,15 @@
       "used": false
     }
   },
-  "dec_d3b592f3f8a44744be96605ad79e55f1": {
+  "dec_3be1c02aaeb441a0be1bc1f4f5010464": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.028682+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.864639+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -16814,7 +16853,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_d3b592f3f8a44744be96605ad79e55f1",
+    "public_id": "dec_3be1c02aaeb441a0be1bc1f4f5010464",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -16832,14 +16871,15 @@
       "used": false
     }
   },
-  "dec_36d5dda51f41474090193d62365591cf": {
+  "dec_800f4cfa2f21426b9fe54730fd098e9c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.032882+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.869569+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -17199,7 +17239,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_36d5dda51f41474090193d62365591cf",
+    "public_id": "dec_800f4cfa2f21426b9fe54730fd098e9c",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -17217,14 +17257,15 @@
       "used": false
     }
   },
-  "dec_9c9f30db5c7b41b9a48cccd3c0df5e1e": {
+  "dec_8bdc6ad5d81f4241afaceefe448cebe0": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.036550+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.874118+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -17589,7 +17630,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_9c9f30db5c7b41b9a48cccd3c0df5e1e",
+    "public_id": "dec_8bdc6ad5d81f4241afaceefe448cebe0",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -17607,14 +17648,15 @@
       "used": false
     }
   },
-  "dec_b5994d2bcec34974a3b22a55d61bc8b1": {
+  "dec_67a4618f35164575b8409e1aa9c41c4d": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.040056+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.879717+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -17974,7 +18016,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_b5994d2bcec34974a3b22a55d61bc8b1",
+    "public_id": "dec_67a4618f35164575b8409e1aa9c41c4d",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -17992,14 +18034,15 @@
       "used": false
     }
   },
-  "dec_d6942f939cba4908a51e2020744c98e9": {
+  "dec_90aa341e18a04fb0bce4e61455947c9e": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.044017+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.884671+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -18359,7 +18402,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_d6942f939cba4908a51e2020744c98e9",
+    "public_id": "dec_90aa341e18a04fb0bce4e61455947c9e",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -18377,14 +18420,15 @@
       "used": false
     }
   },
-  "dec_c0829a0336614cd7b020ea73504c4153": {
+  "dec_55825069f4234e15a10411a9cd0db9e7": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.048211+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.888670+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -18744,7 +18788,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_c0829a0336614cd7b020ea73504c4153",
+    "public_id": "dec_55825069f4234e15a10411a9cd0db9e7",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -18762,14 +18806,15 @@
       "used": false
     }
   },
-  "dec_ff021bcd52f944eda77dabcf9b51c3e0": {
+  "dec_cdc6852ef67440e7baa237f294eb8daf": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.053315+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.892246+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -19129,7 +19174,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_ff021bcd52f944eda77dabcf9b51c3e0",
+    "public_id": "dec_cdc6852ef67440e7baa237f294eb8daf",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -19147,14 +19192,15 @@
       "used": false
     }
   },
-  "dec_b7cb33dc19114ba78414c732eceac600": {
+  "dec_30b71cb4af1243dbaef1661b00188948": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.057760+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.897192+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -19519,7 +19565,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_b7cb33dc19114ba78414c732eceac600",
+    "public_id": "dec_30b71cb4af1243dbaef1661b00188948",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -19537,14 +19583,15 @@
       "used": false
     }
   },
-  "dec_bda94a3dc8e946498e7d21b59225cb8c": {
+  "dec_f953b95b5c894018847a5b3a11082d82": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.062147+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.901862+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -19904,7 +19951,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_bda94a3dc8e946498e7d21b59225cb8c",
+    "public_id": "dec_f953b95b5c894018847a5b3a11082d82",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -19922,14 +19969,15 @@
       "used": false
     }
   },
-  "dec_b583ba7570d949aca3bfc903756a2c71": {
+  "dec_9abbe4901afc45599a0f3e902a1d15ed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.066662+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.907075+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -20289,7 +20337,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_b583ba7570d949aca3bfc903756a2c71",
+    "public_id": "dec_9abbe4901afc45599a0f3e902a1d15ed",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -20307,14 +20355,15 @@
       "used": false
     }
   },
-  "dec_273d34c9b9354ee2b07141672eea412f": {
+  "dec_3a60956d1e3c478fb8511e65e736b2da": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.072854+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.911612+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -20674,7 +20723,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_273d34c9b9354ee2b07141672eea412f",
+    "public_id": "dec_3a60956d1e3c478fb8511e65e736b2da",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -20692,14 +20741,15 @@
       "used": false
     }
   },
-  "dec_f276721039a846ec8c66a283dad019c9": {
+  "dec_b45109fae40640b98beeca61ebb76648": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.076568+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.916433+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -21059,7 +21109,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_f276721039a846ec8c66a283dad019c9",
+    "public_id": "dec_b45109fae40640b98beeca61ebb76648",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -21077,14 +21127,15 @@
       "used": false
     }
   },
-  "dec_4066406214e34d1091f75df6645daf5c": {
+  "dec_b4fecf16ade9430791b2ced252ba7954": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.080401+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.920569+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -21449,7 +21500,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_4066406214e34d1091f75df6645daf5c",
+    "public_id": "dec_b4fecf16ade9430791b2ced252ba7954",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -21467,14 +21518,15 @@
       "used": false
     }
   },
-  "dec_3131f2eb50124d5e87c99630b2844c4d": {
+  "dec_2f236a0e255d4e59a1ab7867e70fd603": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.086760+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.924275+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -21834,7 +21886,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_3131f2eb50124d5e87c99630b2844c4d",
+    "public_id": "dec_2f236a0e255d4e59a1ab7867e70fd603",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -21852,14 +21904,15 @@
       "used": false
     }
   },
-  "dec_7e5b4b690e794ef59cf555b9dfff6146": {
+  "dec_317b11c51dec4b8d970170ce79678387": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.091189+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.928161+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -22219,7 +22272,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "live",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_7e5b4b690e794ef59cf555b9dfff6146",
+    "public_id": "dec_317b11c51dec4b8d970170ce79678387",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -22237,14 +22290,15 @@
       "used": false
     }
   },
-  "dec_1f2046e13ca442c189f79fd860becf49": {
+  "dec_7bfbc7f340c74fc4a18cc4658cbb234f": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.095260+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.932976+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -22604,7 +22658,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_1f2046e13ca442c189f79fd860becf49",
+    "public_id": "dec_7bfbc7f340c74fc4a18cc4658cbb234f",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -22622,14 +22676,15 @@
       "used": false
     }
   },
-  "dec_1864dfb449844c398c9cf2e0410bb2f9": {
+  "dec_ac3661bb4e174ef59b749663117fdf97": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.098874+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.939018+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -22989,7 +23044,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "live",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_1864dfb449844c398c9cf2e0410bb2f9",
+    "public_id": "dec_ac3661bb4e174ef59b749663117fdf97",
     "public_run_id": null,
     "public_summary": "Maintain a measured position while monitoring customer investment and margins. Add only when both the evidence and entry price justify more exposure.",
     "regime": "GREEN",
@@ -23007,11 +23062,11 @@
       "used": false
     }
   },
-  "run_e22bdbb205c145019d893dcde98b43f6": {
+  "run_c3ed943593994bd4bf763a0ea5cd8fa7": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.103255+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.944762+00:00",
     "portfolio_id": "live",
     "attempt_count": 1,
     "attempts": [
@@ -23020,7 +23075,7 @@
         "finished_at": "2026-06-10T21:45:25+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_0b6275dee2da410bb996925dbf4a8ef5",
+        "public_id": "attempt_6af4da162e554b9ea4921441be7cb572",
         "reason": null,
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -23033,7 +23088,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_e22bdbb205c145019d893dcde98b43f6",
+    "public_id": "run_c3ed943593994bd4bf763a0ea5cd8fa7",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",
@@ -23042,8 +23097,8 @@
   "paper/overview": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.106571+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.948481+00:00",
     "capabilities": {
       "cash": false,
       "quantities": true,
@@ -23073,8 +23128,8 @@
   "paper/positions": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.110023+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.951908+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "status": "unavailable",
@@ -23086,8 +23141,8 @@
   "paper/performance": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.113593+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.955287+00:00",
     "portfolio_id": "paper",
     "mode": "paper",
     "benchmarks": [],
@@ -23102,8 +23157,8 @@
   "paper/policy": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.119214+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.959220+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "current_asset_exposure": [],
@@ -23157,7 +23212,7 @@
         "unit": "fraction",
         "version": "decision-policy-1",
         "last_triggered": {
-          "public_id": "dec_d6942172725049e2a30da03fffa8579e",
+          "public_id": "dec_8bf1d93c565b47aaa04cefb95e64946b",
           "created_at": "2026-06-10T21:45:00+00:00"
         }
       },
@@ -23405,11 +23460,11 @@
   "paper/runtime": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.123973+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.963539+00:00",
     "portfolio_id": "paper",
     "active_run": null,
-    "as_of": "2026-10-02T05:30:43.742116+00:00",
+    "as_of": "2026-10-02T06:06:42.531571+00:00",
     "latest_run": {
       "attempt_count": 2,
       "attempts_truncated": false,
@@ -23418,7 +23473,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_5e93f7d4218340a08710268212a489c7",
+        "public_id": "attempt_c6f43eb394cf49658d0023d56cccf8e1",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -23428,7 +23483,7 @@
       },
       "origin": "manual",
       "prepared_at": "2026-06-10T21:45:00+00:00",
-      "public_id": "run_43e89dde1e81459eb5959674c921c219",
+      "public_id": "run_625d3f204dc440979d4a7dbdfafc1d13",
       "session_date": "2026-06-10",
       "slot": "close",
       "status": "no_action",
@@ -23440,8 +23495,8 @@
   "paper/activity": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.127493+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.968816+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -23452,7 +23507,7 @@
           "finished_at": "2026-06-10T21:45:30+00:00",
           "heartbeat_at": "2026-06-10T21:45:12Z",
           "observed_model": null,
-          "public_id": "attempt_5e93f7d4218340a08710268212a489c7",
+          "public_id": "attempt_c6f43eb394cf49658d0023d56cccf8e1",
           "reason": null,
           "requested_model": "fixture-model-b",
           "stage": "finished",
@@ -23462,7 +23517,7 @@
         },
         "origin": "manual",
         "prepared_at": "2026-06-10T21:45:00+00:00",
-        "public_id": "run_43e89dde1e81459eb5959674c921c219",
+        "public_id": "run_625d3f204dc440979d4a7dbdfafc1d13",
         "session_date": "2026-06-10",
         "slot": "close",
         "status": "no_action",
@@ -23476,8 +23531,8 @@
   "paper/shorts": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.131462+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.973282+00:00",
     "portfolio_id": "paper",
     "status": "available",
     "reason": null,
@@ -23486,8 +23541,8 @@
   "paper/feed": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.136186+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.977131+00:00",
     "portfolio_id": "paper",
     "items": [
       {
@@ -23498,7 +23553,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_8e81922259f34f3cb861164300b247c9",
+        "public_id": "dec_eb64cf1b7c6e40e5958dc7c6fece5a3c",
         "public_run_id": null,
         "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
         "regime": "GREEN",
@@ -23516,7 +23571,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_a36529bd00c8431f8b80ab46d7fa04a5",
+        "public_id": "dec_9f22602118094216a9595aa34236d171",
         "public_run_id": null,
         "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
         "regime": "GREEN",
@@ -23534,7 +23589,7 @@
         "mode": "paper",
         "policy_outcome": "rejected",
         "portfolio_id": "paper",
-        "public_id": "dec_d6942172725049e2a30da03fffa8579e",
+        "public_id": "dec_8bf1d93c565b47aaa04cefb95e64946b",
         "public_run_id": null,
         "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
         "regime": "GREEN",
@@ -23552,7 +23607,7 @@
         "mode": "paper",
         "policy_outcome": "approved",
         "portfolio_id": "paper",
-        "public_id": "dec_77398d5891ef40dd84df479397a4af61",
+        "public_id": "dec_11e51c06d3f44277b00cf88c4a99d821",
         "public_run_id": null,
         "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
         "regime": "GREEN",
@@ -23570,14 +23625,15 @@
       "high_water": 59
     }
   },
-  "dec_8e81922259f34f3cb861164300b247c9": {
+  "dec_eb64cf1b7c6e40e5958dc7c6fece5a3c": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.139847+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.981365+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -23641,9 +23697,9 @@
           "claim": "Reported revenue increased as customers expanded computing capacity.",
           "confidence_method": "model_assessed_evidence",
           "evidence_confidence": 0.8,
-          "public_id": "claim_8924abb9360c053a48a0c6f0",
+          "public_id": "claim_2705af69beb7611ee4bf4f75",
           "source_ids": [
-            "src_cd7932531b5244a19bcf1311dc816a26"
+            "src_7995aef997b949dc8c7e8272c3fb320f"
           ]
         }
       ],
@@ -23667,7 +23723,7 @@
       "sources": [
         {
           "excerpt": "Revenue increased as customers expanded capacity.",
-          "public_id": "src_cd7932531b5244a19bcf1311dc816a26",
+          "public_id": "src_7995aef997b949dc8c7e8272c3fb320f",
           "published_on": "2026-06-10",
           "publisher": "Company IR",
           "source_type": "COMPANY_IR",
@@ -23678,7 +23734,7 @@
       "stages": [
         {
           "claim_ids": [
-            "claim_8924abb9360c053a48a0c6f0"
+            "claim_2705af69beb7611ee4bf4f75"
           ],
           "completed_at": null,
           "stage": "initial_thesis",
@@ -23687,7 +23743,7 @@
         },
         {
           "claim_ids": [
-            "claim_8924abb9360c053a48a0c6f0"
+            "claim_2705af69beb7611ee4bf4f75"
           ],
           "completed_at": null,
           "stage": "counter_thesis",
@@ -23696,7 +23752,7 @@
         },
         {
           "claim_ids": [
-            "claim_8924abb9360c053a48a0c6f0"
+            "claim_2705af69beb7611ee4bf4f75"
           ],
           "completed_at": null,
           "stage": "adversarial_refinement",
@@ -23705,7 +23761,7 @@
         },
         {
           "claim_ids": [
-            "claim_8924abb9360c053a48a0c6f0"
+            "claim_2705af69beb7611ee4bf4f75"
           ],
           "completed_at": null,
           "stage": "what_is_priced_in",
@@ -23714,7 +23770,7 @@
         },
         {
           "claim_ids": [
-            "claim_8924abb9360c053a48a0c6f0"
+            "claim_2705af69beb7611ee4bf4f75"
           ],
           "completed_at": null,
           "stage": "refined_thesis",
@@ -23725,7 +23781,7 @@
       "trigger_summary": "Review following the company's quarterly results.",
       "variant_perception": {
         "claim_ids": [
-          "claim_8924abb9360c053a48a0c6f0"
+          "claim_2705af69beb7611ee4bf4f75"
         ],
         "consensus": "Demand growth stays strong.",
         "disagreement": "Margins matter more than one quarter of order growth.",
@@ -24054,7 +24110,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_8e81922259f34f3cb861164300b247c9",
+    "public_id": "dec_eb64cf1b7c6e40e5958dc7c6fece5a3c",
     "public_run_id": null,
     "public_summary": "Accelerated computing demand supports another year of revenue growth, but the current price already assumes a strong expansion.",
     "regime": "GREEN",
@@ -24085,14 +24141,15 @@
       "used": false
     }
   },
-  "dec_a36529bd00c8431f8b80ab46d7fa04a5": {
+  "dec_9f22602118094216a9595aa34236d171": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.144299+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.984984+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -24452,7 +24509,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_a36529bd00c8431f8b80ab46d7fa04a5",
+    "public_id": "dec_9f22602118094216a9595aa34236d171",
     "public_run_id": null,
     "public_summary": "Customers could pause orders after the initial buildout. New supply and competing chips may also reduce pricing power.",
     "regime": "GREEN",
@@ -24470,14 +24527,15 @@
       "used": false
     }
   },
-  "dec_d6942172725049e2a30da03fffa8579e": {
+  "dec_8bf1d93c565b47aaa04cefb95e64946b": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.149956+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.988946+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -24837,7 +24895,7 @@
     "policy_outcome": "rejected",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.4,
-    "public_id": "dec_d6942172725049e2a30da03fffa8579e",
+    "public_id": "dec_8bf1d93c565b47aaa04cefb95e64946b",
     "public_run_id": null,
     "public_summary": "The decision depends on repeat demand rather than the headline growth rate. Track cash conversion and customer concentration before adding.",
     "regime": "GREEN",
@@ -24855,14 +24913,15 @@
       "used": false
     }
   },
-  "dec_77398d5891ef40dd84df479397a4af61": {
+  "dec_11e51c06d3f44277b00cf88c4a99d821": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.154870+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.993124+00:00",
     "claims": [
       {
         "claim": "Company demand is linked to AI infrastructure spending.",
+        "links": [],
         "source_timestamp": "2026-06-10T10:00:00Z",
         "source_type": "COMPANY_IR"
       }
@@ -25222,7 +25281,7 @@
     "policy_outcome": "approved",
     "portfolio_id": "paper",
     "proposed_target_weight": 0.12,
-    "public_id": "dec_77398d5891ef40dd84df479397a4af61",
+    "public_id": "dec_11e51c06d3f44277b00cf88c4a99d821",
     "public_run_id": null,
     "public_summary": "The valuation assumes continued demand and stable margins. Faster growth alone would not establish an attractive entry price.",
     "regime": "GREEN",
@@ -25240,11 +25299,11 @@
       "used": false
     }
   },
-  "run_43e89dde1e81459eb5959674c921c219": {
+  "run_625d3f204dc440979d4a7dbdfafc1d13": {
     "api_version": 2,
     "revision": 0,
-    "published_at": "2026-10-02T05:30:43.742116+00:00",
-    "server_now": "2026-10-02T05:30:44.158674+00:00",
+    "published_at": "2026-10-02T06:06:42.531571+00:00",
+    "server_now": "2026-10-02T06:06:42.999670+00:00",
     "portfolio_id": "paper",
     "attempt_count": 2,
     "attempts": [
@@ -25253,7 +25312,7 @@
         "finished_at": "2026-06-10T21:45:30+00:00",
         "heartbeat_at": "2026-06-10T21:45:12Z",
         "observed_model": null,
-        "public_id": "attempt_5e93f7d4218340a08710268212a489c7",
+        "public_id": "attempt_c6f43eb394cf49658d0023d56cccf8e1",
         "reason": null,
         "requested_model": "fixture-model-b",
         "stage": "finished",
@@ -25267,7 +25326,7 @@
         "finished_at": "2026-06-10T21:45:10+00:00",
         "heartbeat_at": "2026-06-10T21:45:00Z",
         "observed_model": null,
-        "public_id": "attempt_4b706204928346218759837862df5bb3",
+        "public_id": "attempt_bea48623019343c6b6acc278984255ba",
         "reason": "runner_failed",
         "requested_model": "fixture-model-a",
         "stage": "finished",
@@ -25280,7 +25339,7 @@
     "attempts_truncated": false,
     "origin": "manual",
     "prepared_at": "2026-06-10T21:45:00+00:00",
-    "public_id": "run_43e89dde1e81459eb5959674c921c219",
+    "public_id": "run_625d3f204dc440979d4a7dbdfafc1d13",
     "session_date": "2026-06-10",
     "slot": "close",
     "status": "no_action",

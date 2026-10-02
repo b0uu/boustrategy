@@ -601,3 +601,37 @@ def test_company_metadata_is_searchable_and_unknown_paper_cost_remains_nullable(
     assert positions.status_code == 200
     assert positions.json()["items"][0]["average_cost"] is None
     assert positions.json()["items"][0]["shares"] is None
+
+
+def test_a_public_safe_claim_links_only_its_public_web_sources(tmp_path: Path) -> None:
+    source, public = tmp_path / "source.db", tmp_path / "published.db"
+    conn = connect(source)
+    data = valid_decision_record_data()
+    data["source_claims"] = [
+        {
+            "claim": "The filing confirms the agreement.",
+            "source_ids": [
+                "https://www.sec.gov/Archives/example-8k.htm",
+                "http://localhost:8380/private",
+                "https://10.0.0.5/internal",
+                "https://example.com/report?api_key=secret",
+                "PRIVATE_SOURCE_ID",
+            ],
+            "source_type": "SEC",
+            "source_timestamp": data["created_at"],
+            "confidence": 0.9,
+            "public_safe": True,
+        }
+    ]
+    record = InvestmentDecisionRecord.model_validate(data)
+    process_decision(conn, record.model_dump(), received_at=record.created_at)
+    conn.commit()
+    conn.close()
+
+    publish(source, public)
+
+    client = TestClient(create_public_app(public))
+    item = client.get("/api/public/v2/decisions?portfolio_id=paper").json()["items"][0]
+    detail = client.get(f"/api/public/v2/decisions/{item['public_id']}")
+    assert detail.json()["claims"][0]["links"] == ["https://www.sec.gov/Archives/example-8k.htm"]
+    assert "PRIVATE_SOURCE_ID" not in detail.text and "api_key" not in detail.text
