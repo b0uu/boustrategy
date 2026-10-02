@@ -10,13 +10,17 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
+import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
+
+from app.reason.process_tree import WindowsProcessTree
 
 MAX_PROMPT_BYTES = 200_000
 MAX_OUTPUT_BYTES = 200_000
@@ -39,6 +43,53 @@ _ALLOWED_ENVIRONMENT = {
 }
 
 Runner = Callable[..., subprocess.CompletedProcess[bytes]]
+
+
+def run_in_job(
+    argv: list[str],
+    *,
+    input: bytes,
+    timeout: float,
+    env: dict[str, str],
+    cwd: str,
+    creationflags: int,
+    **_: Any,
+) -> subprocess.CompletedProcess[bytes]:
+    """subprocess.run, except a timeout ends Codex's whole process tree.
+
+    codex.cmd runs Codex as a grandchild that inherits the output pipes. On a timeout
+    subprocess.run kills only the shim and then waits on those pipes for good, so a hung session
+    held its caller, a review about to submit, until the scheduled task's limit killed it.
+    """
+    process = subprocess.Popen(
+        argv,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        cwd=cwd,
+        # Started suspended so it joins the job before it can start any child of its own.
+        creationflags=creationflags | 0x00000004 if sys.platform == "win32" else 0,
+        start_new_session=sys.platform != "win32",
+    )
+    tree = WindowsProcessTree(process.pid) if sys.platform == "win32" else None
+    try:
+        if tree is not None:
+            tree.resume(process.pid)
+        try:
+            stdout, stderr = process.communicate(input, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            if tree is not None:
+                tree.close()
+                tree = None
+            elif sys.platform != "win32":
+                os.killpg(process.pid, signal.SIGKILL)
+            stdout, stderr = process.communicate(timeout=10)
+            raise subprocess.TimeoutExpired(argv, timeout, output=stdout, stderr=stderr) from None
+    finally:
+        if tree is not None:
+            tree.close()
+    return subprocess.CompletedProcess(argv, process.returncode, stdout, stderr)
 
 
 class BrokerSessionFailure(ValueError):
@@ -82,7 +133,7 @@ def run_broker_session[T: BaseModel](
     cwd: str | Path | None = None,
     executable: str = "codex",
     log_path: Path | None = None,
-    run: Runner = subprocess.run,
+    run: Runner = run_in_job,
     approved_tools: tuple[str, ...] = (),
 ) -> T:
     encoded = prompt.encode("utf-8")

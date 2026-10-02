@@ -1,12 +1,51 @@
 import json
+import os
 import subprocess
+import sys
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 from pydantic import BaseModel
 
-from app.broker.session import BrokerSessionFailure, run_broker_session, strict_json_schema
+from app.broker.session import (
+    BrokerSessionFailure,
+    run_broker_session,
+    run_in_job,
+    strict_json_schema,
+)
+
+_SLEEPING_GRANDCHILD = (
+    "import subprocess, sys; subprocess.run([sys.executable, '-c', 'import time; time.sleep(60)'])"
+)
+
+
+def _run_in_job(code: str, timeout: float) -> subprocess.CompletedProcess[bytes]:
+    return run_in_job(
+        [sys.executable, "-c", code],
+        input=b"",
+        timeout=timeout,
+        env=dict(os.environ),
+        cwd=".",
+        creationflags=0,
+    )
+
+
+def test_a_session_runner_returns_its_output() -> None:
+    completed = _run_in_job("import sys; sys.stdout.write('ok')", timeout=30)
+
+    assert (completed.returncode, completed.stdout) == (0, b"ok")
+
+
+def test_a_timed_out_session_ends_its_grandchildren_instead_of_hanging() -> None:
+    # The grandchild holds the output pipes, as Codex does under codex.cmd.
+    started = time.monotonic()
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        _run_in_job(_SLEEPING_GRANDCHILD, timeout=2)
+
+    assert time.monotonic() - started < 20
 
 
 class Reply(BaseModel):
