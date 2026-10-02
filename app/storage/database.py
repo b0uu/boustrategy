@@ -295,6 +295,13 @@ CREATE TABLE IF NOT EXISTS x_citations (
     cited_at TEXT NOT NULL,
     PRIMARY KEY (post_id, runtime_attempt_id, subject, ticker)
 );
+-- What a review weighed, published with it: each candidate's outcome and reason, and each
+-- challenger verdict. The agent writes these as public prose.
+CREATE TABLE IF NOT EXISTS review_ledgers (
+    attempt_id TEXT PRIMARY KEY,
+    ledger_json TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS swap_pairs (
     buy_decision_id TEXT PRIMARY KEY,
     sell_decision_id TEXT NOT NULL,

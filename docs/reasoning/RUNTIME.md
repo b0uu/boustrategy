@@ -64,6 +64,10 @@ Candidates and thesis reviews list the X posts that shaped them, for or against,
 a role; decisions already do in their public narrative. The worker sends back a review
 that cites a post the pipeline never collected, and records every citation in
 `x_citations`, which the weekly digest counts per account as `cited_by_reviews`.
+Every accepted review, including one with no action, saves what it weighed in
+`review_ledgers`: each candidate's outcome, idea, reason, sources and cited posts, and
+each challenger verdict. The public review card shows it beside the holdings the review
+judged, so the agent writes those fields as public prose; `private_notes` stay private.
 
 A live intake also shows each holding's weight, quantity, average cost, price and
 unrealized return from the starting snapshot, and derives holding episodes from

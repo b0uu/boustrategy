@@ -1,10 +1,48 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight } from '@phosphor-icons/react'
+import { ArrowRight, ArrowUpRight } from '@phosphor-icons/react'
 import { PublicError, readPublic, usePublic } from './api'
 import { Badge, Chevron, Empty, Fact, RequestIssue, ResourceNotice, SectionBoundary } from './common'
-import { label, sessionDay, when } from './format'
+import { label, publicUrl, sessionDay, when } from './format'
 import { dashboardUrl, Link } from './navigation'
-import type { ActivityItem, ActivityPage, Metadata, Runtime, Scope } from './types'
+import type { ActivityItem, ActivityPage, Metadata, Runtime, Scope, Weighed } from './types'
+
+function host(url: string) {
+  try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
+}
+
+function SourceLinks({ urls }: { urls: string[] }) {
+  // Two filings on sec.gov would read as the same link, so a repeated site is numbered.
+  const hosts = urls.map(host)
+  return <>{urls.map((url, index) => {
+    const href = publicUrl(url)
+    const repeats = hosts.filter(name => name === hosts[index]).length
+    const name = repeats > 1 ? `${hosts[index]} ${hosts.slice(0, index + 1).filter(item => item === hosts[index]).length}` : hosts[index]
+    return href ? <a key={url} className="external-link" href={href} target="_blank" rel="noopener noreferrer">{name}<ArrowUpRight size={10} weight="bold" aria-hidden="true" /></a> : null
+  })}</>
+}
+
+/** What a review weighed, so a review that took no action still shows its work. */
+export function WhatWasWeighed({ weighed }: { weighed: Weighed }) {
+  const { candidates = [], holdings = [], challengers = [] } = weighed
+  if (!candidates.length && !holdings.length && !challengers.length) return null
+  return <div className="weighed">
+    {candidates.length > 0 && <section><div className="section-heading"><h3>Candidates researched</h3><span>{candidates.length}</span></div><ul>{candidates.map(item => <li key={item.ticker}>
+      <div className="weighed-head"><strong className="mono">{item.ticker}</strong><Badge value={item.outcome} />{item.clears_entry_bar && <span className="x-post-role">Clears the entry bar</span>}</div>
+      <p>{item.reason}</p>
+      <p className="weighed-meta">Idea: {item.idea_source}</p>
+      {(item.sources.length > 0 || item.x_posts.length > 0) && <p className="weighed-meta weighed-links"><SourceLinks urls={item.sources} />{item.x_posts.map(post => { const href = publicUrl(post.url); const handle = post.url.split('/')[3]; return href ? <a key={post.url} className="external-link" href={href} target="_blank" rel="noopener noreferrer">@{handle} · {label('x_' + post.role)}<ArrowUpRight size={10} weight="bold" aria-hidden="true" /></a> : null })}</p>}
+    </li>)}</ul></section>}
+    {holdings.length > 0 && <section><div className="section-heading"><h3>Holdings reviewed</h3><span>{holdings.length}</span></div><ul>{holdings.map(item => <li key={item.ticker}>
+      <div className="weighed-head"><strong className="mono">{item.ticker}</strong><Badge value={item.state} /></div>
+      {item.summary && <p>{item.summary}</p>}
+    </li>)}</ul></section>}
+    {challengers.length > 0 && <section><div className="section-heading"><h3>Challengers</h3><span>{challengers.length}</span></div><ul>{challengers.map(item => <li key={item.candidate + item.incumbent}>
+      <div className="weighed-head"><strong className="mono">{item.candidate} vs {item.incumbent}</strong><Badge value={item.verdict} /></div>
+      <p>{item.reasoning}</p>
+      <p className="weighed-meta">Why {item.incumbent} was the weakest holding: {item.why_weakest}</p>
+    </li>)}</ul></section>}
+  </div>
+}
 
 export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope }) {
   const [open, setOpen] = useState(false)
@@ -25,7 +63,7 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
     <div className="disclosure-body">
       <ResourceNotice resource={detail} name="review attempts" />
       <SectionBoundary resetKey={detail.data} retry={detail.refresh} name="review history">
-        {detail.data?.attempts?.map(attempt => <div className="attempt" key={attempt.public_id}><div className="section-heading"><h3>Attempt {attempt.attempt_number}</h3><Badge value={attempt.status} /></div><p>{attempt.summary ?? (attempt.reason ? label(attempt.reason) : label(attempt.stage))}</p><dl className="detail-grid"><Fact name="Requested model">{attempt.requested_model}</Fact><Fact name="Started">{when(attempt.started_at)}</Fact><Fact name="Finished">{attempt.finished_at ? when(attempt.finished_at) : 'Not recorded'}</Fact></dl></div>)}
+        {detail.data?.attempts?.map(attempt => <div className="attempt" key={attempt.public_id}><div className="section-heading"><h3>Attempt {attempt.attempt_number}</h3><Badge value={attempt.status} /></div>{/* One attempt's summary is the review's own, already shown above. */}{attempt.summary !== summary && <p>{attempt.summary ?? (attempt.reason ? label(attempt.reason) : label(attempt.stage))}</p>}<dl className="detail-grid"><Fact name="Requested model">{attempt.requested_model}</Fact><Fact name="Started">{when(attempt.started_at)}</Fact><Fact name="Finished">{attempt.finished_at ? when(attempt.finished_at) : 'Not recorded'}</Fact></dl>{attempt.weighed && <WhatWasWeighed weighed={attempt.weighed} />}</div>)}
         {detail.data?.attempts_truncated && <p className="section-note">Showing the latest 100 of {detail.data.attempt_count} recorded attempts.</p>}
       </SectionBoundary>
       {/* A no-action or failed review records no decisions, so the feed it would open is empty. */}

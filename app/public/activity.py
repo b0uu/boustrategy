@@ -74,18 +74,38 @@ def publish_activity(
         attempts_by_run: dict[str, list[dict[str, Any]]] = {}
         counts: dict[str, int] = {}
         query = (
-            "SELECT run_id, public_id, attempt_number, status, stage, model, observed_model, "
-            "started_at, heartbeat_at, finished_at, reason, public_summary, total FROM "
+            "SELECT run_id, attempt_id, public_id, attempt_number, status, stage, model, "
+            "observed_model, started_at, heartbeat_at, finished_at, reason, public_summary, "
+            "total FROM "
             "(SELECT *, ROW_NUMBER() OVER (PARTITION BY run_id ORDER BY "
             "attempt_number DESC) AS rank, "
             "COUNT(*) OVER (PARTITION BY run_id) AS total FROM runtime_attempts"
             + clauses["runtime"]
             + ") WHERE rank<=100 ORDER BY run_id, attempt_number DESC"
         )
+        ledgers = (
+            dict(source.execute("SELECT attempt_id, ledger_json FROM review_ledgers"))
+            if table_exists(source, "review_ledgers")
+            else {}
+        )
+        holdings: dict[str, list[dict[str, Any]]] = {}
+        if table_exists(source, "thesis_reviews"):
+            for (raw_review,) in source.execute(
+                "SELECT record_json FROM thesis_reviews ORDER BY reviewed_at"
+            ):
+                review = json.loads(raw_review)
+                if review.get("approved_for_publication") and review.get("runtime_attempt_id"):
+                    holdings.setdefault(review["runtime_attempt_id"], []).append(
+                        {key: review.get(key) for key in ("ticker", "state", "summary")}
+                    )
         for row in source.execute(query):
             counts[row[0]] = row[-1]
+            weighed = json.loads(ledgers[row[1]]) if row[1] in ledgers else {}
+            if row[1] in holdings:
+                weighed["holdings"] = holdings[row[1]]
             attempts_by_run.setdefault(row[0], []).append(
-                dict(
+                {"weighed": weighed or None}
+                | dict(
                     zip(
                         (
                             "public_id",
@@ -100,7 +120,7 @@ def publish_activity(
                             "reason",
                             "summary",
                         ),
-                        row[1:-1],
+                        row[2:-1],
                         strict=True,
                     )
                 )
@@ -290,8 +310,14 @@ def _save(
     if compact.get("summary"):
         compact["summary"] = compact["summary"][:600]
     attempts = content.get("attempts", [])
+    # What a review weighed is long; the feed row carries only the summary, the review its all.
     compact["latest_attempt"] = (
-        {**attempts[0], "summary": (attempts[0].get("summary") or "")[:600]} if attempts else None
+        {
+            **{key: value for key, value in attempts[0].items() if key != "weighed"},
+            "summary": (attempts[0].get("summary") or "")[:600],
+        }
+        if attempts
+        else None
     )
     target.execute(
         "INSERT INTO public_activity (source_key, public_id, portfolio_id, "

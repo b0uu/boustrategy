@@ -79,7 +79,10 @@ candidate that clears the bar becomes a BUY or ADD record. One that falls short 
 WATCHLIST or PASS with the specific reason: the evidence that was missing or the objection
 that held. Record every researched candidate in candidates_considered with the exact URLs you
 opened. Empty decisions are valid only after that hunt is recorded; a review that returns no
-action without it is rejected.
+action without it is rejected. Each candidate's idea_source and reason, and each challenger's
+why_weakest and reasoning, are published on the dashboard as what this review weighed: write
+them as plain public prose in your own words, without long quotes from paid sources or X posts.
+Keep scratch work in private_notes.
 Research is read-only. You have no authority to call broker tools, submit orders, modify
 files, or start other agents, and a search result never licenses skipping a reasoning step.
 Return the required structured JSON. Every holding the intake marks REVIEW DUE needs a
@@ -1288,6 +1291,45 @@ def execute_attempt(
                     )
                     for candidate in result.candidates_considered
                 ],
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO review_ledgers VALUES (?, ?, ?)",
+                (
+                    attempt.attempt_id,
+                    json.dumps(
+                        {
+                            "candidates": [
+                                {
+                                    "ticker": candidate.ticker,
+                                    "outcome": candidate.outcome.value,
+                                    "clears_entry_bar": candidate.clears_entry_bar,
+                                    "idea_source": candidate.idea_source,
+                                    "reason": candidate.reason,
+                                    "sources": [
+                                        url
+                                        for url in candidate.sources_opened
+                                        if url.startswith(("https://", "http://"))
+                                    ],
+                                    "x_posts": [post.model_dump() for post in candidate.x_posts],
+                                }
+                                for candidate in result.candidates_considered
+                            ],
+                            "challengers": [
+                                challenger.model_dump(
+                                    include={
+                                        "candidate",
+                                        "incumbent",
+                                        "verdict",
+                                        "why_weakest",
+                                        "reasoning",
+                                    }
+                                )
+                                for challenger in result.challenger_reviews
+                            ],
+                        }
+                    ),
+                    authored_at.isoformat(),
+                ),
             )
             conn.executemany(
                 "INSERT OR IGNORE INTO x_citations VALUES (?, ?, ?, ?, ?, ?)",

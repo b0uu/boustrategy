@@ -57,7 +57,7 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
     from app.public.server import create_public_app
     from app.reason.worker import execute_attempt
     from app.schemas.decision_record import InvestmentDecisionRecord
-    from app.schemas.runtime import AuthoredOutput
+    from app.schemas.runtime import AuthoredOutput, CandidateConsidered
     from tests.fixtures.decision_records import valid_decision_record_data
 
     source, public = tmp_path / "source.db", tmp_path / "public.db"
@@ -75,6 +75,17 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
                     }
                 )
                 for index in range(2)
+            ],
+            candidates_considered=[
+                CandidateConsidered.model_validate(
+                    {
+                        "ticker": "AMD",
+                        "idea_source": "A curated post on accelerator supply.",
+                        "sources_opened": ["https://ir.amd.com/q2", "not a url"],
+                        "outcome": "PASS",
+                        "reason": "Supply is improving, but the price already assumes it.",
+                    }
+                )
             ],
             public_summary="Reviewed two candidates.",
         )
@@ -126,6 +137,13 @@ def test_run_filter_retry_detail_and_private_identity_never_leak(tmp_path: Path)
     detail = client.get(f"/api/public/v2/portfolios/paper/activity/{public_id}")
     assert [item["status"] for item in detail.json()["attempts"]] == ["completed", "failed"]
     assert detail.json()["attempts"][0]["requested_model"] == "actual-model"
+    weighed = detail.json()["attempts"][0]["weighed"]
+    assert [(item["ticker"], item["outcome"]) for item in weighed["candidates"]] == [
+        ("AMD", "PASS")
+    ]
+    assert weighed["candidates"][0]["sources"] == ["https://ir.amd.com/q2"]
+    assert detail.json()["attempts"][1]["weighed"] is None
+    assert "weighed" not in runs["items"][0]["latest_attempt"]
     assert client.get(f"/api/public/v2/portfolios/live/activity/{public_id}").status_code == 404
     params = {"portfolio_id": "paper", "run_id": public_id, "limit": 1}
     page = client.get("/api/public/v2/decisions", params=params).json()

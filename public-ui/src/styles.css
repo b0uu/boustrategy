@@ -310,6 +310,13 @@ p + .detail-grid { margin-top: 14px; }
 .badge--rejected, .badge--failed, .badge--schema_failed, .badge--policy_rejected { background: var(--coral-bg); color: var(--coral); }
 .badge--awaiting_paper_price { background: var(--amber-bg); color: var(--amber); }
 .attempt + .attempt { border-top: 1px solid var(--border-soft); padding-top: 12px; }
+.weighed section { margin-top: 16px; }
+.weighed ul { list-style: none; margin: 0; padding: 0; }
+.weighed li { padding: 8px 0; border-top: 1px solid var(--border-soft); }
+.weighed li p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.weighed-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.weighed .weighed-meta { color: var(--text-3); font-size: 11.5px; }
+.weighed-links { display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .run-date { display: block; font-size: 11px; color: var(--text-3); }
 
 /* --- Positions -------------------------------------------------------------------- */

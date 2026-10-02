@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { readPublic, usePublic } from './api'
 import { ResourceNotice } from './common'
-import { AgentStatus } from './Activity'
+import { AgentStatus, WhatWasWeighed } from './Activity'
 import { PortfolioChart } from './Performance'
 import { amount, label, money, percent, publicUrl, tone } from './format'
 import { navigate } from './navigation'
@@ -570,4 +570,22 @@ it('says why a holding was reviewed', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'positions' }))
 
   expect(await screen.findByText('Why it was reviewed: Scheduled review, Large daily price move.')).toBeInTheDocument()
+})
+it('shows what a no-action review weighed', () => {
+  render(<WhatWasWeighed weighed={{
+    candidates: [{ ticker: 'TSM', outcome: 'PASS', clears_entry_bar: false, idea_source: 'A curated capacity post.', reason: 'Strong results, but the quote sits above the entry ceiling.', sources: ['https://investor.tsmc.com/q2'], x_posts: [{ url: 'https://x.com/jukan05/status/1', role: 'idea_source' }] }],
+    holdings: [{ ticker: 'AVGO', state: 'intact', summary: 'Financing exposure is contained.' }],
+    challengers: [{ candidate: 'VRT', incumbent: 'XOM', verdict: 'keep_incumbent', why_weakest: 'Lowest reward to risk.', reasoning: 'The swap would not improve the portfolio at these prices.' }],
+  }} />)
+  expect(screen.getByText('Candidates researched')).toBeInTheDocument()
+  expect(screen.getByText('Strong results, but the quote sits above the entry ceiling.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /investor\.tsmc\.com/ })).toHaveAttribute('href', 'https://investor.tsmc.com/q2')
+  expect(screen.getByRole('link', { name: /@jukan05 · Idea source/ })).toBeInTheDocument()
+  expect(screen.getByText('Intact')).toBeInTheDocument()
+  expect(screen.getByText('VRT vs XOM')).toBeInTheDocument()
+  expect(screen.getByText('Keep incumbent')).toBeInTheDocument()
+})
+it('shows nothing when a review recorded nothing it weighed', () => {
+  const { container } = render(<WhatWasWeighed weighed={{}} />)
+  expect(container).toBeEmptyDOMElement()
 })
