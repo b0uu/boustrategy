@@ -478,7 +478,7 @@ def pipeline_health(
             )
 
     if table_exists(conn, "x_post_reads"):
-        remaining = reads_remaining(conn)
+        remaining = reads_remaining(conn, now.astimezone(UTC).strftime("%Y-%m"))
         used = MAX_MONTHLY_POST_READS - remaining
         add(
             "X read budget",
