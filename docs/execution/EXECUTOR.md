@@ -110,15 +110,21 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
 - **Record.** `python -m app.broker.run record --in <file>` with
   `{"broker_execution_record_id":"ber_<packet>","order_intent_id","execution_packet_id",
   "execution_profile_id","account_alias","ticker","side","order_type":"LIMIT",
-  "requested_notional":<packet notional, not quantity times price>,"limit_price":<limit>,"submitted_at":<now>,
+  "requested_notional":<packet notional, not quantity times price>,"limit_price":<limit>,"submitted_at":<order created>,
   "status":"SUBMITTED","broker_order_id":<broker id>,"execution_price":0}`, then append the
-  `SUBMITTED` event (`bev_<packet>_submitted`). Record it right after placement: `submitted_at`
-  must fall within 120 seconds of the `REVIEWED` event. The packet may expire in between; never
-  skip the record because it did.
-- **Reconcile.** Poll `get_equity_orders` by order id about every 20 seconds for up to five
+  `SUBMITTED` event (`bev_<packet>_submitted`). Record it right after placement. `submitted_at`
+  and the event's `occurred_at` are the order's creation time from the placement response (the
+  time you placed it if the response has none), so a fill that lands seconds later still records
+  after it. `submitted_at` must fall within 120 seconds of the `REVIEWED` event. The packet may
+  expire in between; never skip the record because it did.
+- **Reconcile.** A market order usually fills within seconds, so check `get_equity_orders` by
+  order id right after recording `SUBMITTED`, then about every 20 seconds for up to five
   minutes. Append `FILLED` (detail `execution_price=<average>`), `PARTIALLY_FILLED`, `CANCELED`
-  or `FAILED` events (`bev_<packet>_<status>`) with the broker's timestamps. An order still open
-  after five minutes stays `SUBMITTED`; report outcome `submitted`.
+  or `FAILED` events (`bev_<packet>_<status>`) with the broker's own fill or update time as
+  `occurred_at`. Once the order reaches one of those states, record it and return the report at
+  once: don't re-read files or quotes or write anything else, because a swap's buy can't start
+  until this session ends. An order still open after five minutes stays `SUBMITTED`; report
+  outcome `submitted`.
 - **Report.** Finish with the JSON object the session schema requires: the intent id, the
   outcome, the packet id, the record id, the broker order id, `reason_code` and short notes.
   Every `blocked` outcome must carry a `reason_code` from the schema's list; a block without one
