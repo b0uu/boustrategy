@@ -110,7 +110,8 @@ export function DecisionPage({ publicId, legacy, scope, back }: { publicId?: str
         <p className="section-note">Every source the published record cites, whether or not a claim quotes it.</p>
       </section> : null}
       <section className="x-signals"><div className="section-heading"><h2>X signals</h2>{xPosts.length ? <span>{xPosts.length} linked post{xPosts.length === 1 ? '' : 's'}</span> : null}</div>
-        <p className="x-summary">{data.x_usage.used ? narrative?.x_summary || data.x_usage.summary || label(data.x_usage.usage_type) : "X wasn't used for this decision."}</p>
+        {/* The bare usage type repeats what each linked post's role already says, so it shows only without a written summary or linked posts. */}
+        {!data.x_usage.used ? <p className="x-summary">X wasn't used for this decision.</p> : narrative?.x_summary || data.x_usage.summary ? <p className="x-summary">{narrative?.x_summary || data.x_usage.summary}</p> : !xPosts.length && <p className="x-summary">{label(data.x_usage.usage_type)}</p>}
         {xPosts.length ? <ul className="x-posts">{xPosts.map(post => { const href = publicUrl(post.url); return <li key={post.url}>
           <strong>{href ? <a className="external-link" href={href} target="_blank" rel="noopener noreferrer">@{post.handle} on X<ArrowUpRight size={11} weight="bold" aria-hidden="true" /></a> : `@${post.handle}`}</strong>
           <span className="x-post-role">{label('x_' + post.role)}</span>
