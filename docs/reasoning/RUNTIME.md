@@ -20,7 +20,9 @@ session from the recorded intake, and inspect decisions, policy outcomes and
 paper fills. It does not schedule work, call a broker or place orders.
 
 The deployed live path is separate. Scheduled review workers refresh broker
-state before authoring and again before submission. The reasoning session has no
+state before authoring and again before submission. Each refresh first extends the
+attempt's lease over the collector's full timeout, and a refresh that fails is tried
+once more before the attempt stops, since nothing has been sent yet. The reasoning session has no
 broker MCP. Approved, account-bound packets may pass to a separate
 execution-only session governed by [`docs/execution/EXECUTOR.md`](../execution/EXECUTOR.md).
 See [`ops/README.md`](../../ops/README.md) for the installed tasks, schedules and

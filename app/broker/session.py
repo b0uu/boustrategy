@@ -23,6 +23,7 @@ from pydantic import BaseModel, ValidationError
 from app.reason.process_tree import WindowsProcessTree
 
 MAX_PROMPT_BYTES = 200_000
+SESSION_TIMEOUT_SECONDS = 300
 MAX_OUTPUT_BYTES = 200_000
 MAX_LOG_BYTES = 2_000_000
 _TOOL_NAME = re.compile(r"[a-z][a-z0-9_]{0,63}")
@@ -128,7 +129,7 @@ def run_broker_session[T: BaseModel](
     schema: type[T],
     model: str,
     codex_home: str | Path,
-    timeout_seconds: float = 300.0,
+    timeout_seconds: float = SESSION_TIMEOUT_SECONDS,
     sandbox: str = "read-only",
     cwd: str | Path | None = None,
     executable: str = "codex",

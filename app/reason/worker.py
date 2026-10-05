@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from app.broker.session import BrokerSessionFailure
+from app.broker.session import SESSION_TIMEOUT_SECONDS, BrokerSessionFailure
 from app.broker.valuation import session_window
 from app.paper.context import position_tickers
 from app.prices.cache import get_daily_prices
@@ -840,13 +840,20 @@ def _record_research(
     )
 
 
-def _refresh_snapshot(collector: Callable[[], object]) -> None:
-    # A collector failure leaves the last snapshot in place; the attempt then blocks
-    # on the ordinary freshness check instead of submitting against stale facts.
-    try:
-        collector()
-    except (BrokerSessionFailure, ValueError, OSError) as error:
-        raise RunnerFailure("snapshot_stale") from error
+def _refresh_snapshot(collector: Callable[[], object], keep_alive: Callable[[], object]) -> None:
+    # A collector session can run its whole timeout without a heartbeat, so the lease is first
+    # stretched over it; otherwise a slow refresh expired the review even when it succeeded. A
+    # stall is usually transient and nothing has been sent yet, so one more read is tried. A
+    # second failure leaves the last snapshot in place, and the attempt then blocks on the
+    # ordinary freshness check instead of submitting against stale facts.
+    for tries in range(2):
+        keep_alive()
+        try:
+            collector()
+            return
+        except (BrokerSessionFailure, ValueError, OSError) as error:
+            if tries:
+                raise RunnerFailure("snapshot_stale") from error
 
 
 def _review_shortfall(
@@ -928,9 +935,19 @@ def execute_attempt(
         # In crisis mode a failed account refresh doesn't stop the review from selling: it runs
         # on a snapshot up to 30 minutes old, and only its sales are submitted.
         stale_fallback = False
+
+        def keep_alive() -> object:
+            return heartbeat(
+                conn,
+                attempt.attempt_id,
+                attempt.fence,
+                clock(),
+                lease_seconds=SESSION_TIMEOUT_SECONDS + 120,
+            )
+
         if run.mode == "live" and snapshot_collector is not None:
             try:
-                _refresh_snapshot(snapshot_collector)
+                _refresh_snapshot(snapshot_collector, keep_alive)
             except RunnerFailure:
                 if not crisis:
                     raise
@@ -1190,7 +1207,7 @@ def execute_attempt(
         heartbeat(conn, attempt.attempt_id, attempt.fence, clock(), stage="submitting")
         if run.mode == "live" and result.decisions and snapshot_collector is not None:
             try:
-                _refresh_snapshot(snapshot_collector)
+                _refresh_snapshot(snapshot_collector, keep_alive)
             except RunnerFailure:
                 if not crisis:
                     raise
