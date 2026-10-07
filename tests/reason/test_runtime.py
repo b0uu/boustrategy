@@ -671,8 +671,7 @@ def test_live_attempt_blocks_when_collector_fails(tmp_path: Path) -> None:
     conn.close()
 
 
-def test_a_slow_stalled_refresh_is_retried_without_losing_the_lease(tmp_path: Path) -> None:
-    from app.broker.session import BrokerSessionFailure
+def test_a_refresh_that_spends_two_collector_sessions_keeps_the_lease(tmp_path: Path) -> None:
     from app.schemas.live_execution import LivePortfolioSnapshot
     from app.storage.records import save_live_portfolio_snapshot
     from tests.reason.test_live_submit import _profile
@@ -681,16 +680,12 @@ def test_a_slow_stalled_refresh_is_retried_without_losing_the_lease(tmp_path: Pa
     run = live_run(conn, tmp_path)
     save_run(conn, run)
     current = NOW + timedelta(minutes=10)
-    calls = 0
 
-    # Each read takes four and a half minutes, longer than the ordinary two-minute lease, and
-    # the first one stalls, as the morning review's did on October 5.
+    # The collector stalls through one session and retries, as the morning reads of October 5
+    # and 6 would have: nine minutes for one read, far past the ordinary two-minute lease.
     def collector() -> LivePortfolioSnapshot:
-        nonlocal current, calls
-        calls += 1
-        current += timedelta(minutes=4, seconds=30)
-        if calls == 1:
-            raise BrokerSessionFailure("session_timeout")
+        nonlocal current
+        current += timedelta(minutes=9)
         snapshot = LivePortfolioSnapshot(
             portfolio_snapshot_id="collected",
             execution_profile_id="codex",
@@ -707,11 +702,13 @@ def test_a_slow_stalled_refresh_is_retried_without_losing_the_lease(tmp_path: Pa
         run.run_id,
         "model",
         profile=_profile(),
-        runner=lambda prompt, **kwargs: AuthoredOutput(public_summary="Reviewed after a retry."),
+        runner=lambda prompt, **kwargs: AuthoredOutput(
+            public_summary="Reviewed after a slow read."
+        ),
         clock=lambda: current,
         log_root=tmp_path / "logs",
         snapshot_collector=collector,
     )
 
-    assert (attempt.status, calls) == ("no_action", 2)
+    assert attempt.status == "no_action"
     conn.close()

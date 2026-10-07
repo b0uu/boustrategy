@@ -20,7 +20,7 @@ from typing import Any
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.broker.config import get_live_profile, load_live_profiles
-from app.broker.session import run_broker_session
+from app.broker.session import BrokerSessionFailure, run_broker_session
 from app.schemas.live_execution import (
     BrokerPreflight,
     ExecutionProfile,
@@ -202,15 +202,27 @@ def collect_snapshot(
 ) -> LivePortfolioSnapshot:
     started = now or datetime.now(UTC)
     stamp = started.strftime("%Y%m%dT%H%M%S%fZ")
-    observed = session(
-        snapshot_prompt(profile),
-        schema=AccountObservation,
-        model=model,
-        codex_home=codex_home or default_codex_home(),
-        log_path=log_dir / f"snapshot-{profile.execution_profile_id}-{stamp}.log"
-        if log_dir
-        else None,
-    )
+    # A Codex session occasionally stalls before its first turn and never recovers, while a
+    # fresh one usually answers at once, so a failed read is tried once more before any caller
+    # (preparation, valuation or a review) hears of it.
+    tries = 0
+    while True:
+        try:
+            observed = session(
+                snapshot_prompt(profile),
+                schema=AccountObservation,
+                model=model,
+                codex_home=codex_home or default_codex_home(),
+                log_path=log_dir
+                / f"snapshot-{profile.execution_profile_id}-{stamp}{'-retry' if tries else ''}.log"
+                if log_dir
+                else None,
+            )
+            break
+        except BrokerSessionFailure:
+            tries += 1
+            if tries == 2:
+                raise
     if observed.broker_account_fingerprint != profile.broker_account_fingerprint:
         raise ValueError("collector_account_mismatch")
     # The observation happened when the broker answered, which is after the session started

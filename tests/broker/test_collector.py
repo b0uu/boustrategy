@@ -315,3 +315,44 @@ def test_valuation_after_the_close_is_recorded_as_a_session_close(tmp_path: Path
     assert reporting.previous_session_date is not None
     assert reporting.complete is True
     conn.close()
+
+
+def test_a_stalled_account_read_is_tried_once_more_then_given_up(tmp_path: Path) -> None:
+    from app.broker.session import BrokerSessionFailure
+
+    conn = connect(tmp_path / "boustrategy.db")
+    payload = {
+        "broker_account_fingerprint": FINGERPRINT,
+        "account_number_last4": "0001",
+        "account_equity": 100.0,
+        "buying_power": 100.0,
+        "cash": 100.0,
+        "positions": [],
+        "broker_reported_at": "",
+    }
+    logs: list[str] = []
+    replies: list[Any] = [BrokerSessionFailure("session_timeout"), payload]
+
+    def stalls_once(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        logs.append(kwargs["log_path"].name)
+        reply = replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return schema.model_validate(reply)
+
+    def always_stalls(prompt: str, *, schema: Any, **kwargs: Any) -> Any:
+        raise BrokerSessionFailure("session_timeout")
+
+    now = datetime(2026, 10, 6, 13, 40, 15, tzinfo=UTC)
+    snapshot = collect_snapshot(
+        conn, _profile(), now=now, session=stalls_once, codex_home=tmp_path, log_dir=tmp_path
+    )
+
+    assert snapshot.account_equity == 100.0
+    assert logs == [
+        "snapshot-codex-20261006T134015000000Z.log",
+        "snapshot-codex-20261006T134015000000Z-retry.log",
+    ]
+    with pytest.raises(BrokerSessionFailure, match="session_timeout"):
+        collect_snapshot(conn, _profile(), now=now, session=always_stalls, codex_home=tmp_path)
+    conn.close()

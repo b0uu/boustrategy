@@ -841,19 +841,16 @@ def _record_research(
 
 
 def _refresh_snapshot(collector: Callable[[], object], keep_alive: Callable[[], object]) -> None:
-    # A collector session can run its whole timeout without a heartbeat, so the lease is first
-    # stretched over it; otherwise a slow refresh expired the review even when it succeeded. A
-    # stall is usually transient and nothing has been sent yet, so one more read is tried. A
-    # second failure leaves the last snapshot in place, and the attempt then blocks on the
-    # ordinary freshness check instead of submitting against stale facts.
-    for tries in range(2):
-        keep_alive()
-        try:
-            collector()
-            return
-        except (BrokerSessionFailure, ValueError, OSError) as error:
-            if tries:
-                raise RunnerFailure("snapshot_stale") from error
+    # The collector can spend two whole sessions on one read (it retries a stall) without a
+    # heartbeat, so the lease is first stretched over both; otherwise a slow refresh expired the
+    # review even when it succeeded. A failure leaves the last snapshot in place, and the
+    # attempt then blocks on the ordinary freshness check instead of submitting against stale
+    # facts.
+    keep_alive()
+    try:
+        collector()
+    except (BrokerSessionFailure, ValueError, OSError) as error:
+        raise RunnerFailure("snapshot_stale") from error
 
 
 def _review_shortfall(
@@ -942,7 +939,7 @@ def execute_attempt(
                 attempt.attempt_id,
                 attempt.fence,
                 clock(),
-                lease_seconds=SESSION_TIMEOUT_SECONDS + 120,
+                lease_seconds=2 * SESSION_TIMEOUT_SECONDS + 120,
             )
 
         if run.mode == "live" and snapshot_collector is not None:
