@@ -84,7 +84,12 @@ export function useReviews(scope: Scope, limit = 25): ReviewStream {
     items: snapshot?.items ?? [],
     loading: loading || (!snapshot && first.loading),
     error: error ?? first.error,
-    changed: !!(first.data && snapshot && first.data.activity_revision !== snapshot.activity_revision),
+    // Heartbeats and scheduler ticks move the activity revision constantly; a reader only sees a
+    // review's arrival, status or summary change.
+    changed: !!(first.data && snapshot && first.data.items.some(item => {
+      const shown = snapshot.items.find(old => old.public_id === item.public_id)
+      return !shown || shown.status !== item.status || (shown.latest_attempt?.summary ?? shown.summary) !== (item.latest_attempt?.summary ?? item.summary)
+    })),
     hasMore: !!snapshot?.next_cursor && snapshot.items.length < 250,
     more: () => void more(),
     refresh,

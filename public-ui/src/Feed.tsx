@@ -68,8 +68,11 @@ function useFeed(url: string) {
       if (controller.signal.aborted || id !== generation.current || active.current !== url) return
       if (mode === 'probe' && current.current) {
         const previous = current.current
-        const newItems = data.items.some(item => !previous.items.some(old => old.public_id === item.public_id))
-        setState(old => ({ ...old, updates: Math.max(0, data.total - previous.total), changed: data.revision !== previous.revision || newItems }))
+        // The publication revision moves on every republish, every valuation included, so only a
+        // new row or a shown row whose content changed counts as a change worth refreshing for.
+        const shown = new Map(previous.items.map(item => [item.public_id, JSON.stringify(item)]))
+        const changed = data.items.some(item => shown.get(item.public_id) !== JSON.stringify(item))
+        setState(old => ({ ...old, updates: Math.max(0, data.total - previous.total), changed }))
       } else {
         const seen = new Set(current.current?.items.map(item => item.public_id))
         const page = mode === 'more' && current.current ? { ...data, items: [...current.current.items, ...data.items.filter(item => !seen.has(item.public_id))].slice(0, WINDOW_LIMIT) } : data
@@ -188,7 +191,7 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
       </div></details>
     </form>
     {filtered && <div className="filter-state"><span>{params.has('run_id') ? 'Decisions from one recorded review' : 'Filtered decisions only, reviews hidden'}</span><button className="text-button" onClick={clear}>Clear filters</button></div>}
-    {(feed.updates > 0 || feed.changed || reviews.changed) && <button className="updates-button" onClick={() => { void feed.request('first'); reviews.refresh() }}>{feed.updates > 0 ? feed.updates + ' new update' + (feed.updates === 1 ? '' : 's') : 'Published records changed'} · Refresh</button>}
+    {(feed.updates > 0 || feed.changed || reviews.changed) && <button className="updates-button" onClick={() => { void feed.request('first'); reviews.refresh() }}>{feed.updates > 0 ? feed.updates + ' new update' + (feed.updates === 1 ? '' : 's') : 'Feed updated'} · Refresh</button>}
     {feed.error && <RequestIssue error={feed.error} retained={!!feed.page} retry={() => void feed.request(feed.error?.status !== 409 && feed.failedMore ? 'more' : 'first')} />}
     {!feed.page && feed.loading && <p className="empty" role="status">Loading public decisions...</p>}
     {feed.page && <>

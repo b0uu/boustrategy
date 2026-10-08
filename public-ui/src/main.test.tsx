@@ -182,6 +182,16 @@ it('offers updates without moving records under a reader', async () => {
   fireEvent.click(update)
   expect(await screen.findByText('New public decision')).toBeVisible()
 })
+it('offers a refresh only when a row the reader sees changed, not on every republish', async () => {
+  await dashboard()
+  data['live/feed'] = { ...feed(), revision: feed().revision + 7 }
+  act(() => window.dispatchEvent(new Event('online')))
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('/v2/decisions?')).length).toBeGreaterThan(1))
+  expect(document.querySelector('.updates-button')).toBeNull()
+  data['live/feed'] = { ...feed(), items: [{ ...feed().items[0], lifecycle: 'broker_filled' }, ...feed().items.slice(1)] }
+  act(() => window.dispatchEvent(new Event('online')))
+  expect(await screen.findByRole('button', { name: 'Feed updated · Refresh' })).toBeInTheDocument()
+})
 it('handles revision conflicts through explicit restart', async () => {
   await dashboard()
   vi.mocked(fetch).mockImplementation(input => Promise.resolve(String(input).includes('cursor=') ? json({}, 409) : respond(String(input))))
