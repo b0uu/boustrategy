@@ -93,7 +93,12 @@ connected. Use these exact mappings; the trusted CLI rejects anything that doesn
   `price_above_allowed_range` if a BUY's ask is above `limit_price` (`price_below_allowed_range`
   if a SELL's bid is below it). When the order is one whole share or more, review a
   `type` `limit` order at exactly `limit_price` with `quantity` equal to `notional / limit_price`
-  rounded down to whole shares. An estimated cost at or slightly below `notional` is not a change
+  rounded down to whole shares. A SELL that closes the whole position (target weight 0) is the
+  exception to both: Robinhood rejects a dollar-sized order that would sell everything
+  (`EQUITY_DOLLAR_BASED_SELL_ALL_ERROR`), and whole-share rounding would leave a fraction behind.
+  Review a `type` `market` order with `quantity` equal to the exact shares held, as
+  `get_equity_positions` reports them, and no `dollar_amount`, under the same price guard. An
+  estimated cost at or slightly below `notional` is not a change
   in economics. If the response changes the symbol, side, type, amount or quantity, time in
   force or market hours, or warns, record a `FAILED` event and stop with outcome
   `review_rejected`.
