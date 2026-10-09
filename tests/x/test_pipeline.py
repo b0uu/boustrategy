@@ -112,6 +112,21 @@ def test_verify_accepts_complete_run_and_calendar_no_op(
     assert "verified status=digested" in capsys.readouterr().out
 
 
+def test_verify_renders_a_run_routed_again_after_its_digest(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # On October 9 the digester routed once more after rendering, which left the run routed and
+    # stopped the pre-close review's preparation.
+    conn = connect(tmp_path / "synthetic.db")
+    _run(conn, "2026-07-20-morning", "routed")
+
+    _cmd_verify(conn, "morning", date(2026, 7, 20), digest_dir=str(tmp_path))
+
+    assert conn.execute("SELECT status FROM x_runs").fetchone()[0] == "digested"
+    assert (tmp_path / "2026-07-20.md").is_file()
+    assert "rendered the digest it was missing" in capsys.readouterr().out
+
+
 def test_cycle_retries_failed_run(tmp_path: Path) -> None:
     conn = connect(tmp_path / "synthetic.db")
     _run(conn, "2026-07-20-morning", "failed")

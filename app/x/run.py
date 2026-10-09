@@ -267,7 +267,9 @@ def _cmd_review(conn: sqlite3.Connection) -> None:
         save_signal(conn, signal)
 
 
-def _cmd_verify(conn: sqlite3.Connection, slot: str, run_date: date) -> None:
+def _cmd_verify(
+    conn: sqlite3.Connection, slot: str, run_date: date, digest_dir: str = "data/digests"
+) -> None:
     if slot_should_run(run_date, slot) is None:
         print(f"{run_date.isoformat()} {slot}: verified calendar no-op")
         return
@@ -276,6 +278,12 @@ def _cmd_verify(conn: sqlite3.Connection, slot: str, run_date: date) -> None:
     if row is None or row[0] not in ("routed", "digested"):
         status = "missing" if row is None else row[0]
         raise RuntimeError(f"{run_id} didn't complete; status={status}")
+    # Routing again after rendering puts a run back to routed, and review preparation waits for
+    # every run of the day to be digested. Rendering here leaves the day's digest current.
+    if row[0] == "routed" and slot != "weekly":
+        render_digest(conn, run_date, f"{digest_dir}/{run_date.isoformat()}.md")
+        print(f"{run_id}: rendered the digest it was missing; verified status=digested")
+        return
     print(f"{run_id}: verified status={row[0]}")
 
 
