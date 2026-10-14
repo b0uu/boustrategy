@@ -27,6 +27,11 @@ const LIFECYCLE: Record<string, { term: string; tone: 'success' | 'error' | 'neu
 }
 const LIFECYCLE_ICONS = { success: CheckCircle, error: WarningCircle, neutral: Clock }
 
+// Only these can become an order, so only their policy result is a trade gate worth a badge. An
+// approved hold, watchlist entry or pass is bookkeeping and would read as an approved trade.
+const ORDER_DECISIONS = new Set(['BUY', 'ADD', 'SELL', 'TRIM'])
+const bookkeeping = (item: DecisionItem) => !ORDER_DECISIONS.has(item.decision) && item.policy_outcome === 'approved'
+
 function LifecycleMark({ value }: { value: string }) {
   const state = LIFECYCLE[value.toLowerCase()]
   if (!state) return null
@@ -157,10 +162,10 @@ export function Feed({ scope, search }: { scope: Scope; search: string }) {
     ...(feed.page?.items ?? []).map((item: DecisionItem) => ({
       key: item.public_id,
       at: Date.parse(item.created_at),
-      node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. ' + label(item.policy_outcome) + '. ' + label(item.lifecycle) + '. View full trace'}>
+      node: <Link className="stream-row stream-row--decision" href={decisionUrl(item.public_id, scope)} aria-label={item.ticker + ': ' + label(item.decision) + '. ' + (bookkeeping(item) ? 'No order' : label(item.policy_outcome)) + '. ' + label(item.lifecycle) + '. View full trace'}>
         <strong className="mono stream-kind">{item.ticker}</strong>
         <span className="stream-body"><span className="stream-headline">{label(item.decision)}{item.retry_attempt ? <span className="retry-mark" title={`From a retried review (attempt ${item.retry_attempt})`}><ArrowCounterClockwise size={12} weight="bold" aria-hidden="true" /><span className="sr-only">, from a retried review</span></span> : null}</span><span className="stream-summary">{item.public_summary}{item.summary_truncated ? '…' : ''}</span></span>
-        <span className="stream-status"><Badge value={item.policy_outcome} /><LifecycleMark value={item.lifecycle} /></span>
+        <span className="stream-status">{bookkeeping(item) ? <span className="no-order">No order</span> : <Badge value={item.policy_outcome} />}<LifecycleMark value={item.lifecycle} /></span>
         <time dateTime={item.created_at} title={when(item.created_at)}>{when(item.created_at, true)}</time>
         <span className="chevron" aria-hidden="true">&rsaquo;</span>
       </Link>,

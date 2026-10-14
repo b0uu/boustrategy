@@ -192,6 +192,13 @@ it('offers a refresh only when a row the reader sees changed, not on every repub
   act(() => window.dispatchEvent(new Event('online')))
   expect(await screen.findByRole('button', { name: 'Feed updated · Refresh' })).toBeInTheDocument()
 })
+it('badges only decisions that can become orders; a pass reads as no order', async () => {
+  data['live/feed'] = { ...feed(), items: [{ ...feed().items[0], decision: 'PASS', policy_outcome: 'approved' }, { ...feed().items[1], decision: 'BUY', policy_outcome: 'approved' }, ...feed().items.slice(2)] }
+  await dashboard()
+  expect(rows()[0].querySelector('.stream-status')).toHaveTextContent('No order')
+  expect(rows()[0].querySelector('.badge')).toBeNull()
+  expect(rows()[1].querySelector('.badge')).toHaveTextContent('Approved')
+})
 it('handles revision conflicts through explicit restart', async () => {
   await dashboard()
   vi.mocked(fetch).mockImplementation(input => Promise.resolve(String(input).includes('cursor=') ? json({}, 409) : respond(String(input))))
