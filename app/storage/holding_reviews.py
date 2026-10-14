@@ -34,6 +34,7 @@ TRIGGER_REASONS = frozenset(
         "x_digest",
         "down_15_percent_from_cost",
         "realization_reached",
+        "moved_since_review",
     }
 )
 # No cooldown holds these back: the mandate requires the first four the same day, and a
@@ -213,7 +214,8 @@ def holdings_due(
     also makes it due. X headlines bearing on it since then are listed for the review to triage
     instead: only the agent, holding the thesis, can judge whether one could change it. For three
     days after a review that a trigger caused, neither the schedule nor another trigger makes it
-    due and no headline is listed. Falling 40% under cost, or an invalidated verdict with no sale
+    due and no headline is listed, unless the price has moved 5% from where the last review saw
+    it. Falling 40% under cost, or an invalidated verdict with no sale
     since, makes it due regardless. A holding is returned when it is due or has headlines to
     triage.
     """
@@ -374,7 +376,13 @@ def holdings_due(
         )
         if triggered is not None and prepared_at < triggered + TRIGGER_COOLDOWN:
             reasons = [reason for reason in reasons if reason in MANDATORY_REASONS]
-            headlines = []
+            # The cooldown stops one move from calling a review again, not a new move: 5% more
+            # from the price the last review saw breaks it.
+            at_review = [price for at, price in history if last_reviewed and at <= last_reviewed]
+            if at_review and abs(history[-1][1] / at_review[-1] - 1) * 100 >= PRICE_MOVE_PERCENT:
+                reasons.append("moved_since_review")
+            else:
+                headlines = []
         if reasons or headlines:
             due.append(
                 {

@@ -315,7 +315,26 @@ def test_a_first_close_15_percent_under_cost_is_a_trigger_and_40_percent_overrid
     crossed_40 = holdings_due(conn, down_45, wednesday + timedelta(hours=1))
 
     assert [item["reasons"] for item in crossed_15] == [["down_15_percent_from_cost"]]
-    assert [item["reasons"] for item in crossed_40] == [["down_40_percent_from_cost"]]
+    assert [item["reasons"] for item in crossed_40] == [
+        ["down_40_percent_from_cost", "moved_since_review"]
+    ]
+    conn.close()
+
+
+def test_a_new_5_percent_move_since_the_last_review_breaks_the_cooldown(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"AKAM": (1, 100, 100)})
+    episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["AKAM"]["episode_id"]
+    review(conn, episode, "AKAM", MONDAY_MORNING + timedelta(minutes=30), reasons=["price_move"])
+    tuesday = MONDAY_MORNING + timedelta(days=1)
+    down_4 = snapshot_at(conn, tmp_path, tuesday, {"AKAM": (1, 100, 96)})
+    within_the_old_move = holdings_due(conn, down_4, tuesday + timedelta(minutes=5))
+    down_9 = snapshot_at(conn, tmp_path, tuesday + timedelta(hours=2), {"AKAM": (1, 100, 91)})
+
+    new_move = holdings_due(conn, down_9, tuesday + timedelta(hours=2, minutes=5))
+
+    assert within_the_old_move == []
+    assert [item["reasons"] for item in new_move] == [["moved_since_review"]]
     conn.close()
 
 
@@ -390,7 +409,7 @@ def test_the_thesis_range_triggers_at_fully_priced_and_demands_a_sale_when_overp
 
 def test_a_close_at_the_invalidation_price_is_due_regardless_of_a_cooldown(tmp_path: Path) -> None:
     conn = connect(tmp_path / "boustrategy.db")
-    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"F": (0.1, 10, 9)})
+    snapshot_at(conn, tmp_path, MONDAY_MORNING, {"F": (0.1, 10, 8.2)})
     episode = live_holding_episodes(conn, ACCOUNT, MONDAY_MORNING)["F"]["episode_id"]
     review(
         conn,

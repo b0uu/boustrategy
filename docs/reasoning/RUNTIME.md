@@ -95,7 +95,10 @@ holdings due for a thesis review, with the reasons:
   requires the holding's thesis review in the same output, and that review counts
   as trigger-driven.
 - For three days after a trigger-driven review, neither the schedule nor another
-  trigger makes the holding due, and no headline is listed for it.
+  trigger makes the holding due, and no headline is listed for it, unless its price
+  has moved 5% or more either way from the price the last review saw
+  (`moved_since_review`). That reason is itself a trigger, so the review it calls
+  restarts the cooldown from the new price.
 - Regardless of the cooldown: its first close 40% under cost, or an invalidated
   verdict with no sale since.
 
