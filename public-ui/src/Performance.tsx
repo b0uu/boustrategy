@@ -41,13 +41,14 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
   }, [])
   const valid = points.filter(point => numeric(point.equity) !== null && point.quality === 'complete')
   if (!valid.length) return <Empty>Portfolio history isn't available for this range.</Empty>
-  const times = points.map(point => Date.parse(point.at))
-  const first = Math.min(...times), last = Math.max(...times)
+  // The history holds one valuation per session, so each point gets an equal step: spaced by clock
+  // time, nights and weekends would stretch the line between readings that were never taken.
+  const step = points.length > 1 ? (width - INSET * 2) / (points.length - 1) : 0
+  const position = new Map(points.map((point, index) => [point, points.length > 1 ? INSET + index * step : width / 2]))
+  const x = (point: ChartPoint) => position.get(point)!
   const values = valid.map(point => numeric(point.equity)!)
   const low = Math.min(...values), high = Math.max(...values)
   const single = valid.length === 1
-  // Inset both ends: drawn edge to edge, the latest point sits half under the container's edge.
-  const x = (point: ChartPoint) => (last === first ? width / 2 : INSET + (Date.parse(point.at) - first) / (last - first) * (width - INSET * 2))
   const yValue = (value: number) => (high === low ? 54 : 96 - (value - low) / (high - low) * 84)
   const y = (point: ChartPoint) => yValue(numeric(point.equity)!)
   const segments: ChartPoint[][] = []
@@ -59,40 +60,17 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
     } else segment.push(point)
   }
   if (segment.length) segments.push(segment)
-  let selected: { at: string; equity: number; returnPercent: number | null; recorded: boolean; x: number } | null = null
-  if (active !== null) {
-    for (const part of segments) {
-      if (part.length === 1 && Math.abs(active - x(part[0])) < 1) {
-        selected = { at: part[0].at, equity: numeric(part[0].equity)!, returnPercent: numeric(part[0].return_percent), recorded: true, x: x(part[0]) }
-        break
-      }
-      if (part.length < 2 || active < x(part[0]) || active > x(part[part.length - 1])) continue
-      let right = 1
-      while (right < part.length - 1 && x(part[right]) < active) right += 1
-      const before = part[right - 1], after = part[right]
-      const span = x(after) - x(before)
-      const ratio = span ? (active - x(before)) / span : 0
-      const beforeReturn = numeric(before.return_percent), afterReturn = numeric(after.return_percent)
-      selected = {
-        at: new Date(Date.parse(before.at) + (Date.parse(after.at) - Date.parse(before.at)) * ratio).toISOString(),
-        equity: numeric(before.equity)! + (numeric(after.equity)! - numeric(before.equity)!) * ratio,
-        returnPercent: beforeReturn === null || afterReturn === null ? null : beforeReturn + (afterReturn - beforeReturn) * ratio,
-        recorded: ratio < .0001 || ratio > .9999,
-        x: active,
-      }
-      break
-    }
-  }
+  // Inspection snaps to the nearest recorded valuation; nothing between two readings is shown.
+  const selected = active === null ? null : valid.reduce((nearest, point) => Math.abs(x(point) - active) < Math.abs(x(nearest) - active) ? point : nearest)
+  const selectedLabel = selected && (selected.phase === 'session_close' && selected.session_date ? `${sessionDay(selected.session_date)} close` : when(selected.at))
   const track = (clientX: number) => {
     const rect = frame.current?.getBoundingClientRect()
     if (!rect || !rect.width) return
     setActive(Math.min(width, Math.max(0, (clientX - rect.left) / rect.width * width)))
   }
   const move = (direction: number) => setActive(current => {
-    if (current === null) return x(valid[direction < 0 ? valid.length - 1 : 0])
-    let nearest = 0
-    for (let index = 1; index < valid.length; index += 1) if (Math.abs(x(valid[index]) - current) < Math.abs(x(valid[nearest]) - current)) nearest = index
-    return x(valid[Math.min(valid.length - 1, Math.max(0, nearest + direction))])
+    const index = current === null ? (direction < 0 ? valid.length : -1) : valid.findIndex(point => x(point) === current)
+    return x(valid[Math.min(valid.length - 1, Math.max(0, index + direction))])
   })
   return <figure className="chart-figure">
     <svg ref={frame} className="portfolio-chart" viewBox={`0 0 ${width} ${HEIGHT}`} preserveAspectRatio="none" role="img"
@@ -110,19 +88,19 @@ export function PortfolioChart({ points }: { points: ChartPoint[] }) {
       {segments.map((part, index) => part.length === 1
         ? <circle key={index} className="chart-point" cx={x(part[0])} cy={y(part[0])} r="3" />
         : <g key={index}>{high !== low && <polygon points={`${x(part[0])},${HEIGHT} ${part.map(point => `${x(point)},${y(point)}`).join(' ')} ${x(part[part.length - 1])},${HEIGHT}`} />}<polyline points={part.map(point => `${x(point)},${y(point)}`).join(' ')} /></g>)}
-      {selected && <g><line className="chart-cursor" x1={selected.x} x2={selected.x} y1="0" y2={HEIGHT} /><circle className="chart-point is-active" cx={selected.x} cy={yValue(selected.equity)} r="3.5" /></g>}
+      {selected && <g><line className="chart-cursor" x1={x(selected)} x2={x(selected)} y1="0" y2={HEIGHT} /><circle className="chart-point is-active" cx={x(selected)} cy={y(selected)} r="3.5" /></g>}
     </svg>
-    {selected && <div className={`chart-tooltip${selected.x < 72 ? ' is-start' : selected.x > width - 72 ? ' is-end' : ''}`} style={{ left: `${selected.x / width * 100}%` }}>
-      <span><strong className="mono">{money(selected.equity)}</strong>{selected.returnPercent != null && <span className={`mono ${tone(selected.returnPercent)}`}>{percent(selected.returnPercent)}</span>}</span>
-      <time dateTime={selected.at}>{when(selected.at)} · {selected.recorded ? 'Recorded' : 'Estimated'}</time>
+    {selected && <div className={`chart-tooltip${x(selected) < 72 ? ' is-start' : x(selected) > width - 72 ? ' is-end' : ''}`} style={{ left: `${x(selected) / width * 100}%` }}>
+      <span><strong className="mono">{money(selected.equity)}</strong>{numeric(selected.return_percent) != null && <span className={`mono ${tone(selected.return_percent)}`}>{percent(selected.return_percent)}</span>}</span>
+      <time dateTime={selected.at}>{selectedLabel}</time>
     </div>}
     {/* A flat range would print the value already shown in the metrics, so label only a real span. */}
     {high !== low && <div className="chart-scale" aria-hidden="true"><span>{money(high, true)}</span><span>{money(low, true)}</span></div>}
     <figcaption className="chart-readout" aria-live="polite">
       {/* Idle state names the record rather than repeating the value already in the metrics. */}
       {selected
-        ? <><span className="mono">{money(selected.equity)}</span><span className="quiet">{when(selected.at)}. {selected.recorded ? 'Recorded valuation.' : 'Estimated between recorded valuations.'}</span></>
-        : <span className="quiet">{single ? 'One recorded valuation' : `${valid.length} recorded valuations · point, touch or use arrow keys to inspect`}</span>}
+        ? <><span className="mono">{money(selected.equity)}</span><span className="quiet">{selectedLabel}</span></>
+        : <span className="quiet">{single ? 'One recorded valuation' : `${valid.length} recorded valuations, one per session · point, touch or use arrow keys to inspect`}</span>}
     </figcaption>
   </figure>
 }

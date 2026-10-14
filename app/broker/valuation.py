@@ -1,5 +1,8 @@
 """Market-session valuation polling: one read-only broker snapshot per scheduled tick.
 
+Ticks run through the regular session, and once more just after the close to record the
+session close.
+
 The scheduled task only makes sure a worker wakes up; this module is the authority on
 whether a tick may observe. It runs the existing collector ``snapshot`` command, which
 fingerprint-checks the account and persists an authentic observation, and never any
@@ -12,13 +15,14 @@ import argparse
 import json
 import os
 import re
+import sqlite3
 import subprocess
 import sys
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from datetime import time as clock_time
 from pathlib import Path
 from typing import Any
@@ -29,6 +33,9 @@ REGULAR_OPEN = clock_time(9, 30)
 # The broker session bounds itself at 300 s; this backstop also kills Codex children.
 DEFAULT_TIMEOUT_SECONDS = 480.0
 DEFAULT_ALERT_AFTER = 3
+# The tick after the bell records the session close that daily P&L and the chart measure from.
+# Later ticks retry a failed one, while prices are still the day's closing ones.
+CLOSE_CAPTURE = timedelta(minutes=45)
 _SAFE_FAILURE = re.compile(r"^(?:[A-Za-z_][\w.]*\.)?([A-Z]\w{0,63}): ([a-z][a-z0-9_]{0,63})$")
 _SUMMARY_FIELDS = ("captured_at", "account_equity", "positions")
 
@@ -59,6 +66,25 @@ def session_window(now: datetime) -> Window:
     if local >= close:
         return Window(False, "after_close")
     return Window(True, "regular_session", day.isoformat())
+
+
+def _unrecorded_close(db: str, now: datetime) -> datetime | None:
+    """Today's close, when it rang under CLOSE_CAPTURE ago and no valuation has recorded it."""
+    local = now.astimezone(NEW_YORK)
+    try:
+        close = session_close(local.date())
+    except CalendarCoverageError:
+        return None
+    if close is None or not close <= local < close + CLOSE_CAPTURE or not Path(db).exists():
+        return None
+    with sqlite3.connect(f"file:{db}?mode=ro", uri=True) as conn:
+        recorded = conn.execute(
+            "SELECT 1 FROM reporting_observations WHERE kind='valuation' AND mode='live' "
+            "AND voided=0 AND json_extract(observation_json, '$.phase')='session_close' "
+            "AND json_extract(observation_json, '$.session_date')=?",
+            (local.date().isoformat(),),
+        ).fetchone()
+    return None if recorded else close
 
 
 @contextmanager
@@ -210,15 +236,18 @@ def run(
         "session_date": window.session_date,
         "alert": None,
     }
+    close = None if window.open else _unrecorded_close(db, observed)
+    if close is not None:
+        result.update(reason="session_close", session_date=close.date().isoformat())
     if what_if:
         result["outcome"] = "what_if"
-        result["would_run"] = window.open
+        result["would_run"] = window.open or close is not None
         result["command"] = (
             f"python -m app.broker.collector --profile {profile} --model {model} "
             "--codex-home <codex-home> snapshot"
         )
         return 0, result
-    if not window.open:
+    if not window.open and close is None:
         return 0, result
     with exclusive(state_dir / "live-valuation.lock") as acquired:
         if not acquired:

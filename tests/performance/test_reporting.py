@@ -17,6 +17,7 @@ from app.schemas.reporting import (
     CoverageObservation,
     FillObservation,
     FlowObservation,
+    ReportingObservation,
     ReportingPosition,
     ValuationObservation,
 )
@@ -193,6 +194,35 @@ def test_contributed_capital_is_the_return_basis_without_flow_coverage(tmp_path:
         None,
         "-0.970000",
     ]
+    conn.close()
+
+
+def test_the_chart_keeps_one_recorded_valuation_per_session(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+
+    def reading(identity: str, day: int, hour: int, equity: str) -> ValuationObservation:
+        return valuation(
+            identity,
+            day,
+            equity,
+            **common(identity, day, hour),
+            phase="intraday",
+            session_date=None,
+        )
+
+    values: list[ReportingObservation] = [
+        reading("open", 10, 14, "100"),
+        valuation("close", 10, "101"),
+        valuation("after_hours", 10, "102", **common("after_hours", 10, 22)),
+        reading("morning", 11, 14, "103"),
+        reading("last", 11, 19, "104"),
+        reading("now", 12, 15, "99"),
+    ]
+
+    history = materialize(conn, values, Decimal("100"))[1]["All"]
+
+    assert [point["equity"] for point in history["history"]] == ["100", "101", "104", "99"]
+    assert history["observed_drawdown_percent"] == "-4.807692"
     conn.close()
 
 

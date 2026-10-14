@@ -129,11 +129,13 @@ full month. The performance endpoint reads these records without source replay:
 GET /api/public/v2/portfolios/live/performance*range=All
 ```
 
-Charts contain at most 400 actual observation timestamps. Sampling preserves the
+A chart holds one recorded valuation per session: its close, or its last reading in
+the session on a day no close was recorded, plus the range's first and latest
+valuations. Charts contain at most 400 of these. Sampling preserves the
 first/last point and quality-gap transitions. If those markers exceed the bound,
-the chart is unavailable rather than concealing gaps. Returns and observed
-session-close drawdown use the full eligible series before chart sampling. There's
-no inferred intraday history or annualized headline.
+the chart is unavailable rather than concealing gaps. Observed drawdown is measured
+over the same daily points, before chart sampling. The chart shows only recorded
+values: there's no inferred history between them and no annualized headline.
 
 QQQ is the primary benchmark; SPY and SMH are optional. Comparisons require exact,
 matching session-close dates and positive adjusted-close prices at both endpoints.

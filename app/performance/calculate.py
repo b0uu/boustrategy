@@ -15,7 +15,10 @@ METHODOLOGY = {
     "return": "Linked returns with complete valuations on both sides of every external flow.",
     "fees_and_dividends": "Included in investment return through observed account equity.",
     "external_activity": "Cash and security transfers are external flows at recorded fair value.",
-    "drawdown": "Observed session-close drawdown of flow-adjusted wealth; not intraday drawdown.",
+    "drawdown": (
+        "Observed daily drawdown of flow-adjusted wealth, from each session's close or its last "
+        "reading; not intraday drawdown."
+    ),
     "daily_pnl": "Equity change from the recorded prior session close, less external flows.",
     "session_calendar_binding": "nyse-2026-2028-v1",
     "coverage": "Missing external-flow coverage suppresses returns.",

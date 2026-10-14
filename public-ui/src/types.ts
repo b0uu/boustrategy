@@ -52,7 +52,7 @@ export interface ShortCall {
   removal_conditions: { cover_below: number; stop_above: number; review_by: string } | null
 }
 export interface ShortCalls extends Metadata { portfolio_id: Scope; status: string; reason: string | null; items: ShortCall[] }
-export interface ChartPoint { at: string; equity: DecimalValue; return_percent: DecimalValue; quality: string }
+export interface ChartPoint { at: string; equity: DecimalValue; return_percent: DecimalValue; quality: string; phase?: string; session_date?: string | null }
 export interface Performance extends Metadata {
   portfolio_id: Scope; range: Range; status: string; reason: string | null; return_percent: DecimalValue
   investment_pnl?: DecimalValue; net_external_flows?: DecimalValue; observed_drawdown_percent?: DecimalValue; contributed_capital?: DecimalValue

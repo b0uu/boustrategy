@@ -371,7 +371,13 @@ it('keeps a partially valued position visible without inventing missing values',
   expect(screen.getAllByText('Unavailable').length).toBeGreaterThan(0)
   expect(screen.getByText(/Missing quotes and cash aren't treated as zero/)).toBeVisible()
 })
-it('handles flat, single and gapped timestamp-spaced charts', () => {
+it('opens on the whole history and narrows only when a reader picks a range', async () => {
+  await dashboard()
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/performance?range=All'))).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: '1M' }))
+  await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/performance?range=1M'))).toBe(true))
+})
+it('handles flat, single and gapped charts', () => {
   const points = [{ at: '2026-06-10T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0' }, { at: '2026-06-11T20:00:00Z', equity: null, quality: 'incomplete', return_percent: null }, { at: '2026-06-15T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0' }]
   const { rerender } = render(<PortfolioChart points={points} />)
   expect(document.querySelectorAll('circle')).toHaveLength(2); expect(document.querySelector('polyline')).toBeNull()
@@ -390,15 +396,22 @@ it('lets keyboard readers inspect continuous chart observations', () => {
   fireEvent.keyDown(chart, { key: 'Escape' })
   expect(document.querySelector('.chart-tooltip')).not.toBeInTheDocument()
 })
-it('interpolates a clearly labeled estimate at the exact pointer time', () => {
-  const points = [{ at: '2026-06-10T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0' }, { at: '2026-06-10T22:00:00Z', equity: '102', quality: 'complete', return_percent: '2' }]
+it('snaps inspection to the nearest recorded valuation and names a close as one', () => {
+  const points = [
+    { at: '2026-06-10T20:00:00Z', equity: '100', quality: 'complete', return_percent: '0', phase: 'session_close', session_date: '2026-06-10' },
+    { at: '2026-06-15T19:52:00Z', equity: '102', quality: 'complete', return_percent: '2', phase: 'intraday', session_date: null },
+  ]
   render(<PortfolioChart points={points} />)
   const chart = screen.getByRole('img')
   vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 600, height: 108, top: 0, right: 600, bottom: 108, left: 0, toJSON: () => ({}) })
   vi.stubGlobal('PointerEvent', MouseEvent)
-  fireEvent.pointerMove(chart, { clientX: 300 })
-  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$101.00')
-  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('Estimated')
+  fireEvent.pointerMove(chart, { clientX: 250 })
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$100.00')
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('Jun 10, 2026 close')
+  fireEvent.pointerMove(chart, { clientX: 350 })
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('$102.00')
+  expect(document.querySelector('.chart-tooltip')).toHaveTextContent('Jun 15, 2026, 3:52 PM ET')
+  expect(document.querySelector('.chart-tooltip')).not.toHaveTextContent('Estimated')
 })
 it('counts down using server time and waits at zero', async () => {
   vi.useFakeTimers(); const now = Date.now(); const runtime = data['live/runtime'] as Runtime

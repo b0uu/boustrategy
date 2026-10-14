@@ -9,6 +9,7 @@ import pytest
 
 from app.broker import valuation
 from app.broker.valuation import exclusive, failure_reason, run, run_collector, session_window
+from app.storage.database import connect
 
 NEW_YORK = ZoneInfo("America/New_York")
 FINGERPRINT = "f00dfeedcafe4321"
@@ -105,6 +106,36 @@ def test_outside_a_session_nothing_starts_and_nothing_is_written(tmp_path: Path)
     assert collector.calls == []
     assert not (tmp_path / "state").exists()
     assert not (tmp_path / "source.db").exists()
+
+
+def test_the_first_tick_after_the_bell_records_the_close_once(tmp_path: Path) -> None:
+    connect(tmp_path / "source.db").close()
+    collector = Collector(SUCCESS)
+
+    code, closing = tick(tmp_path, collector, now=at("2026-09-14T16:07"))
+    conn = connect(tmp_path / "source.db")
+    conn.execute(
+        "INSERT INTO reporting_observations (observation_id, mode, account_id, kind, "
+        "external_event_id, occurred_at, recorded_at, supersedes, voided, observation_json) "
+        "VALUES ('val_1', 'live', ?, 'valuation', 'event_1', ?, ?, NULL, 0, ?)",
+        (
+            FINGERPRINT,
+            "2026-09-14T20:07:00+00:00",
+            "2026-09-14T20:07:00+00:00",
+            json.dumps({"phase": "session_close", "session_date": "2026-09-14"}),
+        ),
+    )
+    conn.commit()
+    conn.close()
+    _, recorded = tick(tmp_path, collector, now=at("2026-09-14T16:22"))
+    (tmp_path / "unrecorded").mkdir()
+    connect(tmp_path / "unrecorded" / "source.db").close()
+    _, evening = tick(tmp_path / "unrecorded", collector, now=at("2026-09-14T16:52"))
+
+    assert (code, closing["outcome"], closing["reason"]) == (0, "success", "observed")
+    assert (recorded["outcome"], recorded["reason"]) == ("skipped", "after_close")
+    assert (evening["outcome"], evening["reason"]) == ("skipped", "after_close")
+    assert len(collector.calls) == 1
 
 
 def test_a_session_tick_runs_only_the_snapshot_command(tmp_path: Path) -> None:

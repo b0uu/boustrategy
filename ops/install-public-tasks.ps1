@@ -95,9 +95,9 @@ Register-PublicTask -Name "boustrategy-public-health" -Script "check-public-heal
 
 Register-PublicTask -Name "boustrategy-live-valuation" -Script "run-live-valuation.ps1" `
     -Triggers @(New-RepeatingTrigger -Trigger (New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Weekdays -At 09:37) `
-        -Interval (New-TimeSpan -Minutes 15) -Duration (New-TimeSpan -Hours 6 -Minutes 30)) `
+        -Interval (New-TimeSpan -Minutes 15) -Duration (New-TimeSpan -Hours 7)) `
     -TimeLimit (New-TimeSpan -Minutes 12) -RunLevel Highest `
-    -Description "boustrategy live valuation: read-only broker snapshot every 15 minutes in the regular session"
+    -Description "boustrategy live valuation: read-only broker snapshot every 15 minutes in the regular session and once at the close"
 
 Write-Output "`nFour tasks registered. Verify with:"
 Write-Output "  Get-ScheduledTask -TaskName 'boustrategy-public-*','boustrategy-live-valuation' | Select TaskName,State"

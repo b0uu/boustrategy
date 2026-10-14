@@ -36,7 +36,7 @@ function Section({ name, children }: { name: string; children: ReactNode }) {
 
 export function DashboardPage({ search }: { search: string }) {
   const params = new URLSearchParams(search)
-  const range = (params.get('range') ?? '1M') as Range
+  const range = (params.get('range') ?? 'All') as Range
   const tab = params.get('tab') ?? 'feed'
   const [feedVisited, setFeedVisited] = useState(tab === 'feed')
   useEffect(() => { if (tab === 'feed') setFeedVisited(true) }, [tab])

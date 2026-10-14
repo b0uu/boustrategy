@@ -4,7 +4,7 @@ import calendar
 import hashlib
 import json
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -331,11 +331,26 @@ def materialize(
         eligible = [value for value in values if value.occurred_at >= cutoff]
         start = eligible[0] if eligible else latest
         computed = on_capital(latest, linked_return(start, latest, all_values, flows, coverage))
+        # One point per session: its first close valuation, or, on a day none was recorded,
+        # its last reading in the session.
+        daily: dict[date, ValuationObservation] = {}
+        for value in eligible:
+            day = value.occurred_at.astimezone(ZoneInfo("America/New_York")).date()
+            kept = daily.get(day)
+            if (
+                value.phase == "session_close" and (kept is None or kept.phase != "session_close")
+            ) or (value.phase == "intraday" and (kept is None or kept.phase == "intraday")):
+                daily[day] = value
+        charted = {start.observation_id, latest.observation_id} | {
+            value.observation_id
+            for day, value in daily.items()
+            if day != latest.occurred_at.astimezone(ZoneInfo("America/New_York")).date()
+        }
         history: list[dict[str, Any]] = []
         peak = Decimal(1)
         drawdown = Decimal(0)
         for value in eligible:
-            if value.phase != "session_close" and value not in (start, latest):
+            if value.observation_id not in charted:
                 continue
             metric = on_capital(
                 value,
@@ -451,7 +466,7 @@ def materialize(
                 "reason": chart_reason,
                 "method": "gap_preserving_observation_indices"
                 if total_points > 400
-                else "all_observed_session_closes",
+                else "one_valuation_per_session",
                 "source_points": total_points,
                 "limit": 400,
             },
