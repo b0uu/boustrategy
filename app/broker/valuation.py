@@ -33,8 +33,8 @@ REGULAR_OPEN = clock_time(9, 30)
 # The broker session bounds itself at 300 s; this backstop also kills Codex children.
 DEFAULT_TIMEOUT_SECONDS = 480.0
 DEFAULT_ALERT_AFTER = 3
-# The tick after the bell records the session close that daily P&L and the chart measure from.
-# Later ticks retry a failed one, while prices are still the day's closing ones.
+# The tick after the bell records the session close that daily P&L and the chart measure from:
+# 16:07 on a full day, the last of the task's ticks. A half day's later ticks retry a failed one.
 CLOSE_CAPTURE = timedelta(minutes=45)
 _SAFE_FAILURE = re.compile(r"^(?:[A-Za-z_][\w.]*\.)?([A-Z]\w{0,63}): ([a-z][a-z0-9_]{0,63})$")
 _SUMMARY_FIELDS = ("captured_at", "account_equity", "positions")

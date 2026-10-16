@@ -233,7 +233,7 @@ def publish(
             ).hexdigest()
             checkpoint = json.dumps(
                 {
-                    "version": 14,
+                    "version": 15,
                     "accounting_clock": accounting_clock,
                     "identity": identity,
                     "changes": changes,
