@@ -81,10 +81,17 @@ def _completed_digest_runs(conn: sqlite3.Connection, on_date: date, digest_path:
     ).fetchall()
     if not rows:
         raise ValueError(f"no digester run recorded for {on_date}")
-    incomplete = [f"{run_id}:{status}" for run_id, status in rows if status != "digested"]
+    # A failed run (an X outage, exhausted API credits) doesn't hold reviews back: they go ahead on
+    # the digests that completed. One still running does, so a review never races its digest.
+    incomplete = [
+        f"{run_id}:{status}" for run_id, status in rows if status not in ("digested", "failed")
+    ]
     if incomplete:
         raise ValueError(f"digester runs aren't complete: {', '.join(incomplete)}")
-    return [run_id for run_id, _ in rows]
+    completed = [run_id for run_id, status in rows if status == "digested"]
+    if not completed:
+        raise ValueError(f"no digester run completed for {on_date}")
+    return completed
 
 
 def _pending_intent_dates(conn: sqlite3.Connection) -> dict[str, date]:

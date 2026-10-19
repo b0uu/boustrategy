@@ -8,6 +8,7 @@ import pytest
 from app.policy.decision_policy import PortfolioContext
 from app.reason.intake import build_intake
 from app.reason.run import (
+    _completed_digest_runs,
     _pending_intent_dates,
     main,
     prepare_live_runs,
@@ -298,6 +299,31 @@ def test_prepare_requires_completed_same_day_digest_before_mutation(
         )
 
     assert refreshed is False
+
+
+def test_a_failed_digester_run_does_not_hold_back_reviews_but_one_in_progress_does(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "test.db")
+    digest = tmp_path / "2026-06-10.md"
+    digest.write_text("# digest\n", encoding="utf-8")
+    conn.executemany(
+        "INSERT INTO x_runs (run_id, slot, started_at, status) VALUES (?, ?, '2026-06-10', ?)",
+        [
+            ("2026-06-10-morning", "morning", "digested"),
+            ("2026-06-10-afternoon", "afternoon", "failed"),
+        ],
+    )
+    conn.commit()
+
+    completed = _completed_digest_runs(conn, date(2026, 6, 10), digest)
+    conn.execute("UPDATE x_runs SET status='started' WHERE run_id='2026-06-10-afternoon'")
+    conn.commit()
+
+    assert completed == ["2026-06-10-morning"]
+    with pytest.raises(ValueError, match="aren't complete"):
+        _completed_digest_runs(conn, date(2026, 6, 10), digest)
+    conn.close()
 
 
 def test_prepare_refreshes_pending_intents_and_writes_receipt(
