@@ -44,7 +44,6 @@ export function Positions({ scope, overview }: { scope: Scope; overview: Overvie
           </details>)}
         </> : <Empty>{empty}</Empty>}
         {data.valuation_status !== 'available' && <p className="section-note">Valuation is {label(data.valuation_status)}{data.reason ? `: ${label(data.reason)}` : ''}. Missing quotes and cash aren't treated as zero.</p>}
-        <p className="section-note">Current weight is an exposure observation. It isn't a new entry-policy verdict. Thesis health comes from an explicit review. Unrealized return uses recorded average cost and price, excluding dividends and fees. {scope === 'paper' ? 'These are paper results, separate from the live portfolio.' : 'Values reflect the recorded live account.'}</p>
       </>}
     </SectionBoundary>
   </section>
