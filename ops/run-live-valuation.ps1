@@ -69,11 +69,17 @@ Write-Log "=== $Timestamp live valuation profile=$LiveProfile model=$CollectorMo
 
 # The valuation is the lowest-priority broker session. When a review preparation, a
 # review tick or an execution is already running, skip this tick rather than start a
-# second session on the same Codex identity; the next tick is 15 minutes away.
-$Busy = @(
-    Get-ScheduledTask -TaskName "boustrategy-live-execute", "boustrategy-review-*" -ErrorAction SilentlyContinue |
-        Where-Object { $_.State -eq "Running" } | ForEach-Object { $_.TaskName }
-)
+# second session on the same Codex identity; the next tick is 15 minutes away. A review
+# poller ticks every minute for half an hour from :00, on the same second as the :07 and
+# :22 valuations, and an idle tick ends within seconds, so wait out a short one first.
+for ($Wait = 0; $Wait -lt 12; $Wait++) {
+    $Busy = @(
+        Get-ScheduledTask -TaskName "boustrategy-live-execute", "boustrategy-review-*" -ErrorAction SilentlyContinue |
+            Where-Object { $_.State -eq "Running" } | ForEach-Object { $_.TaskName }
+    )
+    if ($Busy.Count -eq 0 -or $WhatIf) { break }
+    Start-Sleep -Seconds 5
+}
 if ($Busy.Count -gt 0) {
     Write-Log ("deferred: broker task running ({0})" -f ($Busy -join ", "))
     if (-not $WhatIf) { exit 0 }
