@@ -382,7 +382,7 @@ def test_a_candidate_cash_cannot_fund_is_tested_against_a_reviewed_holding(
     conn.close()
 
 
-def test_a_swap_submits_its_sale_first_and_pairs_the_buy_outside_the_daily_limit(
+def test_a_swap_submits_its_buy_first_and_pairs_it_outside_the_daily_limit(
     tmp_path: Path,
 ) -> None:
     conn = connect(tmp_path / "boustrategy.db")
@@ -439,8 +439,68 @@ def test_a_swap_submits_its_sale_first_and_pairs_the_buy_outside_the_daily_limit
         "ORDER BY rowid"
     ).fetchall()
     pairs = conn.execute("SELECT buy_decision_id, sell_decision_id FROM swap_pairs").fetchall()
-    assert [(ticker, side) for ticker, side, _ in intents] == [("MU", "SELL"), ("AMD", "BUY")]
-    assert pairs == [(intents[1][2], intents[0][2])]
+    assert [(ticker, side) for ticker, side, _ in intents] == [("AMD", "BUY"), ("MU", "SELL")]
+    assert pairs == [(intents[0][2], intents[1][2])]
+    conn.close()
+
+
+def test_a_swap_whose_buy_policy_rejects_keeps_the_holding_it_would_have_sold(
+    tmp_path: Path,
+) -> None:
+    conn = connect(tmp_path / "boustrategy.db")
+    run = live_review(conn, tmp_path, FULLY_INVESTED)
+    save_run(conn, run)
+    episodes = live_holding_episodes(conn, ACCOUNT, WEDNESDAY_MIDDAY)
+    # Five buys already today trip the circuit breaker, which counts swap buys too.
+    for index in range(5):
+        conn.execute(
+            "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
+            "execution_mode, execution_profile_id, intent_json) "
+            "VALUES (?, ?, ?, 'TSM', 'BUY', 'LIVE', 'codex', '{}')",
+            (f"earlier_{index}", f"earlier_{index}", WEDNESDAY_MIDDAY.isoformat()),
+        )
+    conn.commit()
+
+    def author(prompt: str, **kwargs: Any) -> AuthoredOutput:
+        namespace = prompt.split("Decision namespace: ")[1].splitlines()[0]
+        return AuthoredOutput(
+            decisions=[
+                decision(namespace, "AMD", "BUY", 0.12),
+                decision(namespace, "MU", "SELL", 0.0),
+            ],
+            thesis_reviews=[
+                complete_review(episodes["NVDA"]["episode_id"]),
+                complete_review(episodes["MU"]["episode_id"], "MU", 73),
+            ],
+            candidates_considered=[amd_clears_the_bar()],
+            challenger_reviews=[
+                AuthoredChallenger(
+                    candidate="AMD",
+                    incumbent="MU",
+                    incumbent_episode_id=episodes["MU"]["episode_id"],
+                    why_weakest="Its memory cycle has peaked.",
+                    verdict="swap",
+                    reasoning="AMD has more upside at today's price.",
+                )
+            ],
+            public_summary="Swapped MU for AMD.",
+        )
+
+    execute_attempt(
+        conn,
+        run.run_id,
+        "review-model",
+        profile=_profile(),
+        runner=author,
+        clock=lambda: WEDNESDAY_MIDDAY,
+        log_root=tmp_path / "logs",
+    )
+
+    intents = conn.execute(
+        "SELECT ticker, side FROM order_intents WHERE ticker IN ('AMD', 'MU')"
+    ).fetchall()
+    assert intents == []
+    assert conn.execute("SELECT COUNT(*) FROM swap_pairs").fetchone()[0] == 0
     conn.close()
 
 

@@ -177,6 +177,35 @@ def test_a_swap_buy_is_never_sent_after_its_sale_fails(tmp_path: Path) -> None:
     assert seen == {}
 
 
+def test_a_swap_buy_whose_sale_never_got_an_order_waits_rather_than_going_unfunded(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "boustrategy.db"
+    now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)
+    buy = _live_intent(db_path, now - timedelta(hours=1))
+    conn = connect(db_path)
+    conn.execute(
+        "INSERT INTO swap_pairs VALUES (?, 'dec_rejected_sale', ?)",
+        (buy.decision_id, now.isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    seen: dict[str, Any] = {}
+
+    results = execute_pending(
+        db_path,
+        _profile(),
+        now=now,
+        session=_session_returning({"order_intent_id": buy.order_intent_id}, seen),
+        codex_home=tmp_path,
+        repo_root=tmp_path,
+        log_dir=tmp_path / "broker-logs",
+    )
+
+    assert results == [{"order_intent_id": buy.order_intent_id, "skipped": "awaiting_swap_sale"}]
+    assert seen == {}
+
+
 def test_sales_go_first_and_only_buys_are_paced(tmp_path: Path) -> None:
     db_path = tmp_path / "boustrategy.db"
     now = datetime(2026, 9, 10, 15, 32, tzinfo=UTC)

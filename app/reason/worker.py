@@ -1144,19 +1144,18 @@ def execute_attempt(
             if decision.decision in {Decision.BUY, Decision.ADD}
         ]
         held_back: set[str] = set()
+        # A sale of one of these goes ahead even when the buy it funded doesn't.
+        must_exit = {
+            review.ticker for review in result.thesis_reviews if review.state == "invalidated"
+        } | {
+            holding["ticker"] for holding in due if "invalidated_without_exit" in holding["reasons"]
+        }
         if gaps and buys:
             # Unanswered holdings don't cost the session its sales, trims or watchlist entries,
             # but no new money goes in while they're outstanding. They stay due. A sale that only
             # funded a held-back buy goes with it; one of a holding judged invalidated stays. A
             # new position is kept as WATCHLIST, so the next review decides it rather than losing
             # it. The public summary was written before any of this, so it says so.
-            must_exit = {
-                review.ticker for review in result.thesis_reviews if review.state == "invalidated"
-            } | {
-                holding["ticker"]
-                for holding in due
-                if "invalidated_without_exit" in holding["reasons"]
-            }
             funding_sales = {
                 challenger.incumbent
                 for challenger in result.challenger_reviews
@@ -1224,21 +1223,54 @@ def execute_attempt(
             for challenger in result.challenger_reviews
             if challenger.verdict == "swap"
         }
-        accepted_sales: dict[str, str] = {}
-        # Sales go first, so a swap's buy is submitted knowing its sale was accepted.
+        sales = {
+            decision.ticker: decision
+            for decision in result.decisions
+            if decision.decision in {Decision.SELL, Decision.TRIM}
+        }
+        # A swap's buy goes before its sale: a sale whose buy policy rejects would sell for
+        # nothing, so it's submitted only once one of the buys it funds is accepted, unless the
+        # holding must go anyway. Other sales go first, as exits shouldn't wait on anything.
+        funding = {
+            decision.ticker: sales[swaps[decision.ticker]]
+            for decision in result.decisions
+            if run.mode == "live"
+            and decision.decision == Decision.BUY
+            and swaps.get(decision.ticker) in sales
+        }
+        paired_sales = [sale for sale in sales.values() if sale in funding.values()]
+        funded_buys: set[str] = set()
         for draft in sorted(
             result.decisions,
-            key=lambda decision: decision.decision not in {Decision.SELL, Decision.TRIM},
+            key=lambda decision: (
+                0
+                if decision.ticker in sales and decision not in paired_sales
+                else 1
+                if decision.ticker in funding
+                else 2
+                if decision in paired_sales
+                else 3
+            ),
         ):
+            if draft in paired_sales and not (
+                draft.ticker in must_exit
+                or any(funding[buy].ticker == draft.ticker for buy in funded_buys)
+            ):
+                continue
             record = InvestmentDecisionRecord.model_validate(
                 {**draft.model_dump(), "created_at": authored_at}
             )
-            funding_sale = (
-                accepted_sales.get(swaps.get(record.ticker, ""))
-                if run.mode == "live" and record.decision == Decision.BUY
-                else None
-            )
+            funding_sale = funding.get(record.ticker) if record.decision == Decision.BUY else None
             now = clock()
+            if funding_sale is not None:
+                # Paired before the buy exists, so the executor never sees it unpaired: it holds
+                # the buy until this sale fills, and for good if the sale never gets an order.
+                with immediate(conn):
+                    validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+                    conn.execute(
+                        "INSERT INTO swap_pairs VALUES (?, ?, ?)",
+                        (record.decision_id, funding_sale.decision_id, now.isoformat()),
+                    )
             snapshot_id = ""
             if run.mode == "live":
                 row = conn.execute(
@@ -1263,13 +1295,21 @@ def execute_attempt(
                 runtime_attempt_id=attempt.attempt_id,
                 fence=attempt.fence,
                 funded_by_sale=funding_sale is not None,
+                frees_holding=funding_sale is not None and funding_sale.decision == Decision.SELL,
                 max_snapshot_age=STALE_SELL_MAX_AGE if stale_fallback else LIVE_SNAPSHOT_MAX_AGE,
             )
             intent = conn.execute(
                 "SELECT 1 FROM order_intents WHERE decision_id=?", (record.decision_id,)
             ).fetchone()
-            if intent and record.decision in {Decision.SELL, Decision.TRIM}:
-                accepted_sales[record.ticker] = record.decision_id
+            if funding_sale is not None:
+                if intent:
+                    funded_buys.add(record.ticker)
+                else:
+                    with immediate(conn):
+                        validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
+                        conn.execute(
+                            "DELETE FROM swap_pairs WHERE buy_decision_id=?", (record.decision_id,)
+                        )
             if record.ticker in held_back and record.decision == Decision.WATCHLIST:
                 with immediate(conn):
                     validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
@@ -1282,14 +1322,6 @@ def execute_attempt(
                             " and ".join(gaps),
                             now.isoformat(),
                         ),
-                    )
-            if intent and funding_sale:
-                # The executor holds this buy until its sale fills.
-                with immediate(conn):
-                    validate_fence(conn, attempt.attempt_id, attempt.fence, clock())
-                    conn.execute(
-                        "INSERT INTO swap_pairs VALUES (?, ?, ?)",
-                        (record.decision_id, funding_sale, now.isoformat()),
                     )
         with immediate(conn):
             validate_fence(conn, attempt.attempt_id, attempt.fence, clock())

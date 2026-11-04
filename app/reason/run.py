@@ -249,6 +249,7 @@ def _submit_decision(
     submitted_at: datetime | None = None,
     runtime_bound: bool = False,
     funded_by_sale: bool = False,
+    frees_holding: bool = False,
     max_snapshot_age: timedelta = LIVE_SNAPSHOT_MAX_AGE,
 ) -> ProcessOutcome:
     raw_ticker = record_data.get("ticker")
@@ -301,6 +302,7 @@ def _submit_decision(
             on_date,
             exclude_ticker=ticker.strip().upper() if ticker else None,
             funded_by_sale=funded_by_sale,
+            frees_holding=frees_holding,
         )
     evaluation_time = submitted_at or datetime.now(UTC)
     regime_date = (
@@ -416,6 +418,7 @@ def submit_decision(
     runtime_attempt_id: str | None = None,
     fence: int | None = None,
     funded_by_sale: bool = False,
+    frees_holding: bool = False,
     max_snapshot_age: timedelta = LIVE_SNAPSHOT_MAX_AGE,
 ) -> ProcessOutcome:
     processing_time = submitted_at or datetime.now(UTC)
@@ -453,6 +456,7 @@ def submit_decision(
             submitted_at=processing_time,
             runtime_bound=runtime_attempt_id is not None,
             funded_by_sale=funded_by_sale,
+            frees_holding=frees_holding,
             max_snapshot_age=max_snapshot_age,
         )
         if runtime_attempt_id and outcome.decision_id:

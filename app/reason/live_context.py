@@ -15,6 +15,7 @@ def live_portfolio_context(
     on_date: date,
     exclude_ticker: str | None = None,
     funded_by_sale: bool = False,
+    frees_holding: bool = False,
 ) -> PortfolioContext:
     positions = [position for position in snapshot.positions if position.market_value > 0]
     missing_themes = [position.ticker for position in positions if not position.primary_theme_id]
@@ -60,6 +61,7 @@ def live_portfolio_context(
         buy_add_trades_today=counts.get("BUY", 0),
         swap_buy_trades_today=swap_buys,
         funded_by_same_review_sale=funded_by_sale,
+        holding_freed_by_same_review_sale=frees_holding,
         crisis_mode=bool(crisis_reasons(conn, snapshot, snapshot.captured_at)),
         sell_trim_trades_today=counts.get("SELL", 0),
         primary_theme_weights=theme_weights,

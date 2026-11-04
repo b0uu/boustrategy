@@ -16,6 +16,8 @@ class PortfolioInputs(PolicyModel):
     swap_buy_trades_today: int = Field(default=0, ge=0)
     # The decision being evaluated is such a swap buy.
     funded_by_same_review_sale: bool = False
+    # That sale closes a whole holding, so the buy takes the slot it frees.
+    holding_freed_by_same_review_sale: bool = False
     # Market stress: buys need the extraordinary-opportunity escalation, as in RED.
     crisis_mode: bool = False
     sell_trim_trades_today: int = Field(ge=0)

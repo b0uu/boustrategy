@@ -265,11 +265,12 @@ def execute_pending(
             results.append({"order_intent_id": intent.order_intent_id, "skipped": "retry_backoff"})
             continue
         # A swap's buy is sent only once its sale has filled, so it never goes out unfunded. An
-        # unfilled one waits, and like any intent it expires at the close.
+        # unfilled one waits, as does one whose sale policy rejected, and like any intent it
+        # expires at the close.
         with closing(connect(db_path)) as conn:
             sale = conn.execute(
                 "SELECT r.broker_execution_record_id FROM swap_pairs s "
-                "JOIN order_intents o ON o.decision_id = s.sell_decision_id "
+                "LEFT JOIN order_intents o ON o.decision_id = s.sell_decision_id "
                 "LEFT JOIN broker_execution_records r ON r.order_intent_id = o.order_intent_id "
                 "WHERE s.buy_decision_id = ?",
                 (intent.decision_id,),

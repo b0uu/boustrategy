@@ -426,6 +426,19 @@ def test_rejects_buy_at_max_holdings():
     assert "max_holdings_reached" in result.reasons
 
 
+def test_a_swap_buy_at_max_holdings_takes_the_slot_its_full_sale_frees():
+    record = valid_decision_record()
+    portfolio = portfolio_context(
+        holdings_count=10,
+        funded_by_same_review_sale=True,
+        holding_freed_by_same_review_sale=True,
+    )
+
+    result = evaluate_decision_policy(record, portfolio)
+
+    assert "max_holdings_reached" not in result.reasons
+
+
 def test_allows_add_at_max_holdings():
     record = decision_record_with(decision="ADD")
     portfolio = portfolio_context(holdings_count=10)

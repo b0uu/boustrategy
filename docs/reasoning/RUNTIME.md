@@ -109,12 +109,17 @@ weakest, why, and a verdict of `swap` or `keep_incumbent`. That holding must be
 reviewed in the same output as a fresh buy at today's price. A swap needs a SELL or
 TRIM of the holding and a BUY of the candidate, with the sale plus cash on hand
 freeing at least the buy's target weight; a kept-out candidate can't also be bought.
-Nothing arms while the market is closed, since neither leg could trade. Sales are
-submitted before buys. A swap BUY is recorded in `swap_pairs` with its sale, sits
-outside the ordinary 2/day BUY/ADD limit (the 5/day breaker still counts it), and the
-executor sends it only after its sale fills (`awaiting_swap_sale`), never after a
-failed one (`swap_sell_failed`). If a review is accepted without its buys, a sale that
-only funded one is held back too, unless that holding was judged invalidated.
+Nothing arms while the market is closed, since neither leg could trade. Ordinary
+sales are submitted first. A swap BUY is paired with its sale in `swap_pairs` and
+submitted before it; the sale follows only if policy accepted one of the buys it
+funds, unless that holding was judged invalidated, so a rejected buy never leaves a
+holding sold for nothing. A swap BUY sits outside the ordinary 2/day BUY/ADD limit
+(the 5/day breaker still counts it), and when its sale closes a whole position it
+takes that position's slot under the holding cap. The executor sends it only after its
+sale fills (`awaiting_swap_sale`, which also holds one whose sale never got an order),
+never after a failed one (`swap_sell_failed`). If a review is accepted without its
+buys, a sale that only funded one is held back too, unless that holding was judged
+invalidated.
 
 Every BUY or ADD, and every thesis review, states where the thesis ends:
 `realization_price_low` (fully priced in), `realization_price_high` (overpriced) and

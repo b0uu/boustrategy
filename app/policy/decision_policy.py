@@ -181,7 +181,11 @@ def evaluate_decision_policy(
         passed=sell_count is not None and sell_count < MAX_SELL_TRIM_TRADES_PER_DAY,
         missing=portfolio is None,
     )
-    holdings = portfolio.holdings_count if portfolio else None
+    holdings = (
+        portfolio.holdings_count - portfolio.holding_freed_by_same_review_sale
+        if portfolio
+        else None
+    )
     check(
         "max_holdings_reached",
         applicable=record.decision == Decision.BUY,
