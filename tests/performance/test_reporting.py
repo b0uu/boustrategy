@@ -226,6 +226,32 @@ def test_the_chart_keeps_one_recorded_valuation_per_session(tmp_path: Path) -> N
     conn.close()
 
 
+def test_a_partial_close_gives_way_to_the_days_last_complete_reading(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "source.db")
+    values: list[ReportingObservation] = [
+        valuation("start", 10, "100"),
+        valuation(
+            "last",
+            11,
+            "104",
+            **common("last", 11, 19),
+            phase="intraday",
+            session_date=None,
+        ),
+        valuation("unreconciled_close", 11, "98", complete=False, cash=None),
+        valuation("now", 12, "103"),
+    ]
+
+    history = materialize(conn, values, Decimal("100"))[1]["All"]["history"]
+
+    assert [(point["equity"], point["quality"]) for point in history] == [
+        ("100", "complete"),
+        ("104", "complete"),
+        ("103", "complete"),
+    ]
+    conn.close()
+
+
 def test_complete_balance_tolerates_half_a_cent_of_rounding_per_position() -> None:
     held = [position("0.1", "100"), position("0.1", "100", ticker="MU")]
 

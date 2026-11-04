@@ -332,14 +332,21 @@ def materialize(
         start = eligible[0] if eligible else latest
         computed = on_capital(latest, linked_return(start, latest, all_values, flows, coverage))
         # One point per session: its first close valuation, or, on a day none was recorded,
-        # its last reading in the session.
+        # its last reading in the session. A complete reading outranks a partial close: the
+        # broker's equity can already carry after-hours prices when its positions don't.
         daily: dict[date, ValuationObservation] = {}
         for value in eligible:
+            if value.phase not in ("session_close", "intraday"):
+                continue
             day = value.occurred_at.astimezone(ZoneInfo("America/New_York")).date()
             kept = daily.get(day)
+            rank = (value.complete, value.phase == "session_close")
+            kept_rank = (kept.complete, kept.phase == "session_close") if kept else None
             if (
-                value.phase == "session_close" and (kept is None or kept.phase != "session_close")
-            ) or (value.phase == "intraday" and (kept is None or kept.phase == "intraday")):
+                kept_rank is None
+                or rank > kept_rank
+                or (rank == kept_rank and value.phase == "intraday")
+            ):
                 daily[day] = value
         charted = {start.observation_id, latest.observation_id} | {
             value.observation_id
