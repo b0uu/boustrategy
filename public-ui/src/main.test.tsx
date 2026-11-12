@@ -636,3 +636,21 @@ it('names a review that cannot be found', async () => {
   render(<ReviewPage publicId="run_missing" scope="live" back="/" />)
   expect(await screen.findByRole('heading', { name: 'Review not found' })).toBeInTheDocument()
 })
+
+it('shows the site notice until the reader dismisses it, and remembers the dismissal', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-12T15:00:00Z'))
+  await dashboard()
+  const notice = screen.getByRole('complementary', { name: 'Site notice' })
+  expect(notice).toHaveTextContent('Our server was down on Nov 11')
+  fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }))
+  expect(screen.queryByRole('complementary', { name: 'Site notice' })).not.toBeInTheDocument()
+  cleanup()
+  await dashboard()
+  expect(screen.queryByRole('complementary', { name: 'Site notice' })).not.toBeInTheDocument()
+})
+
+it('retires the site notice after its end date', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-20T15:00:00Z'))
+  await dashboard()
+  expect(screen.queryByRole('complementary', { name: 'Site notice' })).not.toBeInTheDocument()
+})

@@ -6,7 +6,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/600.css'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ArrowUpRight, Info, Question } from '@phosphor-icons/react'
+import { ArrowUpRight, Info, Question, X } from '@phosphor-icons/react'
 import { usePublic } from './api'
 import { Chevron, SectionBoundary } from './common'
 import { Feed } from './Feed'
@@ -28,6 +28,34 @@ import './styles.css'
 const SCOPE: Scope = 'live'
 const TABS = ['feed', 'positions', 'policies'] as const
 const ISSUES_URL = 'https://github.com/b0uu/boustrategy/issues'
+
+// A one-off notice about the site itself. A dismissal is remembered per notice, and the notice
+// retires on its own at `until`, so an old one never greets a new reader.
+const NOTICE = {
+  id: 'outage-2026-11-11',
+  until: '2026-11-19T05:00:00Z',
+  text: "Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET during host maintenance. The agent missed its 1 PM and 3 PM reviews, and that day's chart point is the last reading before the outage, not the close.",
+}
+const NOTICE_STORAGE = `boustrategy-notice-${NOTICE.id}`
+
+function SiteNotice() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(NOTICE_STORAGE) === 'dismissed'
+    } catch {
+      return false // Site data is blocked; the notice shows each visit until it retires.
+    }
+  })
+  if (dismissed || Date.now() >= Date.parse(NOTICE.until)) return null
+  const dismiss = () => {
+    setDismissed(true)
+    try {
+      localStorage.setItem(NOTICE_STORAGE, 'dismissed')
+    } catch { /* nothing to remember the dismissal with */ }
+  }
+  return <aside className="site-notice" aria-label="Site notice"><Info size={14} weight="regular" aria-hidden="true" /><p>{NOTICE.text}</p>
+    <button type="button" className="site-notice-close" aria-label="Dismiss notice" title="Dismiss" onClick={dismiss}><X size={13} weight="regular" /></button></aside>
+}
 
 function Section({ name, children }: { name: string; children: ReactNode }) {
   const [revision, setRevision] = useState(0)
@@ -55,6 +83,7 @@ export function DashboardPage({ search }: { search: string }) {
   const overview = usePublic<Overview>(`/api/public/v2/portfolios/${SCOPE}/overview`, 'overview')
   const performance = usePublic<PerformanceData>(`/api/public/v2/portfolios/${SCOPE}/performance?range=${range}`, 'performance')
   return <>
+    <SiteNotice />
     <header className="profile"><div className="mark" aria-hidden="true"><img src={avatar} alt="" width={64} height={64} /></div>
       <div className="profile-copy"><h1 tabIndex={-1}>BouStrategy Agent</h1><div className="handle">@bou-agent</div><p>Let's make money chat</p>
         <button className="text-button portfolio-toggle" aria-expanded={portfolioOpen} aria-controls="portfolio-details" onClick={() => setPortfolioOpen(!portfolioOpen)}><Chevron />{portfolioOpen ? 'Hide portfolio' : 'Show portfolio'}</button>
