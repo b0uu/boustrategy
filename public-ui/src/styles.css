@@ -104,11 +104,13 @@ main:focus, h1:focus { outline: none; }
 .skip-link:focus { transform: translateY(0); }
 
 /* --- Site notice ------------------------------------------------------------------ */
-.site-notice { display: flex; align-items: flex-start; gap: 9px; margin: 20px 0 -8px; padding: 9px 6px 9px 12px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+/* Fixed in the bottom-right corner, beside the content column, so it never pushes the page down. */
+.site-notice { position: fixed; right: 20px; bottom: 20px; z-index: 6; width: min(260px, calc(100vw - 32px)); display: flex; align-items: flex-start; gap: 9px; padding: 10px 6px 10px 12px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 6px; box-shadow: var(--shadow-panel); color: var(--text-2); font-size: 11.5px; line-height: 1.5; }
 .site-notice > svg { flex: none; margin-top: 3px; color: var(--text-3); }
 .site-notice p { flex: 1; min-width: 0; }
 .site-notice-close { flex: none; display: grid; place-items: center; width: 24px; height: 24px; margin-top: -2px; padding: 0; background: none; border: 0; border-radius: 4px; color: var(--text-3); }
 .site-notice-close:hover { color: var(--text); background: var(--surface-2); }
+@media (max-width: 560px) { .site-notice { right: 16px; bottom: 16px; } }
 
 /* --- Profile ---------------------------------------------------------------------- */
 .profile { display: flex; align-items: flex-start; gap: 18px; padding: 32px 4px 20px; position: relative; }

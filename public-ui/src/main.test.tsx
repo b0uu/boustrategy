@@ -641,7 +641,7 @@ it('shows the site notice until the reader dismisses it, and remembers the dismi
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-12T15:00:00Z'))
   await dashboard()
   const notice = screen.getByRole('complementary', { name: 'Site notice' })
-  expect(notice).toHaveTextContent('Our server was down on Nov 11')
+  expect(notice).toHaveTextContent('Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET')
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss notice' }))
   expect(screen.queryByRole('complementary', { name: 'Site notice' })).not.toBeInTheDocument()
   cleanup()

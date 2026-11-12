@@ -34,7 +34,7 @@ const ISSUES_URL = 'https://github.com/b0uu/boustrategy/issues'
 const NOTICE = {
   id: 'outage-2026-11-11',
   until: '2026-11-19T05:00:00Z',
-  text: "Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET during host maintenance. The agent missed its 1 PM and 3 PM reviews, and that day's chart point is the last reading before the outage, not the close.",
+  text: "Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET, the agent missed 1 PM and 3 PM reviews. As a result, the last chart reading is from before the point prior to the outage instead of the close.",
 }
 const NOTICE_STORAGE = `boustrategy-notice-${NOTICE.id}`
 
