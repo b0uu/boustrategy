@@ -32,9 +32,9 @@ const ISSUES_URL = 'https://github.com/b0uu/boustrategy/issues'
 // A one-off notice about the site itself. A dismissal is remembered per notice, and the notice
 // retires on its own at `until`, so an old one never greets a new reader.
 const NOTICE = {
-  id: 'outage-2026-11-11',
-  until: '2026-11-19T05:00:00Z',
-  text: "Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET, the agent missed 1 PM and 3 PM reviews. As a result, the last chart reading is from before the point prior to the outage instead of the close.",
+  id: 'outage-2026-11-12',
+  until: '2026-11-21T05:00:00Z',
+  text: "Our server was down on Nov 11 from 11:53 AM to 8:46 PM ET, and the agent was offline again from 9:57 PM Nov 11 through Nov 12 after a system update restart. It missed the Nov 11 1 PM and 3 PM reviews and every Nov 12 review. As a result, Nov 11's chart reading is from just before the outage instead of the close, and there is no reading for Nov 12.",
 }
 const NOTICE_STORAGE = `boustrategy-notice-${NOTICE.id}`
 

@@ -650,7 +650,7 @@ it('shows the site notice until the reader dismisses it, and remembers the dismi
 })
 
 it('retires the site notice after its end date', async () => {
-  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-20T15:00:00Z'))
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-22T15:00:00Z'))
   await dashboard()
   expect(screen.queryByRole('complementary', { name: 'Site notice' })).not.toBeInTheDocument()
 })
