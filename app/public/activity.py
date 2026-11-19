@@ -303,9 +303,19 @@ def publish_activity(
             view["observer_max_age_seconds"] = schedule.observer_max_age_seconds
             view["grace_seconds"] = schedule.grace_seconds
             schedules[schedule.mode].append(view)
-        for occurrence_id, public_id, _schedule_id, day, due, status, reason, raw in source.execute(
+        for (
+            occurrence_id,
+            public_id,
+            _schedule_id,
+            day,
+            due,
+            status,
+            reason,
+            waited_on,
+            raw,
+        ) in source.execute(
             "SELECT o.occurrence_id, o.public_id, o.schedule_id, "
-            "o.session_date, o.due_at, o.status, o.reason, s.record_json "
+            "o.session_date, o.due_at, o.status, o.reason, o.waited_on, s.record_json "
             "FROM schedule_occurrences o JOIN schedule_revisions s ON s.schedule_id=o.schedule_id "
             "AND s.revision=(SELECT MAX(n.revision) FROM schedule_revisions n "
             "WHERE n.schedule_id=o.schedule_id) "
@@ -326,9 +336,14 @@ def publish_activity(
                 "public_id": public_id,
                 "origin": "scheduled",
                 "session_date": day,
+                "slot": schedule.slot,
                 "status": status,
                 "reason": reason,
+                "waited_on": waited_on,
                 "due_at": due,
+                "window_closed_at": (
+                    datetime.fromisoformat(due) + timedelta(seconds=schedule.grace_seconds)
+                ).isoformat(),
                 "attempts": [],
                 "attempt_count": 0,
                 "attempts_truncated": False,

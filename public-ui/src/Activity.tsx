@@ -12,6 +12,17 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
   const status = item.status === 'running' && item.lease_expires_at && Date.parse(item.lease_expires_at) <= Date.now() + detail.offset ? 'stale' : item.status
   const summary = item.latest_attempt?.summary ?? item.summary ?? null
   const weighed = detail.data?.attempts?.find(attempt => attempt.weighed)?.weighed
+  // A skipped review never started, so it has no attempts to show; say what kept it from starting.
+  const at = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(value)) + ' ET'
+  let skipped: string | null = null
+  if (item.status === 'skipped' && item.due_at) {
+    const due = `It was due at ${at(item.due_at)}.`
+    const closed = item.window_closed_at ? ` before its window closed at ${at(item.window_closed_at)}` : ''
+    if (item.reason === 'overlap') skipped = `${due} Another review was still running, so this one was skipped instead of running alongside it.`
+    else if (item.reason === 'grace_expired' && item.waited_on === 'digest') skipped = `${due} It waited for the day's X digest, which wasn't ready${closed}.`
+    else if (item.reason === 'grace_expired' && item.waited_on === 'intake') skipped = `${due} It waited for its market data and account snapshot, which weren't ready${closed}.`
+    else if (item.reason === 'grace_expired') skipped = `${due} The agent was offline${item.window_closed_at ? ` until its window closed at ${at(item.window_closed_at)}` : ''}, so the review never started.`
+  }
   return <details className="stream-row stream-row--review" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>
       <span className="stream-kind" aria-hidden="true">Review</span>
@@ -24,6 +35,7 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
       <Chevron />
     </summary>
     <div className="disclosure-body">
+      {skipped && <p className="review-glance">{skipped}</p>}
       <ResourceNotice resource={detail} name="review attempts" />
       <SectionBoundary resetKey={detail.data} retry={detail.refresh} name="review history">
         {detail.data?.attempts?.map(attempt => <div className="attempt" key={attempt.public_id}><div className="section-heading"><h3>Attempt {attempt.attempt_number}</h3><Badge value={attempt.status} /></div>{/* One attempt's summary is the review's own, already shown above. */}{attempt.summary !== summary && <p>{attempt.summary ?? (attempt.reason ? label(attempt.reason) : label(attempt.stage))}</p>}<dl className="detail-grid"><Fact name="Requested model">{attempt.requested_model}</Fact><Fact name="Started">{when(attempt.started_at)}</Fact><Fact name="Finished">{attempt.finished_at ? when(attempt.finished_at) : 'Not recorded'}</Fact></dl></div>)}

@@ -56,8 +56,10 @@ def execute_due(
         from datetime import date
 
         day = date.fromisoformat(row[0])
+        waited_on = "digest"
         try:
             _completed_digest_runs(conn, day, digest_dir / f"{day}.md")
+            waited_on = "intake"
             if schedule.mode == "live":
                 raw = conn.execute(
                     "SELECT run_json FROM reasoning_runs WHERE session_date=? AND "
@@ -96,9 +98,9 @@ def execute_due(
             )
             with immediate(conn):
                 conn.execute(
-                    "UPDATE schedule_occurrences SET reason='dependency_missing', "
+                    "UPDATE schedule_occurrences SET reason='dependency_missing', waited_on=?, "
                     "observed_at=? WHERE occurrence_id=? AND status='waiting'",
-                    (now.isoformat(), occurrence),
+                    (waited_on, now.isoformat(), occurrence),
                 )
             outcomes.append({"status": "waiting", "reason": "dependency_missing"})
             continue

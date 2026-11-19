@@ -1,5 +1,5 @@
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -224,13 +224,22 @@ def test_changed_skipped_occurrence_and_profile_withdrawal_are_reconciled(tmp_pa
     )
     occurrence = record_due(conn, "close", NOW)[0]
     conn.execute(
-        "UPDATE schedule_occurrences SET status='skipped', reason='overlap' WHERE occurrence_id=?",
+        "UPDATE schedule_occurrences SET status='skipped', reason='grace_expired', "
+        "waited_on='digest' WHERE occurrence_id=?",
         (occurrence,),
     )
     conn.commit()
     publish(source, public)
     with open_readonly(public) as reader:
-        assert history(reader, "paper")["items"][0]["reason"] == "overlap"
+        skipped = history(reader, "paper")["items"][0]
+        assert (skipped["reason"], skipped["waited_on"]) == ("grace_expired", "digest")
+        assert (
+            skipped["window_closed_at"]
+            == (
+                datetime.fromisoformat(skipped["due_at"])
+                + timedelta(seconds=schedule.grace_seconds)
+            ).isoformat()
+        )
     conn.execute(
         "UPDATE schedule_occurrences SET status='waiting', reason=NULL WHERE occurrence_id=?",
         (occurrence,),

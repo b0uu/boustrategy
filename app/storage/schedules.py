@@ -208,7 +208,9 @@ def record_due(conn: sqlite3.Connection, schedule_id: str, now: datetime) -> lis
                 )
                 identity = "occ_" + uuid4().hex
                 conn.execute(
-                    "INSERT OR IGNORE INTO schedule_occurrences VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO schedule_occurrences (occurrence_id, public_id, "
+                    "schedule_id, revision, session_date, due_at, status, reason, observed_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         identity,
                         "occ_" + uuid4().hex,

@@ -146,10 +146,9 @@ def test_missing_dependency_keeps_private_diagnostics_then_grace_skips(tmp_path:
         )
         == []
     )
-    assert conn.execute("SELECT status, reason FROM schedule_occurrences").fetchone() == (
-        "skipped",
-        "grace_expired",
-    )
+    assert conn.execute(
+        "SELECT status, reason, waited_on FROM schedule_occurrences"
+    ).fetchone() == ("skipped", "grace_expired", "digest")
     assert conn.execute("SELECT COUNT(*) FROM runtime_attempts").fetchone()[0] == 0
     conn.close()
 

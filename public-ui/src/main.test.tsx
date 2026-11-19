@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { readPublic, usePublic } from './api'
 import { ResourceNotice } from './common'
-import { AgentStatus } from './Activity'
+import { AgentStatus, ReviewRow } from './Activity'
 import { ReviewPage } from './Review'
 import { PortfolioChart } from './Performance'
 import { amount, label, money, percent, publicUrl, tone } from './format'
@@ -99,6 +99,14 @@ it('shows reviews beside decisions so a no-action session is still public work',
   fireEvent.click(screen.getByRole('button', { name: 'positions' }))
   fireEvent.click(screen.getByRole('button', { name: 'feed' }))
   expect(document.querySelectorAll('.stream-row--review')).toHaveLength(1)
+})
+it('says what a skipped review waited on instead of opening onto nothing', () => {
+  const skipped = { public_id: 'run_skipped', origin: 'scheduled', session_date: '2026-11-19', slot: 'morning', status: 'skipped', reason: 'grace_expired', due_at: '2026-11-19T15:00:00+00:00', window_closed_at: '2026-11-19T15:30:00+00:00', attempt_count: 0, attempts_truncated: false }
+  render(<ReviewRow item={{ ...skipped, waited_on: 'digest' }} scope="live" />)
+  expect(screen.getByText("It was due at 10:00 AM ET. It waited for the day's X digest, which wasn't ready before its window closed at 10:30 AM ET.")).toBeInTheDocument()
+  cleanup()
+  render(<ReviewRow item={{ ...skipped, waited_on: null }} scope="live" />)
+  expect(screen.getByText('It was due at 10:00 AM ET. The agent was offline until its window closed at 10:30 AM ET, so the review never started.')).toBeInTheDocument()
 })
 it('defers the feed until first opened and retains its pages across tabs', async () => {
   history.replaceState({}, '', '/?tab=policies')
