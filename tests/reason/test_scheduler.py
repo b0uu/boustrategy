@@ -153,6 +153,63 @@ def test_missing_dependency_keeps_private_diagnostics_then_grace_skips(tmp_path:
     conn.close()
 
 
+def test_an_oversized_intake_waits_on_record_instead_of_crashing_the_tick(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn = connect(tmp_path / "oversized.db")
+    schedule = ScheduleRevision(
+        schedule_id="oversized-close",
+        revision=1,
+        mode="paper",
+        account_id="paper",
+        schedule_mode="scheduled",
+        enabled=True,
+        configured_at=NOW - timedelta(hours=2),
+    )
+    save_schedule(conn, schedule)
+    prepared = paper_run(conn, tmp_path, origin="manual")
+    receipt = PreparationResult(
+        session_date=NOW.date(),
+        prepared_at=NOW,
+        digest_path="digest.md",
+        completed_digest_runs=["digest"],
+        refreshed_price_bars={},
+        refreshed_calendar_events={},
+        fills_created=0,
+        intents_awaiting_price=0,
+        trigger_counts={},
+        regime="GREEN",
+        raw_regime="GREEN",
+        regime_score=5,
+        bundle_path=prepared.intake_path,
+    )
+    receipt_path = tmp_path / "oversized-preparation.json"
+    receipt_path.write_text(receipt.model_dump_json(), encoding="utf-8")
+    monkeypatch.setattr(scheduler, "_completed_digest_runs", lambda *args: ["digest"])
+
+    def oversized(*args: object) -> None:
+        raise ValueError("intake_too_large")
+
+    monkeypatch.setattr(scheduler, "assemble_intake", oversized)
+
+    result = scheduler.execute_due(
+        conn,
+        schedule.schedule_id,
+        "model",
+        NOW,
+        output_dir=tmp_path / "oversized-intakes",
+        log_root=tmp_path / "oversized-logs",
+        digest_dir=tmp_path,
+        paper_intake=receipt_path,
+    )
+
+    assert result == [{"status": "waiting", "reason": "intake_too_large"}]
+    assert conn.execute(
+        "SELECT status, reason, waited_on FROM schedule_occurrences"
+    ).fetchone() == ("waiting", "intake_too_large", "intake_size")
+    conn.close()
+
+
 def test_grace_window_crossing_et_midnight_skips_instead_of_crashing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -456,7 +456,8 @@ def connect(db_path: str | Path, *, wal: bool = False) -> sqlite3.Connection:
         _ensure_columns(
             conn, "decision_records", {"runtime_attempt_id": "TEXT NOT NULL DEFAULT ''"}
         )
-        # The input a due review last waited on ("digest" or "intake"). It outlives the
+        # The input a due review last waited on ("digest", "intake", or "intake_size" when the
+        # assembled intake was over the prompt limit). It outlives the
         # grace_expired reason that replaces it, so a skipped review can say what it waited for;
         # NULL means no scheduler tick saw the occurrence while it was due.
         _ensure_columns(conn, "schedule_occurrences", {"waited_on": "TEXT"})

@@ -234,9 +234,9 @@ def test_live_run_preparation_rejects_stale_initial_snapshot(tmp_path: Path) -> 
         )
 
 
-def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> None:
+def test_intake_excludes_nonpending_future_and_stale_queue_items(tmp_path: Path) -> None:
     conn = connect(tmp_path / "test.db")
-    for post_id in ("current", "resolved", "future"):
+    for post_id in ("current", "resolved", "future", "stale"):
         conn.execute(
             """
             INSERT INTO x_posts (post_id, handle, posted_at, text, url, fetched_at)
@@ -250,8 +250,13 @@ def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> No
             ("current", "2026-06-10T10:00:00Z", "pending"),
             ("resolved", "2026-06-10T10:00:00Z", "summarized"),
             ("future", "2026-06-11T10:00:00Z", "pending"),
+            ("stale", "2026-06-05T10:00:00Z", "pending"),
         ],
     )
+    digest_dir = tmp_path / "digests"
+    digest_dir.mkdir()
+    for day in ("2026-06-08", "2026-06-09", "2026-06-10"):
+        (digest_dir / f"{day}.md").write_text(f"# {day}\n", encoding="utf-8")
     conn.executemany(
         """
         INSERT INTO trigger_events
@@ -266,13 +271,15 @@ def test_intake_excludes_nonpending_and_future_queue_items(tmp_path: Path) -> No
     )
     conn.commit()
 
-    build_intake(conn, date(2026, 6, 10), tmp_path / "out")
+    build_intake(conn, date(2026, 6, 10), tmp_path / "out", digest_dir)
 
     articles = (tmp_path / "out" / "bundle.md").read_text(encoding="utf-8")
     triggers = json.loads((tmp_path / "out" / "triggers.json").read_text(encoding="utf-8"))
     assert "https://example.com/current" in articles
     assert "https://example.com/resolved" not in articles
     assert "https://example.com/future" not in articles
+    assert "https://example.com/stale" not in articles
+    assert "Left out as older than 2026-06-08: 1 queued articles." in articles
     assert [item["trigger_id"] for item in triggers] == ["current"]
 
 

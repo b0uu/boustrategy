@@ -182,13 +182,21 @@ def build_intake(
         lines.append("")
     if not digest_paths:
         lines.append("None.")
+    # Nothing resolves queued articles, so the queue only grows; a review sees those queued over
+    # the days its digests cover, as older links are no longer news.
+    since = digest_paths[-1].stem if digest_paths else on_date.isoformat()
+    recent = [item for item in articles if item["queued_at"][:10] >= since]
     lines.extend(["", "## Pending article queue", ""])
     lines.extend(
         f"- `{item['post_id']}` ({item['queued_at']}): {item['url']} — {item['text']}"
-        for item in articles
+        for item in recent
     )
-    if not articles:
+    if not recent:
         lines.append("None.")
+    if len(recent) < len(articles):
+        lines.append(
+            f"Left out as older than {since}: {len(articles) - len(recent)} queued articles."
+        )
     if not live:
         lines.extend(["", "## Paper portfolio", ""])
         lines.extend(

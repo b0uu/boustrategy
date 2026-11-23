@@ -148,6 +148,18 @@ def execute_due(
                 if winner is None:
                     raise
                 prepared = RuntimeRun.model_validate_json(winner[0])
+            except ValueError as error:
+                if str(error) != "intake_too_large":
+                    raise
+                with immediate(conn):
+                    conn.execute(
+                        "UPDATE schedule_occurrences SET reason='intake_too_large', "
+                        "waited_on='intake_size', observed_at=? WHERE occurrence_id=? AND "
+                        "status='waiting'",
+                        (now.isoformat(), occurrence),
+                    )
+                outcomes.append({"status": "waiting", "reason": "intake_too_large"})
+                continue
         options = {"runner": runner} if runner else {}
         try:
             attempt = execute_attempt(

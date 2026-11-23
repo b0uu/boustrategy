@@ -20,6 +20,7 @@ export function ReviewRow({ item, scope }: { item: ActivityItem; scope: Scope })
     const closed = item.window_closed_at ? ` before its window closed at ${at(item.window_closed_at)}` : ''
     if (item.reason === 'overlap') skipped = `${due} Another review was still running, so this one was skipped instead of running alongside it.`
     else if (item.reason === 'grace_expired' && item.waited_on === 'digest') skipped = `${due} It waited for the day's X digest, which wasn't ready${closed}.`
+    else if (item.reason === 'grace_expired' && item.waited_on === 'intake_size') skipped = `${due} Its prepared research was too large to send to the model, so the review couldn't start${closed}.`
     else if (item.reason === 'grace_expired' && item.waited_on === 'intake') skipped = `${due} It waited for its market data and account snapshot, which weren't ready${closed}.`
     else if (item.reason === 'grace_expired') skipped = `${due} The agent was offline${item.window_closed_at ? ` until its window closed at ${at(item.window_closed_at)}` : ''}, so the review never started.`
   }
