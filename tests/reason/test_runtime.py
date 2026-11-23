@@ -406,6 +406,16 @@ def test_assembled_intake_supplies_current_episode_and_orders_review_instants(
                 summary=summary,
             ),
         )
+    conn.execute(
+        "INSERT INTO decision_records VALUES ('prior', '2026-06-09T20:00:00+00:00', 'NVDA', "
+        "'BUY', ?, '')",
+        (json.dumps({"refined_thesis": "PRIOR_THESIS", "public_narrative": "PRIOR_STORY"}),),
+    )
+    conn.execute(
+        "INSERT INTO order_intents (order_intent_id, decision_id, created_at, ticker, side, "
+        "intent_json, execution_mode, execution_profile_id) VALUES ('intent', 'prior', "
+        "'2026-06-09T20:00:00+00:00', 'NVDA', 'BUY', '{}', 'PAPER', '')"
+    )
     conn.commit()
     path = tmp_path / "input.md"
     path.write_text("Supplied research", encoding="utf-8")
@@ -423,6 +433,8 @@ def test_assembled_intake_supplies_current_episode_and_orders_review_instants(
     text = Path(prepared.intake_path).read_text(encoding="utf-8")
     assert episode in text and "LATEST_REVIEW" in text
     assert "OLDER_REVIEW" not in text and "FUTURE_REVIEW" not in text
+    prior = text.split("# Prior authored context for current holdings\n\n")[1].split("\n\n", 1)[0]
+    assert "PRIOR_THESIS" in prior and "PRIOR_STORY" not in text, prior
     sections = text.split("# Current observed holding episodes\n\n")[1].split("\n\n", 1)[0]
     assert json.loads(sections)["items"][0]["episode_id"] == episode
     conn.close()

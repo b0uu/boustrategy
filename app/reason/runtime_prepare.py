@@ -347,7 +347,15 @@ def assemble_intake(
             ),
         ).fetchone()
         if row:
-            prior_context.append(json.loads(row[0]))
+            # The public narrative retells the thesis fields for readers and was the largest part
+            # of the intake; a Monday digest after a volatile weekend pushed it over the limit.
+            prior_context.append(
+                {
+                    key: value
+                    for key, value in json.loads(row[0]).items()
+                    if key != "public_narrative"
+                }
+            )
     sections.extend(
         [
             "# Prior authored context for current holdings",
